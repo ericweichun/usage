@@ -18,7 +18,7 @@ labels: bug
 **Environment**
 - macOS version:
 - Python version (`python3 --version`):
-- usag commit (`git -C path/to/usag rev-parse --short HEAD`):
+- usage commit (`git -C path/to/usage rev-parse --short HEAD`):
 - Mode: [menu bar / TUI / mock]
 
 **Logs**

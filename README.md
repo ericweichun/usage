@@ -1,22 +1,22 @@
-# usag
+# usage
 
 繁體中文 · [English](README.en.md)
 
-`usag` 是一個為 Claude Code 使用者設計的 macOS 工具，能將 5 小時 / 7 天用量顯示在右上角 menu bar 或終端機中，並支援開機自動啟動。
+`usage` 是一個為 Claude Code 使用者設計的 macOS 工具，能將 5 小時 / 7 天用量顯示在右上角 menu bar 或終端機中，並支援開機自動啟動。
 
 <p align="center">
-  <img src="docs/popover.png" alt="usag popover 展開時的樣子" width="320">
+  <img src="docs/popover.png" alt="usage popover 展開時的樣子" width="320">
 </p>
 
 ## 資料來源
 
-usag **不打 Anthropic API**、也不讀 Keychain，避免「自己每分鐘 ping 一次也算用量」的觀察者效應。
+usage **不打 Anthropic API**、也不讀 Keychain，避免「自己每分鐘 ping 一次也算用量」的觀察者效應。
 
-做法：安裝一個 Claude Code statusLine hook，Claude Code 主進程每次刷新狀態列時會把含 `rate_limits.five_hour.used_percentage` 等欄位的 JSON 餵給 hook，hook 把資料落地到 `~/.claude/usag-status.json`，usag 主程式反向讀這份檔。數字跟 Claude Code 自己看到的完全一致。
+做法：安裝一個 Claude Code statusLine hook，Claude Code 主進程每次刷新狀態列時會把含 `rate_limits.five_hour.used_percentage` 等欄位的 JSON 餵給 hook，hook 把資料落地到 `~/.claude/usag-status.json`，usage 主程式反向讀這份檔。數字跟 Claude Code 自己看到的完全一致。
 
 讀檔優先順序：
 
-1. `~/.claude/usag-status.json` — usag 自己 hook 寫的
+1. `~/.claude/usag-status.json` — usage 自己 hook 寫的
 2. `~/.claude/tt-status.json` — fallback，如果使用者也裝了 [token-tracker](https://github.com/stormzhang/token-tracker) 就直接共用
 
 ## 需求
@@ -144,7 +144,7 @@ USAG_DEBUG=1 python3 main.py
 
 ## 行為說明
 
-- usag 只讀 `~/.claude/usag-status.json` 或 `~/.claude/tt-status.json`，不打網路、不讀 Keychain。
+- usage 只讀 `~/.claude/usag-status.json` 或 `~/.claude/tt-status.json`，不打網路、不讀 Keychain。
 - Claude Code 沒在跑時，狀態檔不會更新，但因為實際用量也不會變（除非 reset 時間到），所以顯示值仍然有效；reset 時間過了會自動歸零。
 - 若狀態檔超過 6 小時沒更新，會在狀態訊息標示「狀態檔已 N 分鐘未更新，數字可能過時」。
 

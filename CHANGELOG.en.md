@@ -5,6 +5,15 @@
 All notable changes to usage are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 0.1.6 — 2026-05-18
+
+### Changed
+- Public-facing name unified from `usag` to `usage`, matching the GitHub repo:
+  - `pyproject.toml`'s `name` changed from `"usag"` to `"usage"` (so PyPI / `pip list` now show `usage`).
+  - `README.md` / `README.en.md` headers and prose now say `usage`.
+  - `.github/ISSUE_TEMPLATE/bug_report.md` updated likewise.
+- **Intentionally unchanged** (to avoid breaking existing installs): all file paths, settings keys, and binary names keep the `usag` prefix — `~/.claude/usag-status.json`, `~/.claude/usag-statusline.py`, `~/Library/Logs/usag/`, `com.lollapalooza.usag` (LaunchAgent label), `usag.app` (bundle), `USAG_DEBUG` (env var), `settings.usag.previousStatusLine` (JSON key) are all untouched. The technical short name is `usag`; the public name is `usage`.
+
 ## 0.1.5 — 2026-05-18
 
 ### CI

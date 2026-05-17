@@ -4,6 +4,15 @@
 
 本檔記錄 usage 所有重要變更。格式參考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## 0.1.6 — 2026-05-18
+
+### 變更
+- 對外名稱統一從 `usag` 改成 `usage`，跟 GitHub repo 名稱對齊：
+  - `pyproject.toml` 的 `name` 從 `"usag"` 改成 `"usage"`（PyPI / `pip list` 看到的就是 `usage`）。
+  - `README.md` / `README.en.md` 標題與 prose 都改成 `usage`。
+  - `.github/ISSUE_TEMPLATE/bug_report.md` 內提到的 commit 命令也對齊。
+- **不變的部分**（避免打到已安裝的使用者）：所有檔案路徑、設定 key 跟 binary 名稱仍保留 `usag` 前綴 —— `~/.claude/usag-status.json`、`~/.claude/usag-statusline.py`、`~/Library/Logs/usag/`、`com.lollapalooza.usag` (LaunchAgent label)、`usag.app` (bundle)、`USAG_DEBUG` (env var)、`settings.usag.previousStatusLine` (JSON key) 完全沒動。技術 contract 短名是 `usag`，對外名稱是 `usage`。
+
 ## 0.1.5 — 2026-05-18
 
 ### CI

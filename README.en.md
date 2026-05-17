@@ -1,23 +1,23 @@
-# usag
+# usage
 
 [繁體中文](README.md) · English
 
-`usag` is a macOS tool for Claude Code users that displays your 5-hour and 7-day usage in the right-hand menu bar or a terminal TUI, with optional auto-start on login.
+`usage` is a macOS tool for Claude Code users that displays your 5-hour and 7-day usage in the right-hand menu bar or a terminal TUI, with optional auto-start on login.
 
 <p align="center">
-  <img src="docs/popover.png" alt="usag popover" width="320">
+  <img src="docs/popover.png" alt="usage popover" width="320">
 </p>
 
 ## How it gets the data
 
-usag **never calls the Anthropic API and never reads the Keychain**, so it avoids the observer effect of "pinging once a minute counts as usage."
+usage **never calls the Anthropic API and never reads the Keychain**, so it avoids the observer effect of "pinging once a minute counts as usage."
 
-Instead it installs a Claude Code statusLine hook. Every time the Claude Code main process refreshes its status line, it pipes a JSON payload (with fields like `rate_limits.five_hour.used_percentage`) into the hook. The hook writes that payload to `~/.claude/usag-status.json`, and the usag UI reads the file. The numbers match exactly what Claude Code itself sees.
+Instead it installs a Claude Code statusLine hook. Every time the Claude Code main process refreshes its status line, it pipes a JSON payload (with fields like `rate_limits.five_hour.used_percentage`) into the hook. The hook writes that payload to `~/.claude/usag-status.json`, and the usage UI reads the file. The numbers match exactly what Claude Code itself sees.
 
 Read priority:
 
-1. `~/.claude/usag-status.json` — written by the hook usag installs.
-2. `~/.claude/tt-status.json` — fallback. If you also use [token-tracker](https://github.com/stormzhang/token-tracker), usag will share its status file.
+1. `~/.claude/usag-status.json` — written by the hook usage installs.
+2. `~/.claude/tt-status.json` — fallback. If you also use [token-tracker](https://github.com/stormzhang/token-tracker), usage will share its status file.
 
 ## Requirements
 
@@ -96,7 +96,7 @@ python3 main.py --tui
 
 ## Auto-start on login
 
-A LaunchAgent makes usag start automatically when you log in:
+A LaunchAgent makes usage start automatically when you log in:
 
 1. **Install:**
    ```bash
@@ -144,13 +144,13 @@ USAG_DEBUG=1 python3 main.py
 
 ## Behavior notes
 
-- usag only reads `~/.claude/usag-status.json` or `~/.claude/tt-status.json`. It does not make network calls and does not read the Keychain.
+- usage only reads `~/.claude/usag-status.json` or `~/.claude/tt-status.json`. It does not make network calls and does not read the Keychain.
 - When Claude Code isn't running, the status file isn't updated — but actual usage isn't changing either (until reset time), so the displayed value is still accurate. After reset time passes, it auto-resets to zero.
 - If the status file hasn't been updated for more than 6 hours, the status line notes "status file is N minutes stale, numbers may be out of date."
 
 ## Build a .app bundle (optional)
 
-If you want to launch usag by double-clicking instead of opening a terminal, build a native macOS app bundle:
+If you want to launch usage by double-clicking instead of opening a terminal, build a native macOS app bundle:
 
 ```bash
 ./build_app.sh
