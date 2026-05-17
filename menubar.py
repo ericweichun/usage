@@ -42,7 +42,17 @@ from usage_rate import GROUP_NAMES, UsageRateTracker
 POPOVER_WIDTH = 360.0
 CONTENT_HEIGHT = 488.0
 PADDING = 16.0
-TRACK_HEIGHT = 6.0
+TRACK_HEIGHT = 5.0
+CARD_HEIGHT = 152.0
+CARD_RADIUS = 14.0
+CARD_HEADER_TOP = 14.0
+CARD_ROW_TOP = 40.0
+CARD_ROW_GAP = 56.0
+CARD_SIDE_INSET = 14.0
+SECTION_GAP = 14.0
+FOOTER_GAP = 18.0
+FOOTER_LINE_GAP = 19.0
+BUTTON_TOP_GAP = 20.0
 CLAUDE_COLOR = (217 / 255, 119 / 255, 87 / 255)
 CODEX_COLOR = (73 / 255, 163 / 255, 176 / 255)
 
@@ -168,8 +178,8 @@ class QuotaRowView(NSView):
         width = self.bounds().size.width
         self.title_label.setFrame_(NSMakeRect(0, 0, width * 0.48, 18))
         self.percent_label.setFrame_(NSMakeRect(width * 0.48, 0, width * 0.52, 18))
-        self.progress_bar.setFrame_(NSMakeRect(0, 24, width, TRACK_HEIGHT))
-        self.reset_label.setFrame_(NSMakeRect(0, 38, width, 14))
+        self.progress_bar.setFrame_(NSMakeRect(0, 22, width, TRACK_HEIGHT))
+        self.reset_label.setFrame_(NSMakeRect(0, 32, width, 14))
 
     def setRowState_(self, row: QuotaRowState) -> None:
         self.title_label.setStringValue_(row.title)
@@ -207,11 +217,11 @@ class PopoverContentView(NSView):
         self.claude_weekly = QuotaRowView.alloc().initWithFrame_(NSMakeRect(0, 0, 1, 56))
         self.codex_session = QuotaRowView.alloc().initWithFrame_(NSMakeRect(0, 0, 1, 56))
         self.codex_weekly = QuotaRowView.alloc().initWithFrame_(NSMakeRect(0, 0, 1, 56))
-        self.rate_label = _label("速率：--", _regular_font(12), NSColor.labelColor())
-        self.status_label = _label("狀態：載入中", _regular_font(12), NSColor.labelColor())
+        self.rate_label = _label("速率：--", _regular_font(12), _muted_label_color())
+        self.status_label = _label("狀態：載入中", _regular_font(12), _muted_label_color())
         self.today_label = _label(
             "今日：$0.00（0 tokens）",
-            _regular_font(12),
+            _medium_font(),
             NSColor.labelColor(),
         )
         self.refresh_button = _button("立即重新整理", delegate, "refreshNow:")
@@ -239,30 +249,48 @@ class PopoverContentView(NSView):
     def layout(self) -> None:
         width = self.bounds().size.width
         content_width = width - (PADDING * 2)
-        y = PADDING
+        card_width = content_width
+        card_content_width = card_width - (CARD_SIDE_INSET * 2)
+        claude_y = PADDING
+        codex_y = claude_y + CARD_HEIGHT + SECTION_GAP
 
-        self.claude_header.setFrame_(NSMakeRect(PADDING, y, content_width, 16))
-        y += 28
-        self.claude_session.setFrame_(NSMakeRect(PADDING, y, content_width, 56))
-        y += 64
-        self.claude_weekly.setFrame_(NSMakeRect(PADDING, y, content_width, 56))
-        y += 64
-        y += 20
+        self.claude_header.setFrame_(
+            NSMakeRect(PADDING + CARD_SIDE_INSET, claude_y + CARD_HEADER_TOP, card_content_width, 18),
+        )
+        self.claude_session.setFrame_(
+            NSMakeRect(PADDING + CARD_SIDE_INSET, claude_y + CARD_ROW_TOP, card_content_width, 50),
+        )
+        self.claude_weekly.setFrame_(
+            NSMakeRect(
+                PADDING + CARD_SIDE_INSET,
+                claude_y + CARD_ROW_TOP + CARD_ROW_GAP,
+                card_content_width,
+                50,
+            ),
+        )
 
-        self.codex_header.setFrame_(NSMakeRect(PADDING, y, content_width, 16))
-        y += 28
-        self.codex_session.setFrame_(NSMakeRect(PADDING, y, content_width, 56))
-        y += 64
-        self.codex_weekly.setFrame_(NSMakeRect(PADDING, y, content_width, 56))
-        y += 64
-        y += 16
+        self.codex_header.setFrame_(
+            NSMakeRect(PADDING + CARD_SIDE_INSET, codex_y + CARD_HEADER_TOP, card_content_width, 18),
+        )
+        self.codex_session.setFrame_(
+            NSMakeRect(PADDING + CARD_SIDE_INSET, codex_y + CARD_ROW_TOP, card_content_width, 50),
+        )
+        self.codex_weekly.setFrame_(
+            NSMakeRect(
+                PADDING + CARD_SIDE_INSET,
+                codex_y + CARD_ROW_TOP + CARD_ROW_GAP,
+                card_content_width,
+                50,
+            ),
+        )
 
+        y = codex_y + CARD_HEIGHT + FOOTER_GAP
         self.rate_label.setFrame_(NSMakeRect(PADDING, y, content_width, 17))
-        y += 20
+        y += FOOTER_LINE_GAP
         self.status_label.setFrame_(NSMakeRect(PADDING, y, content_width, 17))
-        y += 20
-        self.today_label.setFrame_(NSMakeRect(PADDING, y, content_width, 17))
-        y += 34
+        y += FOOTER_LINE_GAP
+        self.today_label.setFrame_(NSMakeRect(PADDING, y, content_width, 18))
+        y += BUTTON_TOP_GAP
 
         button_width = (content_width - 8) / 2
         self.refresh_button.setFrame_(NSMakeRect(PADDING, y, button_width, 28))
@@ -271,15 +299,25 @@ class PopoverContentView(NSView):
     def drawRect_(self, dirty_rect: Any) -> None:
         NSColor.controlBackgroundColor().setFill()
         NSRectFill(self.bounds())
+        content_width = self.bounds().size.width - (PADDING * 2)
+        claude_rect = NSMakeRect(PADDING, PADDING, content_width, CARD_HEIGHT)
+        codex_rect = NSMakeRect(PADDING, PADDING + CARD_HEIGHT + SECTION_GAP, content_width, CARD_HEIGHT)
 
-        width = self.bounds().size.width - (PADDING * 2)
-        # Claude 區結束 y=164、Codex header 起點 y=192 → 中間 178
-        first_y = 178
-        # Codex 區結束 y=340、rate_label 起點 y=364 → 中間 352
-        second_y = 352
-        NSColor.separatorColor().setFill()
-        for y in (first_y, second_y):
-            NSRectFill(NSMakeRect(PADDING, y, width, 1))
+        _card_fill_color_for_view(self).setFill()
+        _fill_rounded_rect(claude_rect, CARD_RADIUS)
+        _fill_rounded_rect(codex_rect, CARD_RADIUS)
+
+        _card_separator_color_for_view(self).setFill()
+        for card_rect in (claude_rect, codex_rect):
+            separator_y = card_rect.origin.y + CARD_ROW_TOP + CARD_ROW_GAP - 6
+            NSRectFill(
+                NSMakeRect(
+                    card_rect.origin.x + CARD_SIDE_INSET,
+                    separator_y,
+                    card_rect.size.width - (CARD_SIDE_INSET * 2),
+                    1,
+                ),
+            )
 
     def setState_(self, state: PopoverState) -> None:
         self.claude_session.setRowState_(state.claude_session)
@@ -289,8 +327,9 @@ class PopoverContentView(NSView):
         self.rate_label.setStringValue_(state.rate_text)
         self.status_label.setStringValue_(state.status_text)
         self.today_label.setStringValue_(state.today_text)
-        for label in (self.rate_label, self.status_label, self.today_label):
-            label.setTextColor_(NSColor.labelColor())
+        self.rate_label.setTextColor_(_muted_label_color())
+        self.status_label.setTextColor_(_muted_label_color())
+        self.today_label.setTextColor_(NSColor.labelColor())
         self.setNeedsDisplay_(True)
 
 
@@ -622,11 +661,11 @@ def _button(title: str, target: Any, action: str) -> NSButton:
 
 
 def _semibold_font() -> NSFont:
-    return NSFont.systemFontOfSize_weight_(15, 0.3)
+    return NSFont.systemFontOfSize_weight_(16, 0.32)
 
 
 def _medium_font() -> NSFont:
-    return NSFont.systemFontOfSize_weight_(14, 0.23)
+    return NSFont.systemFontOfSize_weight_(13, 0.24)
 
 
 def _regular_font(size: float) -> NSFont:
@@ -634,7 +673,21 @@ def _regular_font(size: float) -> NSFont:
 
 
 def _muted_label_color() -> NSColor:
-    return NSColor.labelColor().colorWithAlphaComponent_(0.6)
+    return NSColor.labelColor().colorWithAlphaComponent_(0.68)
+
+
+def _card_fill_color_for_view(view: NSView) -> NSColor:
+    name = view.effectiveAppearance().name() or ""
+    if "Dark" in name:
+        return NSColor.whiteColor().colorWithAlphaComponent_(0.06)
+    return NSColor.blackColor().colorWithAlphaComponent_(0.045)
+
+
+def _card_separator_color_for_view(view: NSView) -> NSColor:
+    name = view.effectiveAppearance().name() or ""
+    if "Dark" in name:
+        return NSColor.whiteColor().colorWithAlphaComponent_(0.075)
+    return NSColor.blackColor().colorWithAlphaComponent_(0.08)
 
 
 def _track_color_for_view(view: NSView) -> NSColor:
