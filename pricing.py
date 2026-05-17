@@ -18,7 +18,7 @@ LITELLM_PRICING_URL = (
     "https://raw.githubusercontent.com/BerriAI/litellm/main/"
     "model_prices_and_context_window.json"
 )
-CACHE_PATH = Path(__file__).resolve().parent / "pricing_cache.json"
+CACHE_PATH = Path(os.path.expanduser("~/.claude/pricing_cache.json"))
 CACHE_TTL_DAYS = 7
 USER_AGENT = "usag/0.1"
 
@@ -103,6 +103,8 @@ def _fetch_pricing() -> PricingTable | None:
 def _write_cache(pricing: PricingTable) -> None:
     tmp_path: str | None = None
     try:
+        with contextlib.suppress(OSError):
+            CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp_path = tempfile.mkstemp(dir=CACHE_PATH.parent, suffix=".tmp")
         with os.fdopen(fd, "w", encoding="utf-8") as file:
             json.dump(pricing, file, ensure_ascii=False, indent=2, sort_keys=True)
