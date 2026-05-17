@@ -4,6 +4,11 @@
 
 本檔記錄 usag 所有重要變更。格式參考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## Unreleased
+
+### Build
+- `menubar.py` 的 mypy 設定從整檔 `# mypy: ignore-errors` 收緊成 `disable-error-code="import-untyped,misc"`，只放過 PyObjC 缺 stub 跟動態基底類別這兩類錯。其餘型別錯誤現在會被 mypy 抓到（之前 `tracker.sample` AttributeError 類的事，這層本來就該擋下）。
+
 ## 0.1.3 — 2026-05-18
 
 ### 變更

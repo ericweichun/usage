@@ -1,4 +1,5 @@
-# mypy: ignore-errors
+# mypy: disable-error-code="import-untyped,misc"
+# PyObjC modules do not ship type stubs, and their base classes resolve to Any in mypy.
 from __future__ import annotations
 
 import asyncio
@@ -255,7 +256,12 @@ class PopoverContentView(NSView):
         codex_y = claude_y + CARD_HEIGHT + SECTION_GAP
 
         self.claude_header.setFrame_(
-            NSMakeRect(PADDING + CARD_SIDE_INSET, claude_y + CARD_HEADER_TOP, card_content_width, 18),
+            NSMakeRect(
+                PADDING + CARD_SIDE_INSET,
+                claude_y + CARD_HEADER_TOP,
+                card_content_width,
+                18,
+            ),
         )
         self.claude_session.setFrame_(
             NSMakeRect(PADDING + CARD_SIDE_INSET, claude_y + CARD_ROW_TOP, card_content_width, 50),
@@ -270,7 +276,12 @@ class PopoverContentView(NSView):
         )
 
         self.codex_header.setFrame_(
-            NSMakeRect(PADDING + CARD_SIDE_INSET, codex_y + CARD_HEADER_TOP, card_content_width, 18),
+            NSMakeRect(
+                PADDING + CARD_SIDE_INSET,
+                codex_y + CARD_HEADER_TOP,
+                card_content_width,
+                18,
+            ),
         )
         self.codex_session.setFrame_(
             NSMakeRect(PADDING + CARD_SIDE_INSET, codex_y + CARD_ROW_TOP, card_content_width, 50),
@@ -301,7 +312,12 @@ class PopoverContentView(NSView):
         NSRectFill(self.bounds())
         content_width = self.bounds().size.width - (PADDING * 2)
         claude_rect = NSMakeRect(PADDING, PADDING, content_width, CARD_HEIGHT)
-        codex_rect = NSMakeRect(PADDING, PADDING + CARD_HEIGHT + SECTION_GAP, content_width, CARD_HEIGHT)
+        codex_rect = NSMakeRect(
+            PADDING,
+            PADDING + CARD_HEIGHT + SECTION_GAP,
+            content_width,
+            CARD_HEIGHT,
+        )
 
         _card_fill_color_for_view(self).setFill()
         _fill_rounded_rect(claude_rect, CARD_RADIUS)
