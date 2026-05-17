@@ -5,9 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## Unreleased
 
+## 0.1.1 — 2026-05-17
+
 ### Added
 - py2app `.app` bundle build config (`setup_app.py`, `build_app.sh`) so users can run usag without a terminal.
 - GitHub Actions release workflow (`release.yml`) automatically builds `usag.app.zip` and attaches it to each tagged release.
+- English README (`README.en.md`) and a language switcher at the top of both READMEs.
 
 ## 0.1.0 — 2026-05-17
 
