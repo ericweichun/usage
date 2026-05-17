@@ -5,7 +5,7 @@
 All notable changes to usage are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## Unreleased
+## 0.1.7 — 2026-05-18
 
 ### Documentation
 - README now ships 5 badges (CI status, latest release, Python version, platform, license).

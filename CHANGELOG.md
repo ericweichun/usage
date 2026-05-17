@@ -4,7 +4,7 @@
 
 本檔記錄 usage 所有重要變更。格式參考 [Keep a Changelog](https://keepachangelog.com/)。
 
-## Unreleased
+## 0.1.7 — 2026-05-18
 
 ### 文件
 - README 加上 5 顆 badge（CI 狀態、最新 release、Python 版本、平台、license）。
