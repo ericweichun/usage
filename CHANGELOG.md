@@ -4,7 +4,7 @@
 
 本檔記錄 usag 所有重要變更。格式參考 [Keep a Changelog](https://keepachangelog.com/)。
 
-## Unreleased
+## 0.1.4 — 2026-05-18
 
 ### CI
 - Release workflow（`.github/workflows/release.yml`）改成 self-heal：tag 推上去之後，如果對應的 GitHub release 還沒建立，會先用 `gh release create` 補建（空 notes、target 指向 tag 對應的 ref），再上傳 `usag.app.zip`。0.1.3 發版時遇到的「workflow 假設 release 已存在所以上傳失敗」不會再發生。
