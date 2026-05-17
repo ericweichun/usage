@@ -1,0 +1,93 @@
+from __future__ import annotations
+
+import json
+import shutil
+from pathlib import Path
+
+import pytest
+
+import setup_hook
+
+
+def _patch_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> tuple[Path, Path, Path]:
+    claude_dir = tmp_path / ".claude"
+    settings = claude_dir / "settings.json"
+    hook_target = claude_dir / "usag-statusline.py"
+    status_file = claude_dir / "usag-status.json"
+    hook_source = tmp_path / "hook_source.py"
+    hook_source.write_text("print('hook')\n", encoding="utf-8")
+    claude_dir.mkdir()
+    monkeypatch.setattr(setup_hook, "CLAUDE_SETTINGS", settings)
+    monkeypatch.setattr(setup_hook, "HOOK_TARGET", hook_target)
+    monkeypatch.setattr(setup_hook, "STATUS_FILE", status_file)
+    monkeypatch.setattr(setup_hook, "HOOK_SOURCE", hook_source)
+    monkeypatch.setattr(shutil, "which", lambda _: "/usr/bin/python3")
+    return settings, hook_target, status_file
+
+
+def test_setup_creates_new_settings_with_usag_statusline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    settings, hook_target, _ = _patch_paths(monkeypatch, tmp_path)
+
+    exit_code = setup_hook.setup()
+    data = json.loads(settings.read_text(encoding="utf-8"))
+
+    assert exit_code == 0
+    assert data["statusLine"]["type"] == "command"
+    assert str(hook_target) in data["statusLine"]["command"]
+    assert hook_target.exists()
+
+
+def test_setup_backs_up_existing_statusline_and_is_idempotent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    settings, hook_target, _ = _patch_paths(monkeypatch, tmp_path)
+    original = {"type": "command", "command": "echo original"}
+    settings.write_text(json.dumps({"statusLine": original}), encoding="utf-8")
+
+    assert setup_hook.setup() == 0
+    assert setup_hook.setup() == 0
+
+    data = json.loads(settings.read_text(encoding="utf-8"))
+    assert data["statusLine"]["command"] == f"/usr/bin/python3 {hook_target}"
+    assert data["usag"]["previousStatusLine"] == original
+
+
+def test_unsetup_restores_backup_and_removes_hook_files(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    settings, hook_target, status_file = _patch_paths(monkeypatch, tmp_path)
+    previous = {"type": "command", "command": "echo original"}
+    settings.write_text(
+        json.dumps(
+            {
+                "statusLine": {"type": "command", "command": f"/usr/bin/python3 {hook_target}"},
+                "usag": {"previousStatusLine": previous},
+            }
+        ),
+        encoding="utf-8",
+    )
+    hook_target.write_text("print('hook')\n", encoding="utf-8")
+    status_file.write_text("{}", encoding="utf-8")
+
+    exit_code = setup_hook.unsetup()
+    data = json.loads(settings.read_text(encoding="utf-8"))
+
+    assert exit_code == 0
+    assert data["statusLine"] == previous
+    assert "usag" not in data
+    assert not hook_target.exists()
+    assert not status_file.exists()
+
+
+def test_unsetup_without_install_is_safe_and_is_usag_hook_detects_commands(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _patch_paths(monkeypatch, tmp_path)
+
+    assert setup_hook.unsetup() == 0
+    assert setup_hook._is_usag_hook({"command": "python3 /tmp/usag-statusline.py"})
+    assert not setup_hook._is_usag_hook({"command": "python3 /tmp/other.py"})
