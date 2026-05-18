@@ -146,7 +146,7 @@ class ClaudeUsageClient:
 
         now = time.time()
         is_stale = (now - snapshot.polled_at) > STALE_SECONDS
-        source_tag = "tt-status" if source_path == TT_STATUS_FILE else "usag-status"
+        source_tag = "tt-status" if source_path == TT_STATUS_FILE else "usage"
         message = f"✓ 已同步（{source_tag}）"
         if is_stale:
             mins = int((now - snapshot.polled_at) / 60)
