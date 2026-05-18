@@ -7,6 +7,7 @@ import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import objc
@@ -14,25 +15,37 @@ from AppKit import (
     NSApp,
     NSApplication,
     NSApplicationActivationPolicyAccessory,
-    NSBezelStyleRounded,
     NSBezierPath,
     NSButton,
     NSColor,
     NSFont,
+    NSFontAttributeName,
+    NSForegroundColorAttributeName,
+    NSGradient,
+    NSImage,
     NSMakeRect,
     NSMakeSize,
     NSMinYEdge,
+    NSParagraphStyleAttributeName,
     NSPopover,
     NSPopoverBehaviorTransient,
     NSRectFill,
     NSStatusBar,
+    NSStrokeColorAttributeName,
     NSTextAlignmentRight,
     NSTextField,
     NSVariableStatusItemLength,
     NSView,
     NSViewController,
 )
-from Foundation import NSObject, NSRunLoop, NSRunLoopCommonModes, NSTimer
+from Foundation import (
+    NSBundle,
+    NSMutableParagraphStyle,
+    NSObject,
+    NSRunLoop,
+    NSRunLoopCommonModes,
+    NSTimer,
+)
 
 import codex_loader
 from history_loader import load_entries
@@ -40,22 +53,38 @@ from pricing import calculate_cost
 from usage_client import ClaudeUsageClient, PollOutcome, PollState
 from usage_rate import GROUP_NAMES, UsageRateTracker
 
-POPOVER_WIDTH = 360.0
-CONTENT_HEIGHT = 488.0
-PADDING = 16.0
-TRACK_HEIGHT = 5.0
-CARD_HEIGHT = 152.0
-CARD_RADIUS = 14.0
-CARD_HEADER_TOP = 14.0
-CARD_ROW_TOP = 40.0
-CARD_ROW_GAP = 56.0
-CARD_SIDE_INSET = 14.0
+POPOVER_WIDTH = 364.0
+CONTENT_HEIGHT = 574.0
+PADDING = 14.0
+TRACK_HEIGHT = 8.0
+CARD_HEIGHT = 184.0
+FOOTER_HEIGHT = 152.0
+CARD_RADIUS = 18.0
+CARD_HEADER_TOP = 22.0
+CARD_ROW_TOP = 66.0
+CARD_ROW_GAP = 64.0
+CARD_SIDE_INSET = 18.0
 SECTION_GAP = 14.0
-FOOTER_GAP = 18.0
-FOOTER_LINE_GAP = 19.0
-BUTTON_TOP_GAP = 20.0
-CLAUDE_COLOR = (217 / 255, 119 / 255, 87 / 255)
-CODEX_COLOR = (73 / 255, 163 / 255, 176 / 255)
+FOOTER_GAP = 12.0
+FOOTER_LINE_GAP = 18.0
+BUTTON_TOP_GAP = 18.0
+BUTTON_HEIGHT = 32.0
+CLAUDE_COLOR = (244 / 255, 145 / 255, 100 / 255)
+CODEX_COLOR = (88 / 255, 214 / 255, 230 / 255)
+
+
+def _resolve_resource(name: str) -> str:
+    bundle = NSBundle.mainBundle()
+    if bundle is not None:
+        stem, _, ext = name.rpartition(".")
+        path = bundle.pathForResource_ofType_(stem, ext)
+        if path:
+            return str(path)
+    return str(Path(__file__).with_name(name))
+
+
+CLAUDE_ICON_PATH = _resolve_resource("claude.webp")
+CODEX_ICON_PATH = _resolve_resource("codex.webp")
 
 _APP_DELEGATE: AppDelegate | None = None
 
@@ -143,8 +172,14 @@ class ProgressBarView(NSView):
         pct = max(0.0, min(100.0, float(self.percent)))
         fill_width = min(bounds.size.width, max(2.0, bounds.size.width * pct / 100.0))
         fill_rect = NSMakeRect(rect.origin.x, rect.origin.y, fill_width, rect.size.height)
-        self.bar_color.setFill()
-        _fill_rounded_rect(fill_rect, TRACK_HEIGHT / 2)
+        _accent_gradient(self.bar_color).drawInBezierPath_angle_(
+            NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
+                fill_rect,
+                TRACK_HEIGHT / 2,
+                TRACK_HEIGHT / 2,
+            ),
+            0.0,
+        )
 
 
 class QuotaRowView(NSView):
@@ -160,11 +195,11 @@ class QuotaRowView(NSView):
         self.title_label = _label("", _medium_font(), NSColor.labelColor())
         self.percent_label = _label(
             "",
-            NSFont.systemFontOfSize_weight_(12, 0.23),
-            _muted_label_color(),
+            NSFont.systemFontOfSize_weight_(12, 0.31),
+            NSColor.labelColor(),
             NSTextAlignmentRight,
         )
-        self.reset_label = _label("", _regular_font(10), _muted_label_color(), NSTextAlignmentRight)
+        self.reset_label = _label("", _regular_font(11), _muted_label_color(), NSTextAlignmentRight)
         self.progress_bar = ProgressBarView.alloc().initWithFrame_(
             NSMakeRect(0, 20, 1, TRACK_HEIGHT),
         )
@@ -177,10 +212,10 @@ class QuotaRowView(NSView):
 
     def layout(self) -> None:
         width = self.bounds().size.width
-        self.title_label.setFrame_(NSMakeRect(0, 0, width * 0.48, 18))
-        self.percent_label.setFrame_(NSMakeRect(width * 0.48, 0, width * 0.52, 18))
-        self.progress_bar.setFrame_(NSMakeRect(0, 22, width, TRACK_HEIGHT))
-        self.reset_label.setFrame_(NSMakeRect(0, 32, width, 14))
+        self.title_label.setFrame_(NSMakeRect(0, 0, width * 0.42, 18))
+        self.percent_label.setFrame_(NSMakeRect(width * 0.42, 0, width * 0.58, 18))
+        self.progress_bar.setFrame_(NSMakeRect(0, 24, width, TRACK_HEIGHT))
+        self.reset_label.setFrame_(NSMakeRect(0, 38, width, 14))
 
     def setRowState_(self, row: QuotaRowState) -> None:
         self.title_label.setStringValue_(row.title)
@@ -188,13 +223,79 @@ class QuotaRowView(NSView):
         self.reset_label.setStringValue_(row.reset_text)
         color = NSColor.colorWithCalibratedRed_green_blue_alpha_(*row.color, 1.0)
         self.progress_bar.setPercent_color_available_(row.percent, color, row.available)
-        for label in (self.percent_label, self.reset_label):
-            label.setTextColor_(_muted_label_color())
+        self.percent_label.setTextColor_(color if row.available else _muted_label_color())
+        self.reset_label.setTextColor_(_muted_label_color())
         self.setNeedsLayout_(True)
+
+
+class HeaderIconView(NSView):
+    accent_color = objc.ivar()
+    image = objc.ivar()
+
+    def initWithFrame_color_path_(self, frame: Any, color: NSColor, path: str) -> HeaderIconView:
+        self = objc.super(HeaderIconView, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.accent_color = color
+        self.image = NSImage.alloc().initWithContentsOfFile_(path)
+        return self
+
+    def isFlipped(self) -> bool:
+        return True
+
+    def drawRect_(self, dirty_rect: Any) -> None:
+        bounds = self.bounds()
+        if self.image is not None:
+            self.image.drawInRect_(bounds)
+
+
+class ActionButton(NSButton):
+    accent_color = objc.ivar()
+    is_primary = objc.ivar()
+
+    def initWithFrame_title_primary_color_target_action_(
+        self,
+        frame: Any,
+        title: str,
+        primary: bool,
+        color: NSColor | None,
+        target: Any,
+        action: str,
+    ) -> ActionButton:
+        self = objc.super(ActionButton, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.accent_color = color
+        self.is_primary = primary
+        self.setTitle_(title)
+        self.setFont_(NSFont.systemFontOfSize_weight_(14, 0.28))
+        self.setBordered_(False)
+        self.setTarget_(target)
+        self.setAction_(action)
+        return self
+
+    def drawRect_(self, dirty_rect: Any) -> None:
+        bounds = self.bounds()
+        radius = 10.0
+        path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(bounds, radius, radius)
+        border = _button_border_color(self, self.is_primary)
+        border.setStroke()
+
+        if self.is_primary and self.accent_color is not None:
+            _button_gradient(self.accent_color).drawInBezierPath_angle_(path, 90.0)
+        else:
+            _secondary_button_fill_color(self).setFill()
+            path.fill()
+
+        path.setLineWidth_(1.0)
+        path.stroke()
+        _draw_button_title(self, bounds)
 
 
 class PopoverContentView(NSView):
     delegate = objc.ivar()
+    claude_icon = objc.ivar()
+    codex_icon = objc.ivar()
     claude_header = objc.ivar()
     codex_header = objc.ivar()
     claude_session = objc.ivar()
@@ -212,23 +313,53 @@ class PopoverContentView(NSView):
         if self is None:
             return None
         self.delegate = delegate
+        claude_accent = NSColor.colorWithCalibratedRed_green_blue_alpha_(*CLAUDE_COLOR, 1.0)
+        codex_accent = NSColor.colorWithCalibratedRed_green_blue_alpha_(*CODEX_COLOR, 1.0)
+        self.claude_icon = HeaderIconView.alloc().initWithFrame_color_path_(
+            NSMakeRect(0, 0, 42, 42),
+            claude_accent,
+            str(CLAUDE_ICON_PATH),
+        )
+        self.codex_icon = HeaderIconView.alloc().initWithFrame_color_path_(
+            NSMakeRect(0, 0, 42, 42),
+            codex_accent,
+            str(CODEX_ICON_PATH),
+        )
         self.claude_header = _label("Claude Code", _semibold_font(), NSColor.labelColor())
         self.codex_header = _label("Codex", _semibold_font(), NSColor.labelColor())
         self.claude_session = QuotaRowView.alloc().initWithFrame_(NSMakeRect(0, 0, 1, 56))
         self.claude_weekly = QuotaRowView.alloc().initWithFrame_(NSMakeRect(0, 0, 1, 56))
         self.codex_session = QuotaRowView.alloc().initWithFrame_(NSMakeRect(0, 0, 1, 56))
         self.codex_weekly = QuotaRowView.alloc().initWithFrame_(NSMakeRect(0, 0, 1, 56))
-        self.rate_label = _label("速率：--", _regular_font(12), _muted_label_color())
-        self.status_label = _label("狀態：載入中", _regular_font(12), _muted_label_color())
+        self.rate_label = _label("速率：--", _regular_font(13.5), _muted_label_color())
+        self.status_label = _label("狀態：載入中", _regular_font(13.5), _muted_label_color())
         self.today_label = _label(
-            "今日：$0.00（0 tokens）",
-            _medium_font(),
+            "今日：$0.00 (0 tokens)",
+            NSFont.systemFontOfSize_weight_(15, 0.34),
             NSColor.labelColor(),
         )
-        self.refresh_button = _button("立即重新整理", delegate, "refreshNow:")
-        self.quit_button = _button("結束", delegate, "quitApp:")
+        self.today_label.setAllowsDefaultTighteningForTruncation_(True)
+        accent = NSColor.colorWithCalibratedRed_green_blue_alpha_(*CODEX_COLOR, 1.0)
+        self.refresh_button = ActionButton.alloc().initWithFrame_title_primary_color_target_action_(
+            NSMakeRect(0, 0, 1, BUTTON_HEIGHT),
+            "立即更新",
+            True,
+            accent,
+            delegate,
+            "refreshNow:",
+        )
+        self.quit_button = ActionButton.alloc().initWithFrame_title_primary_color_target_action_(
+            NSMakeRect(0, 0, 1, BUTTON_HEIGHT),
+            "結束",
+            False,
+            None,
+            delegate,
+            "quitApp:",
+        )
 
         for view in (
+            self.claude_icon,
+            self.codex_icon,
             self.claude_header,
             self.claude_session,
             self.claude_weekly,
@@ -254,62 +385,69 @@ class PopoverContentView(NSView):
         card_content_width = card_width - (CARD_SIDE_INSET * 2)
         claude_y = PADDING
         codex_y = claude_y + CARD_HEIGHT + SECTION_GAP
+        footer_y = codex_y + CARD_HEIGHT + FOOTER_GAP
+        icon_x = PADDING + CARD_SIDE_INSET
 
+        self.claude_icon.setFrame_(NSMakeRect(icon_x, claude_y + 18, 36, 36))
         self.claude_header.setFrame_(
             NSMakeRect(
-                PADDING + CARD_SIDE_INSET,
-                claude_y + CARD_HEADER_TOP,
-                card_content_width,
-                18,
+                icon_x + 48,
+                claude_y + CARD_HEADER_TOP + 1,
+                card_content_width - 48,
+                22,
             ),
         )
         self.claude_session.setFrame_(
-            NSMakeRect(PADDING + CARD_SIDE_INSET, claude_y + CARD_ROW_TOP, card_content_width, 50),
+            NSMakeRect(PADDING + CARD_SIDE_INSET, claude_y + CARD_ROW_TOP, card_content_width, 52),
         )
         self.claude_weekly.setFrame_(
             NSMakeRect(
                 PADDING + CARD_SIDE_INSET,
                 claude_y + CARD_ROW_TOP + CARD_ROW_GAP,
                 card_content_width,
-                50,
+                52,
             ),
         )
 
+        self.codex_icon.setFrame_(NSMakeRect(icon_x, codex_y + 18, 36, 36))
         self.codex_header.setFrame_(
             NSMakeRect(
-                PADDING + CARD_SIDE_INSET,
-                codex_y + CARD_HEADER_TOP,
-                card_content_width,
-                18,
+                icon_x + 48,
+                codex_y + CARD_HEADER_TOP + 1,
+                card_content_width - 48,
+                22,
             ),
         )
         self.codex_session.setFrame_(
-            NSMakeRect(PADDING + CARD_SIDE_INSET, codex_y + CARD_ROW_TOP, card_content_width, 50),
+            NSMakeRect(PADDING + CARD_SIDE_INSET, codex_y + CARD_ROW_TOP, card_content_width, 52),
         )
         self.codex_weekly.setFrame_(
             NSMakeRect(
                 PADDING + CARD_SIDE_INSET,
                 codex_y + CARD_ROW_TOP + CARD_ROW_GAP,
                 card_content_width,
-                50,
+                52,
             ),
         )
 
-        y = codex_y + CARD_HEIGHT + FOOTER_GAP
-        self.rate_label.setFrame_(NSMakeRect(PADDING, y, content_width, 17))
-        y += FOOTER_LINE_GAP
-        self.status_label.setFrame_(NSMakeRect(PADDING, y, content_width, 17))
-        y += FOOTER_LINE_GAP
-        self.today_label.setFrame_(NSMakeRect(PADDING, y, content_width, 18))
-        y += BUTTON_TOP_GAP
+        self.rate_label.setFrame_(NSMakeRect(PADDING + 18, footer_y + 16, content_width - 36, 18))
+        self.status_label.setFrame_(
+            NSMakeRect(PADDING + 18, footer_y + 16 + FOOTER_LINE_GAP, content_width - 36, 18),
+        )
+        self.today_label.setFrame_(
+            NSMakeRect(PADDING + 18, footer_y + 16 + FOOTER_LINE_GAP + 26, content_width - 36, 22),
+        )
+        y = footer_y + 16 + FOOTER_LINE_GAP + 26 + 24 + BUTTON_TOP_GAP
 
-        button_width = (content_width - 8) / 2
-        self.refresh_button.setFrame_(NSMakeRect(PADDING, y, button_width, 28))
-        self.quit_button.setFrame_(NSMakeRect(PADDING + button_width + 8, y, button_width, 28))
+        button_gap = 10.0
+        button_width = (content_width - 24 - button_gap) / 2
+        self.refresh_button.setFrame_(NSMakeRect(PADDING + 12, y, button_width, BUTTON_HEIGHT))
+        self.quit_button.setFrame_(
+            NSMakeRect(PADDING + 12 + button_width + button_gap, y, button_width, BUTTON_HEIGHT),
+        )
 
     def drawRect_(self, dirty_rect: Any) -> None:
-        NSColor.controlBackgroundColor().setFill()
-        NSRectFill(self.bounds())
+        _background_gradient_for_view(self).drawInRect_angle_(self.bounds(), 90.0)
         content_width = self.bounds().size.width - (PADDING * 2)
         claude_rect = NSMakeRect(PADDING, PADDING, content_width, CARD_HEIGHT)
         codex_rect = NSMakeRect(
@@ -318,14 +456,22 @@ class PopoverContentView(NSView):
             content_width,
             CARD_HEIGHT,
         )
+        footer_rect = NSMakeRect(
+            PADDING,
+            PADDING + (CARD_HEIGHT * 2) + SECTION_GAP + FOOTER_GAP,
+            content_width,
+            FOOTER_HEIGHT,
+        )
 
-        _card_fill_color_for_view(self).setFill()
-        _fill_rounded_rect(claude_rect, CARD_RADIUS)
-        _fill_rounded_rect(codex_rect, CARD_RADIUS)
+        for card_rect in (claude_rect, codex_rect, footer_rect):
+            _card_fill_color_for_view(self).setFill()
+            _fill_rounded_rect(card_rect, CARD_RADIUS)
+            _card_border_color_for_view(self).setStroke()
+            _stroke_rounded_rect(card_rect, CARD_RADIUS, 1.0)
 
         _card_separator_color_for_view(self).setFill()
         for card_rect in (claude_rect, codex_rect):
-            separator_y = card_rect.origin.y + CARD_ROW_TOP + CARD_ROW_GAP - 6
+            separator_y = card_rect.origin.y + CARD_ROW_TOP + CARD_ROW_GAP - 12
             NSRectFill(
                 NSMakeRect(
                     card_rect.origin.x + CARD_SIDE_INSET,
@@ -334,6 +480,14 @@ class PopoverContentView(NSView):
                     1,
                 ),
             )
+        NSRectFill(
+            NSMakeRect(
+                footer_rect.origin.x + 18,
+                footer_rect.origin.y + 54,
+                footer_rect.size.width - 36,
+                1,
+            ),
+        )
 
     def setState_(self, state: PopoverState) -> None:
         self.claude_session.setRowState_(state.claude_session)
@@ -582,7 +736,7 @@ def _empty_state() -> PopoverState:
         codex_weekly=_missing_row("Weekly", CODEX_COLOR),
         rate_text="速率：--",
         status_text="狀態：載入中",
-        today_text="今日：$0.00（0 tokens）",
+        today_text="今日：$0.00 (0 tokens)",
     )
 
 
@@ -626,7 +780,7 @@ def _missing_row(title: str, color: tuple[float, float, float]) -> QuotaRowState
 
 def _today_title(mock: bool = False) -> str:
     if mock:
-        return "今日：$45.20（50,193,442 tokens）"
+        return "今日：$45.20 (50,193,442 tokens)"
 
     today = datetime.now().astimezone().date()
     total_tokens = 0
@@ -639,7 +793,7 @@ def _today_title(mock: bool = False) -> str:
         total_tokens += entry.total_tokens
         total_cost += calculate_cost(entry)
 
-    return f"今日：${total_cost:.2f}（{total_tokens:,} tokens）"
+    return f"今日：${total_cost:.2f} ({total_tokens:,} tokens)"
 
 
 def _format_percent(value: float) -> str:
@@ -666,22 +820,12 @@ def _label(
     return label
 
 
-def _button(title: str, target: Any, action: str) -> NSButton:
-    button = NSButton.alloc().initWithFrame_(NSMakeRect(0, 0, 1, 28))
-    button.setTitle_(title)
-    button.setFont_(_regular_font(13))
-    button.setBezelStyle_(NSBezelStyleRounded)
-    button.setTarget_(target)
-    button.setAction_(action)
-    return button
-
-
 def _semibold_font() -> NSFont:
-    return NSFont.systemFontOfSize_weight_(16, 0.32)
+    return NSFont.systemFontOfSize_weight_(16, 0.33)
 
 
 def _medium_font() -> NSFont:
-    return NSFont.systemFontOfSize_weight_(13, 0.24)
+    return NSFont.systemFontOfSize_weight_(12.5, 0.28)
 
 
 def _regular_font(size: float) -> NSFont:
@@ -689,29 +833,113 @@ def _regular_font(size: float) -> NSFont:
 
 
 def _muted_label_color() -> NSColor:
-    return NSColor.labelColor().colorWithAlphaComponent_(0.68)
+    return NSColor.labelColor().colorWithAlphaComponent_(0.74)
+
+
+def _is_dark_appearance(view: NSView) -> bool:
+    name = view.effectiveAppearance().name() or ""
+    return "Dark" in name
 
 
 def _card_fill_color_for_view(view: NSView) -> NSColor:
-    name = view.effectiveAppearance().name() or ""
-    if "Dark" in name:
-        return NSColor.whiteColor().colorWithAlphaComponent_(0.06)
-    return NSColor.blackColor().colorWithAlphaComponent_(0.045)
+    if _is_dark_appearance(view):
+        return NSColor.colorWithCalibratedRed_green_blue_alpha_(0.115, 0.126, 0.15, 0.92)
+    return NSColor.whiteColor().colorWithAlphaComponent_(0.9)
+
+
+def _card_border_color_for_view(view: NSView) -> NSColor:
+    if _is_dark_appearance(view):
+        return NSColor.whiteColor().colorWithAlphaComponent_(0.08)
+    return NSColor.blackColor().colorWithAlphaComponent_(0.08)
 
 
 def _card_separator_color_for_view(view: NSView) -> NSColor:
-    name = view.effectiveAppearance().name() or ""
-    if "Dark" in name:
-        return NSColor.whiteColor().colorWithAlphaComponent_(0.075)
+    if _is_dark_appearance(view):
+        return NSColor.whiteColor().colorWithAlphaComponent_(0.09)
     return NSColor.blackColor().colorWithAlphaComponent_(0.08)
 
 
 def _track_color_for_view(view: NSView) -> NSColor:
-    name = view.effectiveAppearance().name() or ""
-    if "Dark" in name:
-        return NSColor.whiteColor().colorWithAlphaComponent_(0.055)
+    if _is_dark_appearance(view):
+        return NSColor.whiteColor().colorWithAlphaComponent_(0.07)
     return NSColor.blackColor().colorWithAlphaComponent_(0.057)
+
+
+def _background_gradient_for_view(view: NSView) -> NSGradient:
+    if _is_dark_appearance(view):
+        colors = [
+            NSColor.colorWithCalibratedRed_green_blue_alpha_(0.1, 0.11, 0.135, 1.0),
+            NSColor.colorWithCalibratedRed_green_blue_alpha_(0.065, 0.072, 0.09, 1.0),
+        ]
+    else:
+        colors = [
+            NSColor.colorWithCalibratedRed_green_blue_alpha_(0.96, 0.965, 0.975, 1.0),
+            NSColor.colorWithCalibratedRed_green_blue_alpha_(0.92, 0.93, 0.945, 1.0),
+        ]
+    return NSGradient.alloc().initWithColors_(colors)
+
+
+def _accent_gradient(color: NSColor) -> NSGradient:
+    return NSGradient.alloc().initWithColors_(
+        [
+            color.highlightWithLevel_(0.22),
+            color,
+        ],
+    )
+
+
+def _secondary_button_fill_color(view: NSView) -> NSColor:
+    if _is_dark_appearance(view):
+        return NSColor.whiteColor().colorWithAlphaComponent_(0.045)
+    return NSColor.blackColor().colorWithAlphaComponent_(0.035)
+
+
+def _button_gradient(color: NSColor) -> NSGradient:
+    return NSGradient.alloc().initWithColors_(
+        [
+            color.highlightWithLevel_(0.08),
+            color.shadowWithLevel_(0.12),
+        ],
+    )
+
+
+def _button_border_color(view: NSView, primary: bool) -> NSColor:
+    if primary:
+        return NSColor.whiteColor().colorWithAlphaComponent_(0.14)
+    if _is_dark_appearance(view):
+        return NSColor.whiteColor().colorWithAlphaComponent_(0.12)
+    return NSColor.blackColor().colorWithAlphaComponent_(0.1)
+
+
+def _icon_badge_fill(view: NSView) -> NSColor:
+    if _is_dark_appearance(view):
+        return NSColor.whiteColor().colorWithAlphaComponent_(0.04)
+    return NSColor.blackColor().colorWithAlphaComponent_(0.03)
+
+
+def _draw_button_title(button: ActionButton, bounds: Any) -> None:
+    style = NSMutableParagraphStyle.alloc().init()
+    style.setAlignment_(1)
+    text_color = (
+        NSColor.colorWithCalibratedRed_green_blue_alpha_(0.12, 0.18, 0.2, 0.96)
+        if button.is_primary
+        else NSColor.labelColor()
+    )
+    attrs = {
+        NSForegroundColorAttributeName: text_color,
+        NSParagraphStyleAttributeName: style,
+        NSStrokeColorAttributeName: NSColor.clearColor(),
+        NSFontAttributeName: NSFont.systemFontOfSize_weight_(14, 0.32),
+    }
+    title_rect = NSMakeRect(0, 8, bounds.size.width, 18)
+    button.title().drawInRect_withAttributes_(title_rect, attrs)
 
 
 def _fill_rounded_rect(rect: Any, radius: float) -> None:
     NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(rect, radius, radius).fill()
+
+
+def _stroke_rounded_rect(rect: Any, radius: float, width: float) -> None:
+    path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(rect, radius, radius)
+    path.setLineWidth_(width)
+    path.stroke()
