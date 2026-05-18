@@ -10,7 +10,7 @@
 
 `usage` 是一個 macOS menu bar（螢幕右上角的選單列）小工具，把 **Claude Code 跟 Codex** 的用量同時釘在你的螢幕右上角。點開可以看到這 5 小時用了多少、這 7 天用了多少、今天總共花了幾塊美金。
 
-不打 Anthropic / OpenAI 的 API（接口）、也不讀 Keychain（macOS 內建的密碼保險箱），所以不會發生「自己每分鐘 ping 一次也算用量」這種事。
+不呼叫 Anthropic / OpenAI 的 API（接口）、也不讀 Keychain（macOS 內建的密碼保險箱），所以不會發生「自己每分鐘 ping 一次也算用量」這種事。
 
 <p align="center">
   <img src="docs/popover.png" alt="usage popover 展開時的樣子" width="320">
@@ -18,7 +18,7 @@
 
 ## 它怎麼拿到你的用量數字
 
-usage **不打網路 API**。資料來源是 Claude Code 跟 Codex 在你本機留下的檔案。
+usage **完全不連網路**。資料來源是 Claude Code 跟 Codex 在你本機留下的檔案。
 
 ### Claude Code 用量
 
@@ -194,7 +194,7 @@ USAG_DEBUG=1 python3 main.py
 
 ## 一些行為說明
 
-- usage 只讀 `~/.claude/usag-status.json` 跟 `~/.claude/tt-status.json`（還有 Codex 那邊的 session 檔）。**不打網路、也不讀 Keychain**。
+- usage 只讀 `~/.claude/usag-status.json` 跟 `~/.claude/tt-status.json`（還有 Codex 那邊的 session 檔）。**完全不連網路、也不讀 Keychain**。
 - Claude Code 沒在跑的時候，狀態檔不會更新；但因為實際用量也不會變（除非重置時間到了），所以顯示的數字仍然是有效的；重置時間過了會自動歸零。
 - 如果狀態檔超過 6 小時沒被更新過，會在狀態訊息標註「狀態檔已 N 分鐘未更新，數字可能過時」。
 
