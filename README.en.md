@@ -125,12 +125,18 @@ python3 main.py
 
 ### Terminal TUI mode
 
-If you'd rather stay in a terminal, run the Rich Live TUI. It includes a small pixel-art Claude animation.
+If you'd rather stay in a terminal, run the Rich Live TUI — everything draws inside your terminal window via repeated text repaints. You get a pixel-art Claude logo, a spinner, a rotating set of Claude Code's playful loading phrases, and the same two progress bars as the menu bar popover:
+
+<p align="center">
+  <img src="docs/tui.png" alt="usage TUI mode" width="480">
+</p>
 
 ```bash
 source .venv/bin/activate
 python3 main.py --tui
 ```
+
+Press `Ctrl+C` to exit.
 
 ## Auto-start on login
 

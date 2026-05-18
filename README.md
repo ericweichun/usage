@@ -127,12 +127,18 @@ python3 main.py
 
 ### 終端機 TUI 模式
 
-如果你比較喜歡留在終端機，可以用 TUI（Text-based UI，文字版的圖形介面）模式，畫面會帶一個 Claude 的像素藝術動畫。
+如果你比較喜歡留在終端機，可以用 TUI（Text-based UI，文字版的圖形介面）模式 —— 畫面全部畫在終端機裡，不開新視窗，靠不停重畫文字模擬動畫效果。會有一個 Claude 的像素藝術 logo、旋轉的 spinner、輪播 Claude Code 那套搞笑 loading 字串，以及跟 menu bar 同樣的兩條進度條：
+
+<p align="center">
+  <img src="docs/tui.png" alt="usage TUI 模式畫面" width="480">
+</p>
 
 ```bash
 source .venv/bin/activate
 python3 main.py --tui
 ```
+
+按 `Ctrl+C` 退出。
 
 ## 開機自動啟動
 
