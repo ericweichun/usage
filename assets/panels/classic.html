@@ -242,6 +242,17 @@
       flex: 1;
     }
 
+    .action,
+    .switch {
+      transition: filter 80ms ease-out, transform 80ms ease-out;
+    }
+
+    .action:active,
+    .switch:active {
+      filter: brightness(0.82);
+      transform: scale(0.98);
+    }
+
     .action.primary {
       border-color: rgba(88, 214, 230, 0.45);
       background: linear-gradient(180deg, #34d7f2, #18acd8);

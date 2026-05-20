@@ -9,10 +9,12 @@
 ### 新增
 - **預設面板改為 WKWebView + HTML/CSS render**：classic 預設面板改由共用 HTML/CSS 層繪製，為後續 Windows 版本鋪路；macOS 仍透過 `NSPopover` 內嵌 `WKWebView` 呈現。
 - **Antigravity 額度追蹤**：popover 現在顯示 Claude Code / Codex / Antigravity 三張卡；Antigravity 卡含目前用量（Session）與每週上限（Weekly）兩排。
+- Antigravity 桶 `remainingFraction == 1.0`（未使用）時隱藏重置時間，避免 API 滾動 placeholder 顯示成永遠的「重置 ~24h」。
 
 ### 變更
 - `antigravity_loader` 依重置視窗自動分流：短窗歸為 Session，長窗歸為 Weekly；Google API 補上週 bucket 時 Weekly 會自動填值。
 - WKWebView 整合加入 JS bridge（refresh / quit / switch）、預先載入與深色 layer，減少開啟時白閃；切換面板時會 teardown 以解除 retain cycle。
+- 面板按鈕加入點擊壓深 + 微縮反饋。
 - 新增依賴：`pyobjc-framework-WebKit`、`pyobjc-framework-Quartz`。
 
 ### 移除
