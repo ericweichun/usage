@@ -81,10 +81,12 @@ The first time you open usage, if Claude Code has never been wired up yet, the p
 If the button doesn't show, usage is already reading data (e.g. you previously installed [token-tracker](https://github.com/stormzhang/token-tracker) and its status file works as a fallback) — nothing else to do.
 
 > **Fallback: install via curl**
-> If the in-app button doesn't work or you prefer the command line, paste this in Terminal:
+> If the in-app button doesn't work or you prefer the command line, run the following in Terminal (download first, inspect, then run):
 >
 > ```bash
-> bash <(curl -fsSL https://raw.githubusercontent.com/aqua5230/usage/main/scripts/install-hook.sh)
+> curl -fsSL https://raw.githubusercontent.com/aqua5230/usage/v0.6.0/scripts/install-hook.sh -o /tmp/usage-install.sh
+> cat /tmp/usage-install.sh   # review the script before running
+> bash /tmp/usage-install.sh
 > ```
 
 ## Download
