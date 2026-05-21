@@ -4,6 +4,11 @@
 
 本檔記錄 usage 所有重要變更。格式參考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [0.6.2] - 2026-05-22
+
+### 修正
+- **駭客任務面板「專案用量」資料夾圖示消失**：三張卡片 inline `style="--accent: var(--accent)"` 是自我參考的 cyclic CSS variable，依 CSS 規範會被判 invalid 並 unset，導致 inline SVG 的 `stroke="var(--accent)"` 取不到顏色變透明。Claude / Codex 卡用 `<img>` 不受影響，但 projects 卡的 SVG 資料夾圖示因此失蹤。`--accent` 已在 `:root` 定義並會 inherit，三個 cyclic inline style 是無意義的覆寫，移除後圖示正常顯示。
+
 ## [0.6.1] - 2026-05-22
 
 ### 新增
