@@ -5,19 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     :root {
-      --text: #e0f4ff;
-      --muted: #7ab8d4;
-      --surface: rgba(0, 40, 80, 0.22);
-      --surface-strong: rgba(4, 34, 68, 0.28);
-      --surface-line: rgba(0, 200, 255, 0.2);
-      --cyan: #45e9ff;
-      --claude: linear-gradient(90deg, #f8bc8b 0%, #f4a261 54%, #df8b49 100%);
-      --codex: linear-gradient(90deg, #96f7ff 0%, #3fd9ff 50%, #1b88d2 100%);
-      --projects: linear-gradient(90deg, #b9fff4 0%, #50e6c7 48%, #24a9ff 100%);
-      --warn: #ffd36a;
-      --danger: #ff746d;
-      --tick: rgba(224, 244, 255, 0.17);
-      --shadow: 0 18px 42px rgba(0, 10, 30, 0.38);
+      --text: #ffe8cc;
+      --muted: #b07040;
+      --surface: rgba(8, 4, 0, 0.28);
+      --line: rgba(255, 120, 20, 0.3);
+      --warn: #ffcc44;
+      --danger: #ff5533;
+      --bar: linear-gradient(90deg, #ff6600 0%, #ffcc44 52%, #ffffff 100%);
+      --tick: rgba(255, 232, 204, 0.13);
+      --shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
     }
 
     * {
@@ -34,39 +30,21 @@
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
       color: var(--text);
-      background: linear-gradient(180deg, #020d1a 0%, #041428 48%, #071e36 100%);
+      background: #000000;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
       overscroll-behavior: none;
     }
 
-    body::before,
     body::after {
       content: "";
       position: fixed;
       inset: 0;
       pointer-events: none;
       z-index: 0;
-    }
-
-    body::before {
       background:
-        radial-gradient(ellipse at 22% 8%, rgba(0, 220, 255, 0.14), transparent 38%),
-        radial-gradient(ellipse at 78% 18%, rgba(48, 116, 255, 0.12), transparent 36%),
-        linear-gradient(180deg, rgba(99, 224, 255, 0.08), transparent 42%);
-    }
-
-    body::after {
-      background:
-        linear-gradient(180deg, transparent 0 72%, rgba(0, 240, 255, 0.08) 100%),
-        repeating-linear-gradient(165deg, rgba(122, 184, 212, 0.06) 0 1px, transparent 1px 64px);
-      opacity: 0.7;
-    }
-
-    @keyframes glimmer {
-      0%, 100% { opacity: 0.18; transform: scale(0.82); }
-      45% { opacity: 0.92; transform: scale(1.2); }
-      70% { opacity: 0.32; transform: scale(0.95); }
+        radial-gradient(circle at 50% 32%, rgba(255, 110, 0, 0.11), transparent 28%),
+        linear-gradient(180deg, transparent 0 55%, rgba(70, 24, 0, 0.2) 100%);
     }
 
     @keyframes sweep {
@@ -74,7 +52,7 @@
       to { transform: translateX(220%); }
     }
 
-    .bubble-canvas {
+    .space-canvas {
       position: fixed;
       inset: 0;
       width: 100%;
@@ -85,73 +63,12 @@
 
     .viewport {
       position: relative;
+      z-index: 1;
       width: 100%;
       height: 100%;
       padding: 10px;
       overflow: hidden;
       isolation: isolate;
-      z-index: 1;
-    }
-
-    .sparkles,
-    .jellies {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    .spark {
-      position: absolute;
-      width: var(--size);
-      height: var(--size);
-      left: var(--x);
-      top: var(--y);
-      border-radius: 50%;
-      background: rgba(102, 246, 255, 0.9);
-      box-shadow: 0 0 10px rgba(102, 246, 255, 0.85);
-      opacity: 0.35;
-      animation: glimmer var(--duration) ease-in-out infinite;
-      animation-delay: var(--delay);
-    }
-
-    .jelly {
-      position: absolute;
-      width: var(--w);
-      height: var(--h);
-      left: var(--x);
-      top: var(--y);
-      border-radius: 52% 52% 46% 46%;
-      background:
-        radial-gradient(ellipse at 48% 24%, rgba(255, 255, 255, 0.48), transparent 24%),
-        linear-gradient(180deg, rgba(124, 244, 255, 0.5), rgba(26, 186, 225, 0.16));
-      border: 1px solid rgba(136, 248, 255, 0.28);
-      box-shadow: 0 0 20px cyan;
-      opacity: 0.78;
-      transform: translate3d(0, 0, 0);
-      will-change: transform;
-    }
-
-    .jelly::before,
-    .jelly::after {
-      content: "";
-      position: absolute;
-      left: 18%;
-      right: 18%;
-      top: 86%;
-      height: 34px;
-      border-left: 1px solid rgba(124, 244, 255, 0.46);
-      border-right: 1px solid rgba(124, 244, 255, 0.26);
-      border-radius: 0 0 50% 50%;
-      filter: drop-shadow(0 0 6px rgba(69, 233, 255, 0.5));
-    }
-
-    .jelly::after {
-      left: 38%;
-      right: 38%;
-      height: 44px;
-      border-color: rgba(181, 252, 255, 0.4);
-      transform: translateY(1px);
     }
 
     .wrap {
@@ -168,12 +85,12 @@
     .footer {
       position: relative;
       overflow: hidden;
-      border: 1px solid var(--surface-line);
+      border: 1px solid var(--line);
       background: var(--surface);
-      box-shadow: var(--shadow), inset 0 1px 0 rgba(224, 244, 255, 0.08);
+      box-shadow: var(--shadow), 0 0 24px rgba(255, 100, 0, 0.08) inset;
       border-radius: 8px;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
     }
 
     .card::before,
@@ -181,10 +98,10 @@
       content: "";
       position: absolute;
       inset: 0;
-      background:
-        linear-gradient(180deg, rgba(104, 228, 255, 0.1), transparent 36%),
-        radial-gradient(circle at top right, rgba(0, 200, 255, 0.16), transparent 34%);
       pointer-events: none;
+      background:
+        radial-gradient(circle at top right, rgba(255, 160, 32, 0.12), transparent 34%),
+        linear-gradient(180deg, rgba(255, 120, 20, 0.08), transparent 42%);
     }
 
     .card {
@@ -198,30 +115,32 @@
 
     .header {
       position: relative;
+      z-index: 1;
       display: flex;
       align-items: center;
       gap: 10px;
       margin-bottom: 12px;
-      z-index: 1;
     }
 
     .header img,
-    .reef-badge {
+    .singularity-badge {
       width: 28px;
       height: 28px;
       flex: none;
       border-radius: 50%;
-      border: 1px solid rgba(0, 200, 255, 0.22);
-      background: rgba(0, 40, 80, 0.56);
-      box-shadow: 0 0 14px rgba(69, 233, 255, 0.22), inset 0 0 12px rgba(69, 233, 255, 0.12);
+      border: 1px solid rgba(255, 140, 40, 0.34);
+      background:
+        radial-gradient(circle, #000 0 42%, rgba(255, 150, 35, 0.5) 48%, rgba(40, 8, 0, 0.8) 72%),
+        rgba(20, 8, 0, 0.8);
+      box-shadow: 0 0 18px rgba(255, 100, 0, 0.2), inset 0 0 12px rgba(255, 180, 60, 0.1);
     }
 
-    .reef-badge {
+    .singularity-badge {
       display: grid;
       place-items: center;
-      color: var(--cyan);
-      font-size: 15px;
-      font-weight: 700;
+      color: #ffcc44;
+      font-size: 14px;
+      font-weight: 800;
     }
 
     .header-copy {
@@ -243,13 +162,13 @@
     .switch,
     .range-chip,
     .action {
-      border: 1px solid rgba(69, 233, 255, 0.46);
-      background: rgba(2, 22, 44, 0.62);
+      border: 1px solid rgba(255, 120, 20, 0.4);
+      background: rgba(20, 8, 0, 0.8);
       color: var(--text);
       font: inherit;
       font-size: 12px;
       font-weight: 600;
-      box-shadow: 0 0 12px rgba(69, 233, 255, 0.16), inset 0 0 12px rgba(69, 233, 255, 0.08);
+      box-shadow: 0 0 14px rgba(255, 100, 0, 0.14), inset 0 0 10px rgba(255, 160, 32, 0.06);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
     }
@@ -277,7 +196,7 @@
 
     .row + .row {
       margin-top: 10px;
-      border-top: 1px solid rgba(0, 200, 255, 0.14);
+      border-top: 1px solid rgba(255, 120, 20, 0.15);
     }
 
     .row-head {
@@ -307,9 +226,9 @@
       padding: 2px;
       overflow: hidden;
       border-radius: 999px;
-      border: 1px solid rgba(0, 200, 255, 0.22);
-      background: rgba(1, 17, 34, 0.72);
-      box-shadow: inset 0 2px 10px rgba(0, 5, 18, 0.42);
+      border: 1px solid rgba(255, 120, 20, 0.24);
+      background: rgba(12, 4, 0, 0.84);
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.62);
     }
 
     .track::before {
@@ -333,8 +252,8 @@
       inset: 1px auto 1px 0;
       width: 40%;
       border-radius: inherit;
-      background: linear-gradient(90deg, transparent, rgba(224, 244, 255, 0.48), transparent);
-      animation: sweep 2.6s linear infinite;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.68), transparent);
+      animation: sweep 2.5s linear infinite;
       pointer-events: none;
       z-index: 3;
     }
@@ -342,12 +261,12 @@
     .fill {
       position: relative;
       z-index: 1;
-      width: 0%;
+      width: var(--value, 0%);
       height: 100%;
       border-radius: inherit;
-      background: var(--accent);
-      box-shadow: 0 0 18px rgba(69, 233, 255, 0.26);
-      transition: width 160ms ease-out, background 160ms ease-out;
+      background: var(--bar);
+      box-shadow: 0 0 18px rgba(255, 100, 0, 0.24);
+      transition: width 160ms ease-out, filter 160ms ease-out;
     }
 
     .reset {
@@ -365,7 +284,7 @@
 
     .row[data-available="false"] .percent,
     .row[data-available="false"] .reset {
-      color: rgba(122, 184, 212, 0.72);
+      color: rgba(176, 112, 64, 0.72);
     }
 
     .projects-card {
@@ -388,8 +307,8 @@
       gap: 8px;
       padding: 6px 10px;
       border-radius: 8px;
-      border: 1px solid rgba(0, 200, 255, 0.16);
-      background: rgba(1, 24, 50, 0.48);
+      border: 1px solid rgba(255, 120, 20, 0.16);
+      background: rgba(18, 7, 0, 0.66);
     }
 
     .proj-topline {
@@ -405,8 +324,8 @@
       width: 18px;
       height: 18px;
       border-radius: 50%;
-      background: rgba(69, 233, 255, 0.14);
-      color: var(--cyan);
+      background: rgba(255, 120, 20, 0.16);
+      color: #ffcc44;
       font-size: 11px;
       font-weight: 700;
       flex: none;
@@ -460,7 +379,7 @@
       z-index: 1;
       margin-top: 5px;
       padding-top: 5px;
-      border-top: 1px solid rgba(0, 200, 255, 0.14);
+      border-top: 1px solid rgba(255, 120, 20, 0.15);
       font-size: 13px;
       line-height: 1.15;
       font-weight: 600;
@@ -484,10 +403,6 @@
       border-radius: 999px;
     }
 
-    .action.primary {
-      background: rgba(0, 82, 122, 0.58);
-    }
-
     .action[data-action="install"] {
       display: none;
     }
@@ -503,27 +418,11 @@
   </style>
 </head>
 <body>
-  <canvas class="bubble-canvas" aria-hidden="true"></canvas>
-  <div class="sparkles" aria-hidden="true">
-    <span class="spark" style="--x: 12%; --y: 18%; --size: 3px; --duration: 4.6s; --delay: -1.2s"></span>
-    <span class="spark" style="--x: 72%; --y: 11%; --size: 2px; --duration: 5.2s; --delay: -2.1s"></span>
-    <span class="spark" style="--x: 86%; --y: 31%; --size: 4px; --duration: 6s; --delay: -3.2s"></span>
-    <span class="spark" style="--x: 18%; --y: 44%; --size: 2px; --duration: 4.1s; --delay: -0.7s"></span>
-    <span class="spark" style="--x: 58%; --y: 52%; --size: 3px; --duration: 5.6s; --delay: -4.1s"></span>
-    <span class="spark" style="--x: 34%; --y: 72%; --size: 2px; --duration: 4.8s; --delay: -2.8s"></span>
-    <span class="spark" style="--x: 79%; --y: 78%; --size: 3px; --duration: 5.8s; --delay: -1.7s"></span>
-    <span class="spark" style="--x: 45%; --y: 24%; --size: 2px; --duration: 4.9s; --delay: -3.7s"></span>
-  </div>
-  <div class="jellies" aria-hidden="true">
-    <span class="jelly" style="--x: 8%; --y: 12%; --w: 48px; --h: 34px"></span>
-    <span class="jelly" style="--x: 72%; --y: 24%; --w: 42px; --h: 30px"></span>
-    <span class="jelly" style="--x: 18%; --y: 62%; --w: 38px; --h: 28px"></span>
-    <span class="jelly" style="--x: 74%; --y: 68%; --w: 52px; --h: 36px"></span>
-  </div>
+  <canvas class="space-canvas" aria-hidden="true"></canvas>
 
   <div class="viewport">
     <main class="wrap">
-      <section class="card" data-card="claude" style="--accent: var(--claude)">
+      <section class="card" data-card="claude">
         <header class="header">
           <img src="{{CLAUDE_ICON}}" alt="">
           <div class="header-copy">
@@ -535,7 +434,7 @@
         <div class="row" data-row="weekly"></div>
       </section>
 
-      <section class="card" data-card="codex" style="--accent: var(--codex)">
+      <section class="card" data-card="codex">
         <header class="header">
           <img src="{{CODEX_ICON}}" alt="">
           <div class="header-copy">
@@ -546,9 +445,9 @@
         <div class="row" data-row="weekly"></div>
       </section>
 
-      <section class="card projects-card" data-card="projects" style="--accent: var(--projects)">
+      <section class="card projects-card" data-card="projects">
         <header class="header">
-          <div class="reef-badge" aria-hidden="true">~</div>
+          <div class="singularity-badge" aria-hidden="true">O</div>
           <div class="header-copy">
             <h1 data-i18n="projects_title">Project Usage</h1>
           </div>
@@ -658,18 +557,16 @@
       return getComputedStyle(root).getPropertyValue(name).trim();
     }
 
-    function colorFor(percent, fallback) {
-      if (typeof percent !== "number") return fallback;
+    function colorFor(percent) {
+      if (typeof percent !== "number") return "";
       if (percent >= 80) return cssVar("--danger");
       if (percent >= 50) return cssVar("--warn");
-      return fallback;
+      return "";
     }
 
     function renderRow(card, key, row) {
       const el = document.querySelector(`[data-card="${card}"] [data-row="${key}"]`);
       if (!el) return;
-      const cardEl = el.closest(".card");
-      if (!cardEl) return;
       const data = row || {
         percent: null,
         percentText: "--",
@@ -678,8 +575,7 @@
         available: false,
       };
       const available = data.available === true && typeof data.percent === "number";
-      const accent = getComputedStyle(cardEl).getPropertyValue("--accent").trim();
-      const color = colorFor(data.percent, accent);
+      const alertColor = colorFor(data.percent);
       el.dataset.available = available ? "true" : "false";
       el.innerHTML = `
         <div class="row-head">
@@ -698,9 +594,9 @@
       percent.textContent = data.percentText || "--";
       reset.textContent = data.resetText || t("reset_placeholder");
       reset.dataset.warning = data.warning === true ? "true" : "false";
-      percent.style.color = available ? color : "";
-      fill.style.width = available ? `${Math.max(0, Math.min(100, data.percent))}%` : "0%";
-      fill.style.background = color;
+      percent.style.color = available && alertColor ? alertColor : "";
+      fill.style.setProperty("--value", available ? `${Math.max(0, Math.min(100, data.percent))}%` : "0%");
+      fill.style.filter = available && alertColor ? "brightness(1.14)" : "";
     }
 
     function applyCard(name, rows) {
@@ -793,22 +689,40 @@
       }
     });
 
-    const canvas = document.querySelector(".bubble-canvas");
+    const canvas = document.querySelector(".space-canvas");
     const ctx = canvas.getContext("2d");
-    const bubbles = [];
-    const bubbleCount = 42;
+    const stars = [];
+    const particles = [];
+    const starCount = 120;
+    const particleCount = 16;
+    const twinkleCount = 8;
     let width = 0;
     let height = 0;
     let pixelRatio = 1;
 
-    function resetBubble(bubble, fromBottom = true) {
-      bubble.x = Math.random() * width;
-      bubble.y = fromBottom ? height + Math.random() * 80 : Math.random() * height;
-      bubble.r = 2 + Math.random() * 6;
-      bubble.speed = 0.22 + Math.random() * 0.62;
-      bubble.drift = 0.25 + Math.random() * 0.55;
-      bubble.phase = Math.random() * Math.PI * 2;
-      bubble.opacity = 0.3 + Math.random() * 0.4;
+    function createStars() {
+      stars.length = 0;
+      for (let i = 0; i < starCount; i += 1) {
+        stars.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          r: 0.5 + Math.random(),
+          alpha: 0.3 + Math.random() * 0.7,
+          phase: Math.random() * Math.PI * 2,
+          twinkle: i < twinkleCount,
+        });
+      }
+    }
+
+    function createParticles() {
+      particles.length = 0;
+      for (let i = 0; i < particleCount; i += 1) {
+        particles.push({
+          phase: (i / particleCount) * Math.PI * 2,
+          speed: 0.0015 + Math.random() * 0.0012,
+          size: 1.4 + Math.random() * 1.8,
+        });
+      }
     }
 
     function resizeCanvas() {
@@ -820,51 +734,116 @@
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-      if (bubbles.length === 0) {
-        for (let i = 0; i < bubbleCount; i += 1) {
-          const bubble = {};
-          resetBubble(bubble, false);
-          bubbles.push(bubble);
-        }
-      }
+      createStars();
+      if (particles.length === 0) createParticles();
     }
 
-    function drawBubbles(time) {
-      ctx.clearRect(0, 0, width, height);
-      bubbles.forEach((bubble) => {
-        bubble.y -= bubble.speed;
-        bubble.x += Math.sin(time * 0.0012 + bubble.phase) * bubble.drift;
-        if (bubble.y < -bubble.r * 3) resetBubble(bubble);
-        if (bubble.x < -10) bubble.x = width + 10;
-        if (bubble.x > width + 10) bubble.x = -10;
+    function drawStars(time) {
+      stars.forEach((star) => {
+        const wobble = star.twinkle ? Math.sin(time * 0.004 + star.phase) * 0.18 : 0;
+        const alpha = Math.max(0.18, Math.min(1, star.alpha + wobble));
         ctx.beginPath();
-        ctx.arc(bubble.x, bubble.y, bubble.r, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(159, 245, 255, ${bubble.opacity})`;
-        ctx.fillStyle = `rgba(159, 245, 255, ${bubble.opacity * 0.16})`;
-        ctx.lineWidth = 1;
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
         ctx.fill();
-        ctx.stroke();
       });
     }
 
-    const jellyNodes = Array.from(document.querySelectorAll(".jelly")).map((node, index) => ({
-      node,
-      index,
-      phase: Math.random() * Math.PI * 2,
-    }));
+    function ellipsePoint(cx, cy, rx, ry, angle, rotation) {
+      const x = Math.cos(angle) * rx;
+      const y = Math.sin(angle) * ry;
+      const cos = Math.cos(rotation);
+      const sin = Math.sin(rotation);
+      return {
+        x: cx + x * cos - y * sin,
+        y: cy + x * sin + y * cos,
+      };
+    }
 
-    function moveJellies(time) {
-      jellyNodes.forEach(({ node, index, phase }) => {
-        const y = Math.sin(time * 0.001 + phase) * (8 + index * 2);
-        const x = Math.sin(time * 0.00055 + phase) * 5;
-        const pulse = 1 + Math.sin(time * 0.0014 + phase) * 0.035;
-        node.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${pulse})`;
+    function drawDiskHalf(cx, cy, rotation, start, end) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rotation);
+      const gradient = ctx.createLinearGradient(-104, 0, 104, 0);
+      gradient.addColorStop(0, "#ffffff");
+      gradient.addColorStop(0.24, "#ffd060");
+      gradient.addColorStop(0.46, "#ff8800");
+      gradient.addColorStop(0.72, "#ff4400");
+      gradient.addColorStop(0.88, "#aa2200");
+      gradient.addColorStop(1, "#330000");
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 100, 28, 0, start, end);
+      ctx.ellipse(0, 0, 52, 14, 0, end, start, true);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.shadowColor = "rgba(255, 130, 0, 0.45)";
+      ctx.shadowBlur = 16;
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255, 220, 120, 0.24)";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawEventHorizon(cx, cy) {
+      const edge = ctx.createRadialGradient(cx, cy, 28, cx, cy, 58);
+      edge.addColorStop(0, "rgba(0, 0, 0, 0)");
+      edge.addColorStop(0.58, "rgba(80, 40, 180, 0.5)");
+      edge.addColorStop(1, "rgba(80, 40, 180, 0)");
+      ctx.beginPath();
+      ctx.arc(cx, cy, 58, 0, Math.PI * 2);
+      ctx.fillStyle = edge;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, 36, 0, Math.PI * 2);
+      ctx.fillStyle = "#000000";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, 38, 0, Math.PI * 2);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "rgba(255, 200, 80, 0.7)";
+      ctx.stroke();
+    }
+
+    function drawParticleStream(cx, cy, rotation, time) {
+      particles.forEach((particle) => {
+        const base = particle.phase + time * particle.speed;
+        for (let i = 3; i >= 0; i -= 1) {
+          const point = ellipsePoint(cx, cy, 100, 28, base - i * 0.09, rotation);
+          const alpha = (4 - i) * 0.14;
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, particle.size * (1 - i * 0.12), 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, ${150 + i * 18}, 40, ${alpha})`;
+          ctx.fill();
+        }
       });
+    }
+
+    function drawBlackHole(time) {
+      const cx = width / 2;
+      const cy = height * 0.32;
+      const rotation = time * 0.00024;
+      const halo = ctx.createRadialGradient(cx, cy, 12, cx, cy, 120);
+      halo.addColorStop(0, "rgba(255, 140, 0, 0.25)");
+      halo.addColorStop(0.42, "rgba(255, 95, 0, 0.12)");
+      halo.addColorStop(1, "rgba(255, 140, 0, 0)");
+      ctx.beginPath();
+      ctx.arc(cx, cy, 120, 0, Math.PI * 2);
+      ctx.fillStyle = halo;
+      ctx.fill();
+
+      drawDiskHalf(cx, cy, rotation, 0, Math.PI);
+      drawEventHorizon(cx, cy);
+      drawDiskHalf(cx, cy, rotation, Math.PI, Math.PI * 2);
+      drawParticleStream(cx, cy, rotation, time);
     }
 
     function animate(time) {
-      drawBubbles(time);
-      moveJellies(time);
+      ctx.clearRect(0, 0, width, height);
+      drawStars(time);
+      drawBlackHole(time);
       window.requestAnimationFrame(animate);
     }
 

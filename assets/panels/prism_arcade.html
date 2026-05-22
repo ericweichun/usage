@@ -5,19 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     :root {
-      --text: #e0f4ff;
-      --muted: #7ab8d4;
-      --surface: rgba(0, 40, 80, 0.22);
-      --surface-strong: rgba(4, 34, 68, 0.28);
-      --surface-line: rgba(0, 200, 255, 0.2);
-      --cyan: #45e9ff;
-      --claude: linear-gradient(90deg, #f8bc8b 0%, #f4a261 54%, #df8b49 100%);
-      --codex: linear-gradient(90deg, #96f7ff 0%, #3fd9ff 50%, #1b88d2 100%);
-      --projects: linear-gradient(90deg, #b9fff4 0%, #50e6c7 48%, #24a9ff 100%);
-      --warn: #ffd36a;
-      --danger: #ff746d;
-      --tick: rgba(224, 244, 255, 0.17);
-      --shadow: 0 18px 42px rgba(0, 10, 30, 0.38);
+      --text: #f0e8ff;
+      --muted: #a08cc0;
+      --panel-bg: rgba(10, 0, 20, 0.25);
+      --warn: #ffe066;
+      --danger: #ff4f8a;
+      --tick: rgba(240, 232, 255, 0.16);
+      --rainbow: linear-gradient(90deg, hsl(0 100% 62%), hsl(45 100% 62%), hsl(100 100% 60%), hsl(175 100% 58%), hsl(235 100% 68%), hsl(300 100% 64%));
+      --holo-border: linear-gradient(135deg, #ff00ff, #00ffff, #ffff00, #ff00ff);
+      --shadow: 0 18px 46px rgba(0, 0, 0, 0.44);
     }
 
     * {
@@ -34,7 +30,7 @@
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
       color: var(--text);
-      background: linear-gradient(180deg, #020d1a 0%, #041428 48%, #071e36 100%);
+      background: #07000f;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
       overscroll-behavior: none;
@@ -44,29 +40,30 @@
     body::after {
       content: "";
       position: fixed;
-      inset: 0;
+      inset: -32%;
       pointer-events: none;
       z-index: 0;
     }
 
     body::before {
-      background:
-        radial-gradient(ellipse at 22% 8%, rgba(0, 220, 255, 0.14), transparent 38%),
-        radial-gradient(ellipse at 78% 18%, rgba(48, 116, 255, 0.12), transparent 36%),
-        linear-gradient(180deg, rgba(99, 224, 255, 0.08), transparent 42%);
+      background: conic-gradient(from 0deg, #ff00ff, #00ffff, #ffff00, #ff6600, #8844ff, #ff00ff);
+      opacity: 0.07;
+      filter: blur(18px);
+      animation: auraSpin 28s linear infinite;
     }
 
     body::after {
+      inset: 0;
       background:
-        linear-gradient(180deg, transparent 0 72%, rgba(0, 240, 255, 0.08) 100%),
-        repeating-linear-gradient(165deg, rgba(122, 184, 212, 0.06) 0 1px, transparent 1px 64px);
-      opacity: 0.7;
+        radial-gradient(circle at 18% 12%, rgba(255, 0, 255, 0.18), transparent 28%),
+        radial-gradient(circle at 78% 18%, rgba(0, 255, 255, 0.14), transparent 28%),
+        radial-gradient(circle at 52% 92%, rgba(255, 255, 0, 0.1), transparent 30%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 42%);
+      opacity: 0.8;
     }
 
-    @keyframes glimmer {
-      0%, 100% { opacity: 0.18; transform: scale(0.82); }
-      45% { opacity: 0.92; transform: scale(1.2); }
-      70% { opacity: 0.32; transform: scale(0.95); }
+    @keyframes auraSpin {
+      to { transform: rotate(360deg); }
     }
 
     @keyframes sweep {
@@ -74,7 +71,7 @@
       to { transform: translateX(220%); }
     }
 
-    .bubble-canvas {
+    .prism-canvas {
       position: fixed;
       inset: 0;
       width: 100%;
@@ -85,73 +82,12 @@
 
     .viewport {
       position: relative;
+      z-index: 1;
       width: 100%;
       height: 100%;
       padding: 10px;
       overflow: hidden;
       isolation: isolate;
-      z-index: 1;
-    }
-
-    .sparkles,
-    .jellies {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    .spark {
-      position: absolute;
-      width: var(--size);
-      height: var(--size);
-      left: var(--x);
-      top: var(--y);
-      border-radius: 50%;
-      background: rgba(102, 246, 255, 0.9);
-      box-shadow: 0 0 10px rgba(102, 246, 255, 0.85);
-      opacity: 0.35;
-      animation: glimmer var(--duration) ease-in-out infinite;
-      animation-delay: var(--delay);
-    }
-
-    .jelly {
-      position: absolute;
-      width: var(--w);
-      height: var(--h);
-      left: var(--x);
-      top: var(--y);
-      border-radius: 52% 52% 46% 46%;
-      background:
-        radial-gradient(ellipse at 48% 24%, rgba(255, 255, 255, 0.48), transparent 24%),
-        linear-gradient(180deg, rgba(124, 244, 255, 0.5), rgba(26, 186, 225, 0.16));
-      border: 1px solid rgba(136, 248, 255, 0.28);
-      box-shadow: 0 0 20px cyan;
-      opacity: 0.78;
-      transform: translate3d(0, 0, 0);
-      will-change: transform;
-    }
-
-    .jelly::before,
-    .jelly::after {
-      content: "";
-      position: absolute;
-      left: 18%;
-      right: 18%;
-      top: 86%;
-      height: 34px;
-      border-left: 1px solid rgba(124, 244, 255, 0.46);
-      border-right: 1px solid rgba(124, 244, 255, 0.26);
-      border-radius: 0 0 50% 50%;
-      filter: drop-shadow(0 0 6px rgba(69, 233, 255, 0.5));
-    }
-
-    .jelly::after {
-      left: 38%;
-      right: 38%;
-      height: 44px;
-      border-color: rgba(181, 252, 255, 0.4);
-      transform: translateY(1px);
     }
 
     .wrap {
@@ -165,15 +101,27 @@
     }
 
     .card,
+    .footer,
+    .switch,
+    .range-chip,
+    .action {
+      border: 1.5px solid transparent;
+      background-image:
+        linear-gradient(#07000f, #07000f),
+        var(--holo-border);
+      background-origin: border-box;
+      background-clip: padding-box, border-box;
+    }
+
+    .card,
     .footer {
       position: relative;
       overflow: hidden;
-      border: 1px solid var(--surface-line);
-      background: var(--surface);
-      box-shadow: var(--shadow), inset 0 1px 0 rgba(224, 244, 255, 0.08);
+      background-color: var(--panel-bg);
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
       border-radius: 8px;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
     }
 
     .card::before,
@@ -182,9 +130,10 @@
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(180deg, rgba(104, 228, 255, 0.1), transparent 36%),
-        radial-gradient(circle at top right, rgba(0, 200, 255, 0.16), transparent 34%);
+        linear-gradient(135deg, rgba(255, 0, 255, 0.12), transparent 32%, rgba(0, 255, 255, 0.12) 68%, transparent),
+        radial-gradient(circle at top right, rgba(255, 255, 0, 0.1), transparent 34%);
       pointer-events: none;
+      mix-blend-mode: screen;
     }
 
     .card {
@@ -198,30 +147,32 @@
 
     .header {
       position: relative;
+      z-index: 1;
       display: flex;
       align-items: center;
       gap: 10px;
       margin-bottom: 12px;
-      z-index: 1;
     }
 
     .header img,
-    .reef-badge {
+    .prism-badge {
       width: 28px;
       height: 28px;
       flex: none;
-      border-radius: 50%;
-      border: 1px solid rgba(0, 200, 255, 0.22);
-      background: rgba(0, 40, 80, 0.56);
-      box-shadow: 0 0 14px rgba(69, 233, 255, 0.22), inset 0 0 12px rgba(69, 233, 255, 0.12);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background:
+        linear-gradient(135deg, rgba(255, 0, 255, 0.3), rgba(0, 255, 255, 0.18), rgba(255, 255, 0, 0.22)),
+        rgba(40, 0, 60, 0.22);
+      box-shadow: 0 0 18px rgba(255, 0, 255, 0.22), inset 0 0 14px rgba(255, 255, 255, 0.08);
     }
 
-    .reef-badge {
+    .prism-badge {
       display: grid;
       place-items: center;
-      color: var(--cyan);
-      font-size: 15px;
-      font-weight: 700;
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 800;
     }
 
     .header-copy {
@@ -243,13 +194,12 @@
     .switch,
     .range-chip,
     .action {
-      border: 1px solid rgba(69, 233, 255, 0.46);
-      background: rgba(2, 22, 44, 0.62);
+      background-color: rgba(40, 0, 60, 0.25);
       color: var(--text);
       font: inherit;
       font-size: 12px;
       font-weight: 600;
-      box-shadow: 0 0 12px rgba(69, 233, 255, 0.16), inset 0 0 12px rgba(69, 233, 255, 0.08);
+      box-shadow: 0 0 14px rgba(255, 0, 255, 0.18), inset 0 0 10px rgba(0, 255, 255, 0.08);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
     }
@@ -277,7 +227,7 @@
 
     .row + .row {
       margin-top: 10px;
-      border-top: 1px solid rgba(0, 200, 255, 0.14);
+      border-top: 1px solid rgba(240, 232, 255, 0.13);
     }
 
     .row-head {
@@ -307,9 +257,9 @@
       padding: 2px;
       overflow: hidden;
       border-radius: 999px;
-      border: 1px solid rgba(0, 200, 255, 0.22);
-      background: rgba(1, 17, 34, 0.72);
-      box-shadow: inset 0 2px 10px rgba(0, 5, 18, 0.42);
+      border: 1px solid rgba(240, 232, 255, 0.18);
+      background: rgba(8, 0, 16, 0.84);
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.48);
     }
 
     .track::before {
@@ -333,8 +283,8 @@
       inset: 1px auto 1px 0;
       width: 40%;
       border-radius: inherit;
-      background: linear-gradient(90deg, transparent, rgba(224, 244, 255, 0.48), transparent);
-      animation: sweep 2.6s linear infinite;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+      animation: sweep 2.4s linear infinite;
       pointer-events: none;
       z-index: 3;
     }
@@ -342,12 +292,12 @@
     .fill {
       position: relative;
       z-index: 1;
-      width: 0%;
+      width: var(--value, 0%);
       height: 100%;
       border-radius: inherit;
-      background: var(--accent);
-      box-shadow: 0 0 18px rgba(69, 233, 255, 0.26);
-      transition: width 160ms ease-out, background 160ms ease-out;
+      background: var(--rainbow);
+      box-shadow: 0 0 20px rgba(255, 0, 255, 0.2), 0 0 18px rgba(0, 255, 255, 0.16);
+      transition: width 160ms ease-out, filter 160ms ease-out;
     }
 
     .reset {
@@ -365,7 +315,7 @@
 
     .row[data-available="false"] .percent,
     .row[data-available="false"] .reset {
-      color: rgba(122, 184, 212, 0.72);
+      color: rgba(160, 140, 192, 0.7);
     }
 
     .projects-card {
@@ -388,8 +338,8 @@
       gap: 8px;
       padding: 6px 10px;
       border-radius: 8px;
-      border: 1px solid rgba(0, 200, 255, 0.16);
-      background: rgba(1, 24, 50, 0.48);
+      border: 1px solid rgba(240, 232, 255, 0.14);
+      background: rgba(25, 0, 42, 0.56);
     }
 
     .proj-topline {
@@ -404,9 +354,9 @@
       place-items: center;
       width: 18px;
       height: 18px;
-      border-radius: 50%;
-      background: rgba(69, 233, 255, 0.14);
-      color: var(--cyan);
+      border-radius: 6px;
+      background: linear-gradient(135deg, rgba(255, 0, 255, 0.24), rgba(0, 255, 255, 0.22));
+      color: var(--text);
       font-size: 11px;
       font-weight: 700;
       flex: none;
@@ -460,7 +410,7 @@
       z-index: 1;
       margin-top: 5px;
       padding-top: 5px;
-      border-top: 1px solid rgba(0, 200, 255, 0.14);
+      border-top: 1px solid rgba(240, 232, 255, 0.13);
       font-size: 13px;
       line-height: 1.15;
       font-weight: 600;
@@ -484,10 +434,6 @@
       border-radius: 999px;
     }
 
-    .action.primary {
-      background: rgba(0, 82, 122, 0.58);
-    }
-
     .action[data-action="install"] {
       display: none;
     }
@@ -503,27 +449,11 @@
   </style>
 </head>
 <body>
-  <canvas class="bubble-canvas" aria-hidden="true"></canvas>
-  <div class="sparkles" aria-hidden="true">
-    <span class="spark" style="--x: 12%; --y: 18%; --size: 3px; --duration: 4.6s; --delay: -1.2s"></span>
-    <span class="spark" style="--x: 72%; --y: 11%; --size: 2px; --duration: 5.2s; --delay: -2.1s"></span>
-    <span class="spark" style="--x: 86%; --y: 31%; --size: 4px; --duration: 6s; --delay: -3.2s"></span>
-    <span class="spark" style="--x: 18%; --y: 44%; --size: 2px; --duration: 4.1s; --delay: -0.7s"></span>
-    <span class="spark" style="--x: 58%; --y: 52%; --size: 3px; --duration: 5.6s; --delay: -4.1s"></span>
-    <span class="spark" style="--x: 34%; --y: 72%; --size: 2px; --duration: 4.8s; --delay: -2.8s"></span>
-    <span class="spark" style="--x: 79%; --y: 78%; --size: 3px; --duration: 5.8s; --delay: -1.7s"></span>
-    <span class="spark" style="--x: 45%; --y: 24%; --size: 2px; --duration: 4.9s; --delay: -3.7s"></span>
-  </div>
-  <div class="jellies" aria-hidden="true">
-    <span class="jelly" style="--x: 8%; --y: 12%; --w: 48px; --h: 34px"></span>
-    <span class="jelly" style="--x: 72%; --y: 24%; --w: 42px; --h: 30px"></span>
-    <span class="jelly" style="--x: 18%; --y: 62%; --w: 38px; --h: 28px"></span>
-    <span class="jelly" style="--x: 74%; --y: 68%; --w: 52px; --h: 36px"></span>
-  </div>
+  <canvas class="prism-canvas" aria-hidden="true"></canvas>
 
   <div class="viewport">
     <main class="wrap">
-      <section class="card" data-card="claude" style="--accent: var(--claude)">
+      <section class="card" data-card="claude">
         <header class="header">
           <img src="{{CLAUDE_ICON}}" alt="">
           <div class="header-copy">
@@ -535,7 +465,7 @@
         <div class="row" data-row="weekly"></div>
       </section>
 
-      <section class="card" data-card="codex" style="--accent: var(--codex)">
+      <section class="card" data-card="codex">
         <header class="header">
           <img src="{{CODEX_ICON}}" alt="">
           <div class="header-copy">
@@ -546,9 +476,9 @@
         <div class="row" data-row="weekly"></div>
       </section>
 
-      <section class="card projects-card" data-card="projects" style="--accent: var(--projects)">
+      <section class="card projects-card" data-card="projects">
         <header class="header">
-          <div class="reef-badge" aria-hidden="true">~</div>
+          <div class="prism-badge" aria-hidden="true">P</div>
           <div class="header-copy">
             <h1 data-i18n="projects_title">Project Usage</h1>
           </div>
@@ -658,18 +588,16 @@
       return getComputedStyle(root).getPropertyValue(name).trim();
     }
 
-    function colorFor(percent, fallback) {
-      if (typeof percent !== "number") return fallback;
+    function colorFor(percent) {
+      if (typeof percent !== "number") return "";
       if (percent >= 80) return cssVar("--danger");
       if (percent >= 50) return cssVar("--warn");
-      return fallback;
+      return "";
     }
 
     function renderRow(card, key, row) {
       const el = document.querySelector(`[data-card="${card}"] [data-row="${key}"]`);
       if (!el) return;
-      const cardEl = el.closest(".card");
-      if (!cardEl) return;
       const data = row || {
         percent: null,
         percentText: "--",
@@ -678,8 +606,7 @@
         available: false,
       };
       const available = data.available === true && typeof data.percent === "number";
-      const accent = getComputedStyle(cardEl).getPropertyValue("--accent").trim();
-      const color = colorFor(data.percent, accent);
+      const alertColor = colorFor(data.percent);
       el.dataset.available = available ? "true" : "false";
       el.innerHTML = `
         <div class="row-head">
@@ -698,9 +625,9 @@
       percent.textContent = data.percentText || "--";
       reset.textContent = data.resetText || t("reset_placeholder");
       reset.dataset.warning = data.warning === true ? "true" : "false";
-      percent.style.color = available ? color : "";
-      fill.style.width = available ? `${Math.max(0, Math.min(100, data.percent))}%` : "0%";
-      fill.style.background = color;
+      percent.style.color = available && alertColor ? alertColor : "";
+      fill.style.setProperty("--value", available ? `${Math.max(0, Math.min(100, data.percent))}%` : "0%");
+      fill.style.filter = available && alertColor ? "saturate(1.25) brightness(1.12)" : "";
     }
 
     function applyCard(name, rows) {
@@ -793,22 +720,42 @@
       }
     });
 
-    const canvas = document.querySelector(".bubble-canvas");
+    const canvas = document.querySelector(".prism-canvas");
     const ctx = canvas.getContext("2d");
-    const bubbles = [];
-    const bubbleCount = 42;
+    const shards = [];
+    const motes = [];
+    const shardCount = 26;
+    const moteCount = 64;
     let width = 0;
     let height = 0;
     let pixelRatio = 1;
 
-    function resetBubble(bubble, fromBottom = true) {
-      bubble.x = Math.random() * width;
-      bubble.y = fromBottom ? height + Math.random() * 80 : Math.random() * height;
-      bubble.r = 2 + Math.random() * 6;
-      bubble.speed = 0.22 + Math.random() * 0.62;
-      bubble.drift = 0.25 + Math.random() * 0.55;
-      bubble.phase = Math.random() * Math.PI * 2;
-      bubble.opacity = 0.3 + Math.random() * 0.4;
+    function hsl(hue, alpha) {
+      return `hsla(${hue}, 100%, 64%, ${alpha})`;
+    }
+
+    function resetShard(shard) {
+      shard.x = Math.random() * width;
+      shard.y = Math.random() * height;
+      shard.size = 18 + Math.random() * 34;
+      shard.sides = Math.random() > 0.48 ? 3 : 4;
+      shard.hue = Math.random() * 360;
+      shard.fillAlpha = 0.08 + Math.random() * 0.07;
+      shard.angle = Math.random() * Math.PI * 2;
+      shard.spin = (Math.random() - 0.5) * 0.004;
+      shard.dx = (Math.random() - 0.5) * 0.16;
+      shard.dy = (Math.random() - 0.5) * 0.12;
+    }
+
+    function resetMote(mote) {
+      mote.x = Math.random() * width;
+      mote.y = Math.random() * height;
+      mote.r = 0.8 + Math.random() * 1.8;
+      mote.hue = Math.random() * 360;
+      mote.phase = Math.random() * Math.PI * 2;
+      mote.dx = (Math.random() - 0.5) * 0.22;
+      mote.dy = (Math.random() - 0.5) * 0.2;
+      mote.baseAlpha = 0.18 + Math.random() * 0.35;
     }
 
     function resizeCanvas() {
@@ -820,51 +767,84 @@
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-      if (bubbles.length === 0) {
-        for (let i = 0; i < bubbleCount; i += 1) {
-          const bubble = {};
-          resetBubble(bubble, false);
-          bubbles.push(bubble);
+      if (shards.length === 0) {
+        for (let i = 0; i < shardCount; i += 1) {
+          const shard = {};
+          resetShard(shard);
+          shards.push(shard);
+        }
+      }
+      if (motes.length === 0) {
+        for (let i = 0; i < moteCount; i += 1) {
+          const mote = {};
+          resetMote(mote);
+          motes.push(mote);
         }
       }
     }
 
-    function drawBubbles(time) {
-      ctx.clearRect(0, 0, width, height);
-      bubbles.forEach((bubble) => {
-        bubble.y -= bubble.speed;
-        bubble.x += Math.sin(time * 0.0012 + bubble.phase) * bubble.drift;
-        if (bubble.y < -bubble.r * 3) resetBubble(bubble);
-        if (bubble.x < -10) bubble.x = width + 10;
-        if (bubble.x > width + 10) bubble.x = -10;
-        ctx.beginPath();
-        ctx.arc(bubble.x, bubble.y, bubble.r, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(159, 245, 255, ${bubble.opacity})`;
-        ctx.fillStyle = `rgba(159, 245, 255, ${bubble.opacity * 0.16})`;
-        ctx.lineWidth = 1;
-        ctx.fill();
-        ctx.stroke();
-      });
+    function wrapPoint(item, margin) {
+      if (item.x < -margin) item.x = width + margin;
+      if (item.x > width + margin) item.x = -margin;
+      if (item.y < -margin) item.y = height + margin;
+      if (item.y > height + margin) item.y = -margin;
     }
 
-    const jellyNodes = Array.from(document.querySelectorAll(".jelly")).map((node, index) => ({
-      node,
-      index,
-      phase: Math.random() * Math.PI * 2,
-    }));
+    function drawShard(shard) {
+      const half = shard.size / 2;
+      ctx.save();
+      ctx.translate(shard.x, shard.y);
+      ctx.rotate(shard.angle);
+      ctx.beginPath();
+      if (shard.sides === 3) {
+        ctx.moveTo(0, -half);
+        ctx.lineTo(half * 0.9, half * 0.72);
+        ctx.lineTo(-half * 0.85, half * 0.68);
+      } else {
+        ctx.moveTo(0, -half);
+        ctx.lineTo(half * 0.75, 0);
+        ctx.lineTo(0, half);
+        ctx.lineTo(-half * 0.75, 0);
+      }
+      ctx.closePath();
+      ctx.fillStyle = hsl(shard.hue, shard.fillAlpha);
+      ctx.strokeStyle = hsl((shard.hue + 40) % 360, 0.4);
+      ctx.lineWidth = 0.4;
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
 
-    function moveJellies(time) {
-      jellyNodes.forEach(({ node, index, phase }) => {
-        const y = Math.sin(time * 0.001 + phase) * (8 + index * 2);
-        const x = Math.sin(time * 0.00055 + phase) * 5;
-        const pulse = 1 + Math.sin(time * 0.0014 + phase) * 0.035;
-        node.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${pulse})`;
+    function drawMote(mote, time) {
+      const alpha = mote.baseAlpha * (0.45 + Math.sin(time * 0.003 + mote.phase) * 0.28 + 0.35);
+      ctx.beginPath();
+      ctx.arc(mote.x, mote.y, mote.r, 0, Math.PI * 2);
+      ctx.fillStyle = hsl(mote.hue, Math.max(0.08, Math.min(0.75, alpha)));
+      ctx.shadowColor = hsl(mote.hue, 0.65);
+      ctx.shadowBlur = 7;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function drawPrismField(time) {
+      ctx.clearRect(0, 0, width, height);
+      shards.forEach((shard) => {
+        shard.x += shard.dx;
+        shard.y += shard.dy;
+        shard.angle += shard.spin;
+        wrapPoint(shard, shard.size);
+        drawShard(shard);
+      });
+      motes.forEach((mote) => {
+        mote.x += mote.dx + Math.sin(time * 0.001 + mote.phase) * 0.05;
+        mote.y += mote.dy + Math.cos(time * 0.0011 + mote.phase) * 0.04;
+        wrapPoint(mote, 8);
+        drawMote(mote, time);
       });
     }
 
     function animate(time) {
-      drawBubbles(time);
-      moveJellies(time);
+      drawPrismField(time);
       window.requestAnimationFrame(animate);
     }
 
