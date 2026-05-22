@@ -4,6 +4,11 @@
 
 本檔記錄 usage 所有重要變更。格式參考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [0.6.6] - 2026-05-22
+
+### 新增
+- **燃燒速度警告**：當 app 預估你照目前用法會在額度重置前先用完時，原本「重置 X 分鐘」那行會自動換成紅色警告：「⚠ 剩 X 分用完（重置還要 Y 分）」。沒事的時候面板長得跟原本一樣，完全不打擾。覆蓋 Claude Code Session / Weekly 與 Codex Session / Weekly 共 4 個額度，4 款面板（Classic / Matrix / Newspaper / Win95）各自配對應主題的紅色。內部用 15 分鐘滾動樣本 + 最近 10 分鐘斜率推估，重置時自動清掉舊樣本避免誤報。
+
 ## [0.6.5] - 2026-05-22
 
 ### 新增
