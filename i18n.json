@@ -2,6 +2,7 @@
   "zh-TW": {
     "panel_default_name": "預設",
     "panel_cloud_observation": "雲圖觀測",
+    "panel_aquarium": "午夜水族箱",
     "switch_panel": "更換面板",
     "launch_at_login": "開機自動啟動",
     "hook_installed_restart": "已安裝完成，請重開 Claude Code 一次",
@@ -51,6 +52,7 @@
   "en": {
     "panel_default_name": "Default",
     "panel_cloud_observation": "Cloud Observation",
+    "panel_aquarium": "Midnight Aquarium",
     "switch_panel": "Switch Panel",
     "launch_at_login": "Launch at Login",
     "hook_installed_restart": "Hook installed. Restart Claude Code once.",
@@ -100,6 +102,7 @@
   "zh-CN": {
     "panel_default_name": "默认",
     "panel_cloud_observation": "云图观测",
+    "panel_aquarium": "午夜水族箱",
     "switch_panel": "切换面板",
     "launch_at_login": "开机自动启动",
     "hook_installed_restart": "已安装完成，请重开 Claude Code 一次",
@@ -149,6 +152,7 @@
   "ja": {
     "panel_default_name": "デフォルト",
     "panel_cloud_observation": "雲観測",
+    "panel_aquarium": "真夜中の水族館",
     "switch_panel": "パネル切替",
     "launch_at_login": "ログイン時に起動",
     "hook_installed_restart": "フックをインストールしました。Claude Code を一度再起動してください。",
@@ -198,6 +202,7 @@
   "ko": {
     "panel_default_name": "기본",
     "panel_cloud_observation": "구름 관측",
+    "panel_aquarium": "한밤의 수족관",
     "switch_panel": "패널 전환",
     "launch_at_login": "로그인 시 시작",
     "hook_installed_restart": "훅 설치가 완료되었습니다. Claude Code를 한 번 다시 시작하세요.",

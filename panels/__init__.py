@@ -9,6 +9,7 @@ PANELS: tuple[Panel, ...] = (
     HTMLPanel("win95", "視窗 95", "win95.html", height=768.0),
     HTMLPanel("newspaper", "復古報紙", "newspaper.html"),
     HTMLPanel("cloud_observation", "雲圖觀測", "cloud_observation.html"),
+    HTMLPanel("aquarium", "午夜水族箱", "aquarium.html"),
 )
 
 

@@ -118,8 +118,12 @@ def _detect_language() -> str:
     if override := os.environ.get("USAGE_LANG"):
         return _normalize_language(override)
     try:
+        # preferredLanguages reflects the user's system language list and is not
+        # affected by the bundle's CFBundleDevelopmentRegion / .lproj mapping.
+        preferred = NSLocale.preferredLanguages()
+        if preferred:
+            return _normalize_language(str(preferred[0]))
         locale = NSLocale.currentLocale()
-        # languageCode is bare "zh" and loses Hant/Hans; localeIdentifier keeps the region.
         identifier_attr = getattr(locale, "localeIdentifier", None)
         identifier = identifier_attr() if callable(identifier_attr) else identifier_attr
         return _normalize_language(str(identifier) if identifier is not None else None)

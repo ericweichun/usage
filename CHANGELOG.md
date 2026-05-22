@@ -4,6 +4,12 @@
 
 本檔記錄 usage 所有重要變更。格式參考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [0.7.0] - 2026-05-22
+
+### 新增
+- **新增「午夜水族箱」面板**：第六款內建面板，深海動畫主題 —— Canvas 2D 氣泡上升（42 顆，隨機漂移）、4 隻 CSS 水母（上下浮動＋青色發光）、生物發光粒子點綴背景。玻璃感卡片搭配 backdrop-filter blur，進度條帶掃光動效。新增 i18n key `panel_aquarium`（5 語齊全）。
+- **修正 .app 語言偵測**：改用 `NSLocale.preferredLanguages()` 取代 `currentLocale().localeIdentifier()`，讓 bundle 內語言不再被 `CFBundleDevelopmentRegion = English` 覆寫，繁中使用者點 .app 後正確顯示中文。
+
 ## [0.6.9] - 2026-05-22
 
 ### 新增
