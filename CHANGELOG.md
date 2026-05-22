@@ -4,6 +4,11 @@
 
 本檔記錄 usage 所有重要變更。格式參考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [0.6.9] - 2026-05-22
+
+### 新增
+- **新增「雲圖觀測」面板**：第五款內建面板，氣象風視覺 —— 淡藍天空漸層、白色雲層（feGaussianBlur 柔邊）、淡藍等高線、半透明玻璃卡片。整體淺色調，搭配 backdrop-filter 讓雲透出。新增 i18n key `panel_cloud_observation`（5 語齊全）。
+
 ## [0.6.8] - 2026-05-22
 
 ### 修正
