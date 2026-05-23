@@ -136,29 +136,27 @@ def test_migration_removes_legacy_files_and_moves_backup(
 def test_statusline_command_quotes_paths_with_spaces(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """專案 clone 在含空格的路徑（例如中文資料夾）時，
-    產生的 statusLine command 必須能被 /bin/sh -c 正確解析。"""
-    import shlex
     import subprocess
 
-    spaced_dir = tmp_path / "claude code小工具"
-    spaced_dir.mkdir()
-    spaced_python = spaced_dir / "python3"
-    spaced_python.write_text("#!/bin/sh\necho ok\n", encoding="utf-8")
-    spaced_python.chmod(0o755)
+    bin_dir = tmp_path / "含 空格" / "bin"
+    hook_dir = tmp_path / "Claude Code 小工具"
+    bin_dir.mkdir(parents=True)
+    hook_dir.mkdir()
+    argv_file = tmp_path / "argv.txt"
+    fake_python = bin_dir / "python3"
+    hook_file = hook_dir / "usage statusline.py"
+    fake_python.write_text(
+        f"#!/bin/sh\nprintf '%s\\n' \"$1\" > {setup_hook._shell_arg(str(argv_file))}\n",
+        encoding="utf-8",
+    )
+    fake_python.chmod(0o755)
+    hook_file.write_text("print('unused')\n", encoding="utf-8")
 
-    spaced_hook = spaced_dir / "usage-statusline.py"
-    spaced_hook.write_text("import sys; sys.exit(0)\n", encoding="utf-8")
-
-    monkeypatch.setattr(shutil, "which", lambda _: str(spaced_python))
-    monkeypatch.setattr(setup_hook, "HOOK_TARGET", spaced_hook)
+    monkeypatch.setattr(shutil, "which", lambda _: str(fake_python))
+    monkeypatch.setattr(setup_hook, "HOOK_TARGET", hook_file)
 
     cmd = setup_hook._statusline_command()
 
-    # 兩段路徑都應該被 shlex 安全處理過
-    tokens = shlex.split(cmd)
-    assert tokens == [str(spaced_python), str(spaced_hook)]
-
-    # /bin/sh -c 真的能跑（即不會被空格切碎）
     result = subprocess.run(["/bin/sh", "-c", cmd], capture_output=True)
     assert result.returncode == 0, result.stderr.decode("utf-8", "replace")
+    assert argv_file.read_text(encoding="utf-8").strip() == str(hook_file)

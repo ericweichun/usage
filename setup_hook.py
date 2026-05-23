@@ -48,7 +48,11 @@ def _resolve_hook_source() -> Path:
 def _statusline_command() -> str:
     # 用系統 python3，不綁 venv（hook 只用標準庫）
     python = shutil.which("python3") or "python3"
-    return f"{shlex.quote(python)} {shlex.quote(str(HOOK_TARGET))}"
+    return f"{_shell_arg(python)} {_shell_arg(str(HOOK_TARGET))}"
+
+
+def _shell_arg(value: str) -> str:
+    return shlex.quote(value)
 
 
 def _is_usage_hook(sl: object) -> bool:
