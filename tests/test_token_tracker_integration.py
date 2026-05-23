@@ -20,6 +20,18 @@ def test_all_languages_have_analyze_label() -> None:
     assert bundle["ko"]["analyze_usage"] == "분석"
 
 
+def test_all_languages_have_cli_statusline_labels() -> None:
+    bundle = json.loads((ROOT / "i18n.json").read_text(encoding="utf-8"))
+
+    for table in bundle.values():
+        assert table["cli"] == "CLI"
+        assert table["cli_disabled"] == "CLI"
+        assert table["cli_enabled"] == "CLI ✓"
+        assert "statusline_installed" in table
+        assert "statusline_uninstalled" in table
+        assert not any(key.startswith("cli_five_hour") for key in table)
+
+
 def test_html_panels_expose_analyze_action() -> None:
     panels_dir = ROOT / "assets" / "panels"
 
@@ -27,6 +39,7 @@ def test_html_panels_expose_analyze_action() -> None:
         html = path.read_text(encoding="utf-8")
         assert 'data-action="analyze"' in html, path.name
         assert 'data-i18n="analyze_usage"' in html, path.name
+        assert 'data-action="toggle-statusline"' in html, path.name
 
 
 def test_generate_analysis_report_uses_token_tracker_pipeline(

@@ -70,6 +70,12 @@ class UsageScriptBridge(NSObject):
             self.delegate.switchPanel_(self.web_view)
         elif action == "analyze":
             self.delegate.analyzeUsage_(None)
+        elif action in {"toggle_statusline", "toggle-statusline"}:
+            self.delegate.toggleStatusline_(None)
+        elif action == "install_statusline":
+            self.delegate.installStatusline_(None)
+        elif action == "uninstall_statusline":
+            self.delegate.uninstallStatusline_(None)
 
 
 class WebPanelView(WKWebView):
@@ -243,7 +249,7 @@ def _state_payload(state: PopoverState) -> dict[str, object]:
             {"name": name, "tokensText": _fmt_tokens(tokens), "costText": _fmt_cost(cost)}
             for name, tokens, cost in state.projects_30d
         ],
-        "cli": state.cli_status,
+        "statusline": state.statusline,
         "footer": {
             "rate": state.rate_text,
             "status": state.status_text,

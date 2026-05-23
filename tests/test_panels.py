@@ -78,12 +78,15 @@ def test_html_panels_place_analyze_and_cli_in_project_header() -> None:
         project_index = html.index('data-action="toggle-project-range"')
         footer_index = html.index('<section class="footer"')
         analyze_index = html.index('data-action="analyze"')
-        cli_index = html.index('data-action="toggle-cli"')
+        cli_index = html.index('data-action="toggle-statusline"')
 
         assert project_index < analyze_index < footer_index, panel_path.name
         assert project_index < cli_index < footer_index, panel_path.name
         assert html.count('data-action="analyze"') == 1, panel_path.name
-        assert html.count('<div class="cli-status" data-cli-panel hidden></div>') == 1
+        assert "data-cli-panel" not in html
+        assert "localStorage" not in html
+        assert "renderCliStatus" not in html
+        assert "cli-status" not in html
         assert 'class="action" data-action="analyze"' not in html
 
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -165,7 +167,40 @@ def test_empty_state() -> None:
     assert state.projects == []
     assert state.projects_7d == []
     assert state.projects_30d == []
+    assert isinstance(state.statusline["enabled"], bool)
     assert state.show_install_button is False
+
+
+def test_statusline_enabled_detects_usage_hook(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    claude_dir = tmp_path / ".claude"
+    claude_dir.mkdir()
+    settings = claude_dir / "settings.json"
+    settings.write_text(
+        json.dumps({"statusLine": {"type": "command", "command": "python3 usage-statusline.py"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("menubar.os.path.expanduser", lambda value: str(settings))
+
+    assert menubar._statusline_enabled() is True
+
+
+def test_statusline_enabled_returns_false_for_external_hook(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    claude_dir = tmp_path / ".claude"
+    claude_dir.mkdir()
+    settings = claude_dir / "settings.json"
+    settings.write_text(
+        json.dumps({"statusLine": {"type": "command", "command": "python3 tt-statusline.py"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("menubar.os.path.expanduser", lambda value: str(settings))
+
+    assert menubar._statusline_enabled() is False
 
 
 def test_error_state_uses_message_and_mock_today_title() -> None:
