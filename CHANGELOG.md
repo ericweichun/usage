@@ -4,6 +4,22 @@
 
 本檔記錄 usage 所有重要變更。格式參考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [Unreleased]
+
+## [0.10.0] - 2026-05-24
+
+### 新增
+- **HTML 報告「分享」按鈕**：報告右上角新增分享按鈕，點開後可選「另存一份 .html」或「複製檔案路徑」，把報告透過 AirDrop / Mail / Slack / 訊息傳給同事或主管；對方用瀏覽器打開即可閱讀，手機電腦皆支援。
+- **下載時可隱藏專案名稱**：分享 modal 內含「隱藏專案名稱」勾選框（預設打勾，隱私優先），勾選後另存的 HTML 會把所有專案名稱替換成 `Project 1 / Project 2 / ...`，不影響當前螢幕顯示。
+- **HTML 報告 sponsor 區重做**：兩個 Ko-fi 徽章夾住品牌標語 `No cloud. No tracking. Just yours.`（五語言統一不翻譯），標語帶輕微晃動動畫吸引目光；下方新增 GitHub repo 連結（github.com/aqua5230/usage）。
+
+### 變更
+- **statusLine 第二行（累計問答 / 快取 / 花費）移除**：簡化視覺，主要監控資訊集中在第一行（5h / 7d / Context window）與第三行（會話時長、模型）。
+- **HTML 報告 KPI 卡片寬度調整**：tokens / cost 兩張較寬，sessions / messages / active days 三張較窄（grid 比例 1.5fr 1.4fr 1fr 1fr 1fr），避免 9 位數 token 數字換行。
+
+### 移除
+- HTML 報告底部 `usage · 本機分析 · 資料不離本機` footer 行 —— 由 sponsor 區的 GitHub 連結取代。
+
 ## [0.9.1] - 2026-05-23
 
 ### 修正

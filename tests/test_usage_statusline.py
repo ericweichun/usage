@@ -161,7 +161,7 @@ def test_render_outputs_multiline_colored_statusline(
     assert "7d" in output
     assert "Context" in output
     assert "Sonnet 4.6" in output
-    assert "$38.73" in output
+    assert "$" not in output  # cost line removed in v0.10.0
 
 
 def test_main_prints_fallback_when_render_fails(

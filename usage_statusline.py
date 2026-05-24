@@ -369,49 +369,7 @@ def _render_core(data: Dict[str, Any], now: datetime) -> str:
         else:
             line1 = line1 + [p[2] for p in rl_parts] + (ctx_parts[1:2] if ctx_parts else [])
 
-    line2: List[str] = []
-    total_in = ctx.get("total_input_tokens", 0)
-    total_out = ctx.get("total_output_tokens", 0)
-    curr_usage = _as_dict(ctx.get("current_usage"))
-    turn_in_total = curr_usage.get("input_tokens", 0) + curr_usage.get(
-        "cache_creation_input_tokens", 0
-    )
-    turn_out = curr_usage.get("output_tokens", 0)
-    turn_str = (
-        f" {C['dim']}({_t('this_turn')} {_t('in_short')}{fmt_tokens(turn_in_total)} "
-        f"{_t('out_short')}{fmt_tokens(turn_out)}){C['reset']}"
-    )
-    if total_in or total_out:
-        tok_full = (
-            f"{C['peach']}{_t('total')} {_t('in_short')}{fmt_tokens(total_in)} "
-            f"{_t('out_short')}{fmt_tokens(total_out)}{turn_str}"
-        )
-        tok_short = (
-            f"{C['peach']}{_t('total')} {_t('in_short')}{fmt_tokens(total_in)} "
-            f"{_t('out_short')}{fmt_tokens(total_out)}{C['reset']}"
-        )
-        line2.append(tok_full)
-    else:
-        tok_short = ""
-
-    cache_read = curr_usage.get("cache_read_input_tokens", 0)
-    if cache_read > 0:
-        line2.append(f"{C['cyan']}{_t('cached')} {fmt_tokens(cache_read)}{C['reset']}")
-
     cost = _as_dict(data.get("cost"))
-    usd = cost.get("total_cost_usd")
-    if usd is not None:
-        usd_float = float(usd)
-        cost_str = f"{_t('cost')} ${usd_float:.2f}"
-        if lang == "zh-TW":
-            twd = int(usd_float * 32)
-            cost_str += f" ≈ NT${twd:,}"
-        line2.append(f"{C['magenta']}{cost_str}{C['reset']}")
-
-    if vlen(" | ".join(line2)) > width and (total_in or total_out):
-        line2[0] = tok_short
-        if vlen(" | ".join(line2)) > width:
-            line2 = line2[1:]
 
     line3: List[str] = []
     duration_ms = cost.get("total_duration_ms")
@@ -443,7 +401,7 @@ def _render_core(data: Dict[str, Any], now: datetime) -> str:
     if vlen(" | ".join(line3)) > width and duration_part:
         line3 = [p for p in line3 if p != duration_part]
 
-    output = [" | ".join(line) for line in (line1, line2, line3) if line]
+    output = [" | ".join(line) for line in (line1, line3) if line]
     return "\n".join(output) if output else "usage"
 
 

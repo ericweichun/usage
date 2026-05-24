@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import json
 import os
 import re
 import webbrowser
@@ -42,6 +43,16 @@ REPORT_TRANSLATIONS: dict[str, dict[str, str]] = {
         "session_section": "最燒的 5 段會話",
         "sessions": "會話",
         "share": "占比",
+        "share_button_label": "分享",
+        "share_close": "關閉",
+        "share_copied": "已複製到剪貼簿 ✓",
+        "share_copy_path": "複製檔案路徑",
+        "share_download_html": "另存一份 .html",
+        "share_file_hint": "可用 AirDrop / Mail / Slack / 訊息 傳給對方，手機電腦都能看",
+        "share_file_mask_toggle": "隱藏專案名稱",
+        "share_file_title": "傳給同事 / 主管",
+        "share_modal_title": "分享報告",
+        "share_path_copied": "路徑已複製 ✓",
         "start_time": "開始時間",
         "tip_how": "怎麼用？",
         "tip_note": "保留 / 丟掉",
@@ -60,7 +71,7 @@ REPORT_TRANSLATIONS: dict[str, dict[str, str]] = {
         "trend_compare_up": "本週是上週的 {ratio} 倍。",
         "trend_marker_new": "new",
         "trend_section": "每週燃燒趨勢",
-        "sponsor": "如果這個工具幫到你、歡迎請我喝杯咖啡 ☕",
+        "sponsor": "No cloud. No tracking. Just yours.",
         "unknown": "未知",
         "version": "版本",
     },
@@ -90,6 +101,16 @@ REPORT_TRANSLATIONS: dict[str, dict[str, str]] = {
         "session_section": "最烧的 5 段会话",
         "sessions": "会话",
         "share": "占比",
+        "share_button_label": "分享",
+        "share_close": "关闭",
+        "share_copied": "已复制到剪贴板 ✓",
+        "share_copy_path": "复制文件路径",
+        "share_download_html": "另存一份 .html",
+        "share_file_hint": "可用 AirDrop / Mail / Slack / 信息 传给对方，手机电脑都能看",
+        "share_file_mask_toggle": "隐藏项目名称",
+        "share_file_title": "发给同事 / 主管",
+        "share_modal_title": "分享报告",
+        "share_path_copied": "路径已复制 ✓",
         "start_time": "开始时间",
         "tip_how": "怎么用？",
         "tip_note": "保留 / 丢掉",
@@ -108,7 +129,7 @@ REPORT_TRANSLATIONS: dict[str, dict[str, str]] = {
         "trend_compare_up": "本周是上周的 {ratio} 倍。",
         "trend_marker_new": "new",
         "trend_section": "每周燃烧趋势",
-        "sponsor": "如果这个工具帮到你，欢迎请我喝杯咖啡 ☕",
+        "sponsor": "No cloud. No tracking. Just yours.",
         "unknown": "未知",
         "version": "版本",
     },
@@ -138,6 +159,16 @@ REPORT_TRANSLATIONS: dict[str, dict[str, str]] = {
         "session_section": "Top 5 burn sessions",
         "sessions": "Sessions",
         "share": "Share",
+        "share_button_label": "Share",
+        "share_close": "Close",
+        "share_copied": "Copied to clipboard ✓",
+        "share_copy_path": "Copy file path",
+        "share_download_html": "Download .html",
+        "share_file_hint": "Send via AirDrop / Mail / Slack / iMessage — opens in any browser, mobile or desktop",
+        "share_file_mask_toggle": "Hide project names",
+        "share_file_title": "Send to a colleague / manager",
+        "share_modal_title": "Share report",
+        "share_path_copied": "Path copied ✓",
         "start_time": "Start time",
         "tip_how": "How do I use it?",
         "tip_note": "Keep / Drop",
@@ -156,7 +187,7 @@ REPORT_TRANSLATIONS: dict[str, dict[str, str]] = {
         "trend_compare_up": "This week is {ratio}× of last week.",
         "trend_marker_new": "new",
         "trend_section": "Weekly burn trail",
-        "sponsor": "If this tool helps you, consider buying me a coffee ☕",
+        "sponsor": "No cloud. No tracking. Just yours.",
         "unknown": "unknown",
         "version": "version",
     },
@@ -186,6 +217,16 @@ REPORT_TRANSLATIONS: dict[str, dict[str, str]] = {
         "session_section": "使用量が大きい 5 セッション",
         "sessions": "セッション",
         "share": "割合",
+        "share_button_label": "共有",
+        "share_close": "閉じる",
+        "share_copied": "クリップボードにコピーしました ✓",
+        "share_copy_path": "ファイルパスをコピー",
+        "share_download_html": ".html を保存",
+        "share_file_hint": "AirDrop / Mail / Slack / メッセージで送れます。スマホ・PC どちらも閲覧可",
+        "share_file_mask_toggle": "プロジェクト名を隠す",
+        "share_file_title": "同僚 / 上司に送る",
+        "share_modal_title": "レポートを共有",
+        "share_path_copied": "パスをコピーしました ✓",
         "start_time": "開始時刻",
         "tip_how": "どう使う？",
         "tip_note": "残るもの / 消えるもの",
@@ -204,7 +245,7 @@ REPORT_TRANSLATIONS: dict[str, dict[str, str]] = {
         "trend_compare_up": "今週は先週の {ratio} 倍です。",
         "trend_marker_new": "new",
         "trend_section": "週次バーン推移",
-        "sponsor": "このツールが役に立ったら、コーヒーをおごってください ☕",
+        "sponsor": "No cloud. No tracking. Just yours.",
         "unknown": "不明",
         "version": "バージョン",
     },
@@ -234,6 +275,16 @@ REPORT_TRANSLATIONS: dict[str, dict[str, str]] = {
         "session_section": "가장 많이 쓴 세션 5개",
         "sessions": "세션",
         "share": "비중",
+        "share_button_label": "공유",
+        "share_close": "닫기",
+        "share_copied": "클립보드에 복사됨 ✓",
+        "share_copy_path": "파일 경로 복사",
+        "share_download_html": ".html 저장",
+        "share_file_hint": "AirDrop / Mail / Slack / 메시지로 보내세요. 모바일·PC 모두 가능",
+        "share_file_mask_toggle": "프로젝트 이름 숨기기",
+        "share_file_title": "동료 / 매니저에게 보내기",
+        "share_modal_title": "보고서 공유",
+        "share_path_copied": "경로가 복사됨 ✓",
         "start_time": "시작 시간",
         "tip_how": "어떻게 써요?",
         "tip_note": "남는 것 / 빠지는 것",
@@ -252,7 +303,7 @@ REPORT_TRANSLATIONS: dict[str, dict[str, str]] = {
         "trend_compare_up": "이번 주는 지난주의 {ratio}배입니다.",
         "trend_marker_new": "new",
         "trend_section": "주간 사용 추이",
-        "sponsor": "이 도구가 도움이 되셨다면, 커피 한 잔 사주세요 ☕",
+        "sponsor": "No cloud. No tracking. Just yours.",
         "unknown": "알 수 없음",
         "version": "버전",
     },
@@ -336,9 +387,10 @@ def _display_name(value: object, lang: str) -> str:
     return _t(lang, "unknown") if text == "unknown" else text
 
 
-def _section(title: str, body: str) -> str:
+def _section(title: str, body: str, class_name: str = "") -> str:
+    classes = "section" if not class_name else f"section {class_name}"
     return f"""
-    <section class="section">
+    <section class="{classes}">
       <div class="prompt"><span>[usage]&gt;</span> {html.escape(title)}</div>
       <div class="rule" aria-hidden="true">────────────────────────────────────────────────────────</div>
       {body}
@@ -350,13 +402,13 @@ def _empty_line(label: str) -> str:
     return f'<div class="empty">→ {html.escape(label)}</div>'
 
 
-def _rank_line(name: str, pct: float, tokens: int, cost: float) -> str:
+def _rank_line(name: str, pct: float, tokens: int, cost: float, lang: str) -> str:
     return (
         '<div class="rank-line">'
         f'<span class="arrow">→</span><span class="name">{html.escape(name)}</span>'
-        f'<span class="pct">{pct:>5.1f}%</span>'
-        f'<span class="tokens">{_fmt_tokens(tokens)}</span>'
-        f'<span class="cost">{_fmt_cost(cost)}</span>'
+        f'<span class="pct" data-label="{_escape(_t(lang, "share"))}">{pct:>5.1f}%</span>'
+        f'<span class="tokens" data-label="{_escape(_t(lang, "tokens"))}">{_fmt_tokens(tokens)}</span>'
+        f'<span class="cost" data-label="{_escape(_t(lang, "cost"))}">{_fmt_cost(cost)}</span>'
         "</div>"
     )
 
@@ -505,6 +557,7 @@ def generate_html(data: dict) -> str:
             float(project["pct"]),
             int(project["tokens"]),
             float(project["cost"]),
+            lang,
         )
         for project in data.get("by_project", [])
     ]
@@ -522,6 +575,7 @@ def generate_html(data: dict) -> str:
             float(model["pct"]),
             int(model["tokens"]),
             float(model["cost"]),
+            lang,
         )
         for model in data.get("by_model", [])
     ]
@@ -539,7 +593,7 @@ def generate_html(data: dict) -> str:
         <tr>
           <td>#{idx}</td>
           <td>{_escape(session["start_time"])}</td>
-          <td>{_escape(_display_name(session["project"], lang))}</td>
+          <td class="name">{_escape(_display_name(session["project"], lang))}</td>
           <td>{_escape(_display_name(session["model"], lang))}</td>
           <td>{_fmt_duration(float(session["duration_min"]))}</td>
           <td>{_fmt_tokens(int(session["tokens"]))}</td>
@@ -558,6 +612,11 @@ def generate_html(data: dict) -> str:
         else _empty_line(_t(lang, "empty_sessions"))
     )
 
+    share_config = {
+        "copied": _t(lang, "share_copied"),
+        "pathCopied": _t(lang, "share_path_copied"),
+    }
+    share_config_json = json.dumps(share_config, ensure_ascii=False).replace("</", "<\\/")
     title = _t(lang, "title")
     return f"""<!doctype html>
 <html lang="{html.escape(lang)}">
@@ -577,10 +636,14 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
 .cursor{{display:inline-block;animation:blink 1s steps(2,start) infinite}}
 .narrative{{max-width:760px;margin:18px 0 0;color:#d5dbe4;font-size:1.02rem}}
 .meta{{font-size:.82rem;text-align:right;white-space:nowrap}}
-.cards{{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:22px 0 12px}}
+.header-actions{{display:flex;flex-direction:column;align-items:flex-end;gap:10px}}
+.share-trigger{{display:inline-flex;align-items:center;gap:7px;background:#161b22;border:1px solid #30363d;color:#f0f6fc;padding:4px 11px;border-radius:4px;cursor:pointer;font:inherit;font-size:.8rem;line-height:1.3;text-decoration:none;transition:border-color .15s,color .15s,transform .15s}}
+.share-trigger:hover{{border-color:#58a6ff;color:#58a6ff;transform:translateY(-1px)}}
+.share-trigger:focus-visible,.share-close:focus-visible,.share-action:focus-visible{{outline:2px solid #58a6ff;outline-offset:2px}}
+.cards{{display:grid;grid-template-columns:1.5fr 1.4fr 1fr 1fr 1fr;gap:10px;margin:22px 0 12px}}
 .card{{background:var(--panel);padding:16px 14px;border-radius:6px;min-height:108px;display:flex;flex-direction:column}}
 .card span{{display:block;color:var(--muted);font-size:.75rem;text-transform:uppercase;margin-bottom:10px}}
-.card b{{display:block;font-size:clamp(.95rem,1.4vw,1.2rem);color:var(--text);overflow-wrap:anywhere;line-height:1.2;font-weight:700;letter-spacing:-0.01em}}
+.card b{{display:block;font-size:clamp(.9rem,1.25vw,1.15rem);color:var(--text);white-space:nowrap;overflow-wrap:normal;line-height:1.2;font-weight:700;letter-spacing:0}}
 .card i{{display:block;font-style:normal;color:var(--muted);font-size:.72rem;margin-top:auto;padding-top:6px;overflow-wrap:anywhere;letter-spacing:0}}
 .card:first-child b{{color:var(--token)}}.card:nth-child(2) b{{color:var(--cost)}}
 .section{{background:var(--panel);border-radius:8px;margin-top:16px;padding:18px 16px}}
@@ -595,16 +658,40 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
 .trend-row{{display:grid;grid-template-columns:58px minmax(0,1fr) 72px 82px;gap:12px;align-items:center}}
 .trend-row .week{{color:var(--muted)}}.trend-row b{{color:var(--token);font-weight:400;white-space:nowrap;overflow:hidden}}.trend-row em{{font-style:normal;text-align:right;color:#dce2ea}}.delta{{color:var(--muted);white-space:nowrap}}.delta.up{{color:var(--cost)}}.delta.down{{color:var(--warn)}}.delta.flat{{color:var(--muted)}}.trend-summary{{color:#dce2ea;margin-top:8px}}
 .table-wrap{{overflow-x:auto}}table{{width:100%;border-collapse:collapse;min-width:760px}}th,td{{padding:8px 10px;text-align:left;font-size:.86rem}}th{{color:var(--muted);font-weight:500;text-transform:uppercase}}td{{color:#dce2ea}}td:first-child{{color:var(--warn)}}
-.sponsor{{text-align:center;padding:16px 16px 4px;color:var(--muted);font-size:.88rem}}
-.sponsor a{{opacity:.8;transition:opacity .2s}}.sponsor a:hover{{opacity:1}}
-footer{{text-align:center;font-size:.82rem;margin-top:22px}}
+.share-dialog{{width:min(760px,calc(100vw - 28px));max-height:min(92vh,860px);border:1px solid #30363d;border-radius:8px;background:#0d0f12;color:var(--text);padding:0;box-shadow:0 24px 70px rgba(0,0,0,.58);overflow:auto}}
+.share-dialog::backdrop{{background:rgba(0,0,0,.72)}}
+.share-modal{{position:relative;padding:20px;display:grid;gap:16px;align-content:start}}
+.share-modal h2{{margin:0 40px 0 0;font-size:1.1rem;line-height:1.35;letter-spacing:0}}
+.share-close{{position:absolute;top:14px;right:14px;width:30px;height:30px;display:grid;place-items:center;border:1px solid #30363d;border-radius:4px;background:#161b22;color:#f0f6fc;cursor:pointer;font:inherit;font-size:1.1rem;line-height:1}}
+.share-close:hover{{border-color:#58a6ff;color:#58a6ff}}
+.share-section{{border:1px solid #30363d;border-radius:8px;background:#090b0e;padding:14px;display:grid;gap:12px}}
+.share-section h3{{margin:0;color:#f0f6fc;font-size:.98rem;line-height:1.35;letter-spacing:0}}
+.share-file-mask{{display:inline-flex;align-items:center;gap:9px;color:#dce2ea;font-size:.86rem;cursor:pointer;user-select:none}}
+.share-file-mask input{{width:16px;height:16px;accent-color:#58a6ff}}
+.share-action{{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;border:1px solid #30363d;border-radius:4px;background:#161b22;color:#f0f6fc;cursor:pointer;font:inherit;font-size:.78rem;line-height:1.2;white-space:nowrap;transition:border-color .15s,color .15s,transform .15s}}
+.share-action:hover{{border-color:#58a6ff;color:#58a6ff;transform:translateY(-1px)}}
+.share-icon{{color:#58a6ff;font-weight:800}}
+.share-file-actions{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}}
+.share-file-hint{{margin:0;color:var(--muted);font-size:.8rem;line-height:1.5}}
+.share-toast{{min-height:20px;color:#56d364;font-size:.82rem;opacity:0;transition:opacity .15s}}
+.share-toast.show{{opacity:1}}
+.sponsor{{display:flex;justify-content:center;align-items:center;gap:18px;flex-wrap:wrap;padding:24px 16px 32px;color:var(--muted);font-size:.88rem}}
+.sponsor a{{opacity:.85;transition:opacity .2s,transform .2s;text-decoration:none;display:inline-flex}}
+.sponsor a:hover{{opacity:1;transform:scale(1.06)}}
+.sponsor img{{vertical-align:middle;display:block}}
+.tagline{{font-size:1rem;color:#d5dbe4;letter-spacing:.01em;animation:sponsorWobble 2.6s ease-in-out infinite;display:inline-block;transform-origin:center center}}
+.sponsor-link{{text-align:center;padding:0 16px 24px;font-size:.8rem}}
+.sponsor-link a{{color:var(--muted);text-decoration:none;opacity:.7;transition:opacity .2s}}
+.sponsor-link a:hover{{opacity:1;color:var(--token)}}
 @keyframes blink{{0%,45%{{opacity:1}}46%,100%{{opacity:0}}}}
+@keyframes sponsorWobble{{0%,100%{{transform:translate(0,0) rotate(0)}}25%{{transform:translate(-1px,-2px) rotate(-.8deg)}}50%{{transform:translate(0,-2.5px) rotate(0)}}75%{{transform:translate(1px,-2px) rotate(.8deg)}}}}
 .tip-cmd{{background:rgba(56,139,253,0.15);color:#58a6ff;padding:2px 10px;border-radius:4px;font-family:ui-monospace,'SF Mono',monospace;font-size:0.95em}}
 .tip-cmd-inline{{background:rgba(56,139,253,0.10);color:#58a6ff;padding:1px 5px;border-radius:3px;font-size:0.92em}}
 .tip-copy{{background:transparent;border:1px solid #30363d;color:#8b949e;padding:2px 10px;margin-left:8px;border-radius:4px;cursor:pointer;font-size:12px;font-family:inherit;transition:color 0.15s,border-color 0.15s}}
 .tip-copy:hover{{color:#e6edf3;border-color:#58a6ff}}
 .tip-copy.copied{{color:#56d364;border-color:#56d364}}
-@media (max-width:780px){{.wrap{{padding:28px 14px}}header{{display:block}}.meta{{text-align:left;margin-top:16px}}.cards{{grid-template-columns:repeat(2,1fr)}}.rank-head,.rank-line{{grid-template-columns:24px minmax(0,1fr) 64px}}.rank-head span:nth-child(4),.rank-head span:nth-child(5),.rank-line span:nth-child(4),.rank-line span:nth-child(5){{display:none}}}}
+@media (max-width:780px){{.wrap{{padding:28px 14px}}header{{display:block}}.meta{{text-align:left;margin-top:16px}}.header-actions{{align-items:flex-start;margin-top:16px}}.cards{{grid-template-columns:repeat(2,1fr)}}.rank-head{{display:none}}.rank-list{{display:grid;gap:10px}}.rank-line{{display:grid;grid-template-columns:1fr;gap:8px;padding:12px;border:1px solid #30363d;border-radius:6px;background:#090b0e}}.rank-line .arrow{{display:none}}.rank-line .name{{white-space:normal;font-weight:700;color:#f0f6fc}}.rank-line .pct,.rank-line .tokens,.rank-line .cost{{display:flex;justify-content:space-between;gap:14px;text-align:left}}.rank-line .pct::before,.rank-line .tokens::before,.rank-line .cost::before{{content:attr(data-label);color:var(--muted)}}}}
+@media (max-width:480px){{.wrap{{padding:22px 12px 28px}}h1{{white-space:normal}}.cards{{grid-template-columns:repeat(2,1fr);gap:8px}}.card{{min-height:96px;padding:13px 11px}}.share-dialog{{width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;border:0;border-radius:0}}.share-modal{{min-height:100dvh;padding:16px 12px 18px}}.share-section{{padding:12px}}.share-action{{min-height:42px;font-size:.72rem;gap:4px;white-space:normal}}.share-file-actions{{grid-template-columns:1fr}}.section{{padding:16px 12px}}}}
 </style>
 </head>
 <body>
@@ -615,18 +702,158 @@ footer{{text-align:center;font-size:.82rem;margin-top:22px}}
       <h1>{html.escape(title)}</h1>
       <p class="narrative">{html.escape(_narrative(data, lang))}</p>
     </div>
-    <div class="meta">{html.escape(_t(lang, "generated"))} {html.escape(generated_at)}<br>usage {_escape(_t(lang, "version"))} {_escape(_version())}</div>
+    <div class="header-actions">
+      <div class="meta">{html.escape(_t(lang, "generated"))} {html.escape(generated_at)}<br>usage {_escape(_t(lang, "version"))} {_escape(_version())}</div>
+      <button class="share-trigger" type="button" data-share-open><span aria-hidden="true">↗</span>{html.escape(_t(lang, "share_button_label"))}</button>
+    </div>
   </header>
+  <dialog class="share-dialog" data-share-dialog>
+    <div class="share-modal">
+      <button class="share-close" type="button" data-share-close aria-label="{html.escape(_t(lang, "share_close"))}">×</button>
+      <h2>{html.escape(_t(lang, "share_modal_title"))}</h2>
+      <section class="share-section">
+        <h3>{html.escape(_t(lang, "share_file_title"))}</h3>
+        <label class="share-file-mask"><input type="checkbox" data-share-file-mask checked> {html.escape(_t(lang, "share_file_mask_toggle"))}</label>
+        <div class="share-file-actions">
+          <button class="share-action" type="button" data-share-file="download"><span class="share-icon" aria-hidden="true">📥</span>{html.escape(_t(lang, "share_download_html"))}</button>
+          <button class="share-action" type="button" data-share-file="path"><span class="share-icon" aria-hidden="true">📋</span>{html.escape(_t(lang, "share_copy_path"))}</button>
+        </div>
+        <p class="share-file-hint">{html.escape(_t(lang, "share_file_hint"))}</p>
+      </section>
+      <div class="share-toast" data-share-toast role="status" aria-live="polite"></div>
+    </div>
+  </dialog>
   <section class="cards">{''.join(f'<div class="card"><span>{html.escape(label)}</span><b>{html.escape(value)}</b>' + (f'<i>{html.escape(sub)}</i>' if sub else '') + '</div>' for label, value, sub in cards)}</section>
-  {_section(_t(lang, "project_section"), project_body)}
+  {_section(_t(lang, "project_section"), project_body, "project-section")}
   {_section(_t(lang, "model_section"), model_body)}
   {_section(_t(lang, "trend_section"), _trend_ascii(data.get("daily_trend", []), lang))}
-  {_section(_t(lang, "session_section"), session_body)}
+  {_section(_t(lang, "session_section"), session_body, "session-section")}
   {_tip_section(tip, lang) if tip else ''}
-  <p class="sponsor">{html.escape(_t(lang, "sponsor"))}&#32;<a href="https://ko-fi.com/lollapalooza" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&amp;logoColor=white" alt="Ko-fi" style="vertical-align:middle"></a></p>
-  <footer>{html.escape(_t(lang, "footer"))}</footer>
+  <p class="sponsor">
+    <a href="https://ko-fi.com/lollapalooza" target="_blank" rel="noopener" aria-label="Buy me a coffee on Ko-fi"><img src="https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&amp;logoColor=white" alt="Ko-fi"></a>
+    <span class="tagline">{html.escape(_t(lang, "sponsor"))}</span>
+    <a href="https://ko-fi.com/lollapalooza" target="_blank" rel="noopener" aria-label="Buy me a coffee on Ko-fi"><img src="https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&amp;logoColor=white" alt="Ko-fi"></a>
+  </p>
+  <p class="sponsor-link"><a href="https://github.com/aqua5230/usage" target="_blank" rel="noopener">github.com/aqua5230/usage</a></p>
 </main>
 <script>
+const shareConfig = {share_config_json};
+const shareDialog = document.querySelector('[data-share-dialog]');
+const shareFileMask = document.querySelector('[data-share-file-mask]');
+const shareToast = document.querySelector('[data-share-toast]');
+let shareToastTimer = null;
+
+function showShareToast(message) {{
+  window.clearTimeout(shareToastTimer);
+  shareToast.textContent = message;
+  shareToast.classList.add('show');
+  shareToastTimer = window.setTimeout(() => {{
+    shareToast.classList.remove('show');
+  }}, 2500);
+}}
+
+async function copyText(text) {{
+  try {{
+    await navigator.clipboard.writeText(text);
+    return true;
+  }} catch (_) {{
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    let success = false;
+    try {{ success = document.execCommand('copy'); }} catch (_e) {{}}
+    document.body.removeChild(ta);
+    return success;
+  }}
+}}
+
+function downloadBlob(blob, filename) {{
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}}
+
+function closeShareModal() {{
+  if (!shareDialog) return;
+  if (shareDialog.open && typeof shareDialog.close === 'function') {{
+    shareDialog.close();
+  }} else {{
+    shareDialog.removeAttribute('open');
+  }}
+}}
+
+function downloadHtml(maskProjects) {{
+  closeShareModal();
+  const restores = [];
+  const detached = [];
+  if (maskProjects) {{
+    document.querySelectorAll('.project-section .name').forEach((el, i) => {{
+      restores.push({{el, original: el.textContent}});
+      el.textContent = `Project ${{i + 1}}`;
+    }});
+    document.querySelectorAll('.session-section .name').forEach((el, i) => {{
+      restores.push({{el, original: el.textContent}});
+      el.textContent = `Project ${{i + 1}}`;
+    }});
+  }}
+  document.querySelectorAll('[data-share-dialog], [data-share-open]').forEach((el) => {{
+    detached.push({{el, parent: el.parentNode, next: el.nextSibling}});
+    el.remove();
+  }});
+  const html = '<!doctype html>\\n' + document.documentElement.outerHTML;
+  detached.forEach((item) => {{
+    item.parent.insertBefore(item.el, item.next);
+  }});
+  restores.forEach((item) => {{
+    item.el.textContent = item.original;
+  }});
+  const blob = new Blob([html], {{type: 'text/html'}});
+  downloadBlob(blob, `usage-report-${{new Date().toISOString().slice(0, 10)}}.html`);
+}}
+
+document.querySelector('[data-share-open]')?.addEventListener('click', () => {{
+  shareFileMask.checked = true;
+  if (typeof shareDialog.showModal === 'function') {{
+    shareDialog.showModal();
+  }} else {{
+    shareDialog.setAttribute('open', '');
+  }}
+  shareFileMask.focus();
+}});
+
+document.querySelector('[data-share-close]')?.addEventListener('click', () => {{
+  closeShareModal();
+}});
+
+shareDialog?.addEventListener('click', (e) => {{
+  if (e.target === shareDialog) closeShareModal();
+}});
+
+document.addEventListener('click', async (e) => {{
+  const btn = e.target.closest('[data-share-file]');
+  if (!btn) return;
+  const action = btn.dataset.shareFile;
+  if (action === 'download') {{
+    downloadHtml(Boolean(shareFileMask?.checked));
+    return;
+  }}
+  if (action === 'path') {{
+    const path = window.location.protocol === 'file:' ? decodeURIComponent(window.location.href) : decodeURIComponent(window.location.pathname);
+    const copied = await copyText(path);
+    if (copied) showShareToast(shareConfig.pathCopied);
+  }}
+}});
+
 document.addEventListener('click', async (e) => {{
   const btn = e.target.closest('.tip-copy');
   if (!btn) return;
