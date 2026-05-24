@@ -13,6 +13,7 @@ ACTIVE_PANEL_DEFAULTS_KEY = "usage.activePanelId"
 
 class Panel(Protocol):
     id: str
+    i18n_key: str
     display_name: str
 
     def build_view(self, delegate: Any) -> Any: ...

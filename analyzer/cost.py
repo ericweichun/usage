@@ -6,7 +6,7 @@ from pathlib import Path
 from adapters.types import UsageEntry
 
 LITELLM_URL = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-CACHE_PATH = Path(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))) / "pricing_cache.json"
+CACHE_PATH = Path(os.path.expanduser("~/.claude/pricing_cache.json"))
 
 _pricing: dict | None = None
 

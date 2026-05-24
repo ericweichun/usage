@@ -42,19 +42,19 @@ def test_registered_panel_ids_are_unique() -> None:
     assert len(ids) == len(set(ids))
 
 
-def test_registered_panel_display_names() -> None:
-    names = [panel.display_name for panel in panels.all_panels()]
+def test_registered_panel_i18n_keys() -> None:
+    keys = [panel.i18n_key for panel in panels.all_panels()]
 
-    assert names == [
-        "預設",
-        "駭客任務",
-        "視窗 95",
-        "復古報紙",
-        "雲圖觀測",
-        "午夜水族箱",
-        "稜鏡街機",
-        "黑洞視界",
-        "世界盃 2026",
+    assert keys == [
+        "panel_default_name",
+        "panel_matrix",
+        "panel_win95",
+        "panel_newspaper",
+        "panel_cloud_observation",
+        "panel_aquarium",
+        "panel_prism_arcade",
+        "panel_black_hole",
+        "panel_world_cup",
     ]
 
 

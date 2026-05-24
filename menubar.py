@@ -114,9 +114,7 @@ def _group_name(group: int, language: str) -> str:
 
 
 def _panel_title(panel: UsagePanel, language: str) -> str:
-    if panel.id == "classic":
-        return _t(language, "panel_default_name")
-    return panel.display_name
+    return _t(language, panel.i18n_key)
 
 
 def _auto_update_check_enabled(prefs: dict[str, Any] | None = None) -> bool:

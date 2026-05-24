@@ -33,10 +33,15 @@ py-modules = [
     "tui_sprite",
     "i18n",
     "usage_cli",
+    "burn_rate",
+    "update_checker",
+    "tips_loader",
+    "usage_lang",
+    "usage_statusline_forwarder",
 ]
 
 [tool.setuptools.packages.find]
-include = ["adapters*", "analyzer*", "ui*"]
+include = ["adapters*", "analyzer*", "panels*", "ui*"]
 
 [dependency-groups]
 dev = [

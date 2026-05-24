@@ -9,13 +9,16 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
+from i18n import _t
+from usage_lang import detect_lang
+
 logger = logging.getLogger(__name__)
 
 STATUS_FILE = os.path.expanduser("~/.claude/usage-status.json")
 LEGACY_STATUS_FILE = os.path.expanduser("~/.claude/usag-status.json")
 TT_STATUS_FILE = os.path.expanduser("~/.claude/tt-status.json")
 
-# 檔案多久沒更新就視為 stale；只用在訊息提示，不影響數字顯示
+# Stale files only affect hints; quota values still render.
 STALE_SECONDS = 6 * 3600
 
 
@@ -78,7 +81,7 @@ def _as_finite_float(value: Any) -> float | None:
 
 
 def _read_status_file() -> tuple[dict[str, Any], str, float] | None:
-    """讀任一份可用的 status JSON，優先 usage 自己的，fallback 舊狀態檔。"""
+    """Read the first available status JSON, preferring usage-owned files."""
     for path in (STATUS_FILE, LEGACY_STATUS_FILE, TT_STATUS_FILE):
         try:
             mtime = os.stat(path).st_mtime
@@ -129,7 +132,7 @@ def _build_snapshot(data: dict[str, Any], *, data_source: str = "hook") -> Usage
     five_reset = _reset_at(five.get("resets_at"), now)
     seven_reset = _reset_at(seven.get("resets_at"), now)
 
-    # reset 時間到了就把百分比歸零，和 Claude Code rate-limit 語意一致。
+    # Reset expired percentages to match Claude Code rate-limit semantics.
     five_pct = (
         0
         if five_reset and five_reset < now
@@ -164,11 +167,7 @@ def _build_snapshot(data: dict[str, Any], *, data_source: str = "hook") -> Usage
 
 
 class ClaudeUsageClient:
-    """從 Claude Code statusLine hook 寫的本地 JSON 讀取配額狀態。
-
-    保留 async 介面、interval_seconds 參數，方便沿用既有 polling 迴圈
-    （即使讀檔不需要等，main loop 還是會以 interval 為節奏更新 UI）。
-    """
+    """Read quota state from the local JSON written by the Claude Code statusLine hook."""
 
     def __init__(self, *, interval_seconds: int = 60, mock: bool = False) -> None:
         self.interval_seconds = interval_seconds
@@ -187,7 +186,7 @@ class ClaudeUsageClient:
             self._last_outcome = None
             return PollOutcome(
                 state=PollState.TOKEN_ERROR,
-                message="⚠ 找不到狀態檔，請執行 `python3 main.py --setup` 並打開一次 Claude Code",
+                message=_t(detect_lang(), "usage_status_missing"),
             )
 
         data, source_path, mtime = result
@@ -212,7 +211,7 @@ class ClaudeUsageClient:
         if snapshot is None:
             outcome = PollOutcome(
                 state=PollState.LOADING,
-                message="⚠ 狀態檔尚無配額資料，等 Claude Code 再刷新一次 statusLine",
+                message=_t(detect_lang(), "usage_status_no_quota"),
                 _mtime=mtime,
                 _status_path=source_path,
             )

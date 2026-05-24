@@ -49,7 +49,6 @@ if __name__ == "__main__":
             "assets/codex.webp",
             "assets/panels",
             "i18n.json",
-            "pricing_cache.json",
             "pyproject.toml",
             "tips/commands.json",
             "usage_statusline.py",
@@ -93,7 +92,9 @@ if __name__ == "__main__":
             "CFBundleVersion": version,
             "LSUIElement": True,
             "LSMinimumSystemVersion": "12.0",
-            "NSHumanReadableCopyright": "MIT License",
+            "NSHumanReadableCopyright": (
+                "Copyright © 2025-2026 lollapalooza. Licensed under AGPL-3.0-only."
+            ),
         },
     }
 

@@ -4,15 +4,15 @@ from panels.base import Panel
 from panels.web_panel import HTMLPanel
 
 PANELS: tuple[Panel, ...] = (
-    HTMLPanel("classic", "預設", "classic.html"),
-    HTMLPanel("matrix", "駭客任務", "matrix.html"),
-    HTMLPanel("win95", "視窗 95", "win95.html", height=768.0),
-    HTMLPanel("newspaper", "復古報紙", "newspaper.html"),
-    HTMLPanel("cloud_observation", "雲圖觀測", "cloud_observation.html"),
-    HTMLPanel("aquarium", "午夜水族箱", "aquarium.html"),
-    HTMLPanel("prism_arcade", "稜鏡街機", "prism_arcade.html"),
-    HTMLPanel("black_hole", "黑洞視界", "black_hole.html"),
-    HTMLPanel("world_cup", "世界盃 2026", "world_cup.html"),
+    HTMLPanel("classic", "panel_default_name", "classic.html"),
+    HTMLPanel("matrix", "panel_matrix", "matrix.html"),
+    HTMLPanel("win95", "panel_win95", "win95.html", height=768.0),
+    HTMLPanel("newspaper", "panel_newspaper", "newspaper.html"),
+    HTMLPanel("cloud_observation", "panel_cloud_observation", "cloud_observation.html"),
+    HTMLPanel("aquarium", "panel_aquarium", "aquarium.html"),
+    HTMLPanel("prism_arcade", "panel_prism_arcade", "prism_arcade.html"),
+    HTMLPanel("black_hole", "panel_black_hole", "black_hole.html"),
+    HTMLPanel("world_cup", "panel_world_cup", "world_cup.html"),
 )
 
 
