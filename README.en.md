@@ -188,6 +188,10 @@ Press `Ctrl+C` to exit.
 
 Beyond the menu bar and TUI, there's an analytics CLI entrypoint `usage_cli.py` for exporting HTML reports or running an interactive terminal dashboard:
 
+<p align="center">
+  <img src="docs/report.en.png" alt="HTML report screen: Your AI Usage Recap" width="520">
+</p>
+
 ```bash
 source .venv/bin/activate
 

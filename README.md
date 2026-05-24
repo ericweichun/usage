@@ -190,6 +190,10 @@ python3 main.py --tui
 
 除了選單列跟 TUI，還有一個分析用的 CLI 進入點 `usage_cli.py`，可以匯出 HTML 報告、或在終端機開互動式 dashboard（儀表板，互動式統計面板）：
 
+<p align="center">
+  <img src="docs/report.png" alt="HTML 報告畫面：你的 AI 用量回顧" width="520">
+</p>
+
 ```bash
 source .venv/bin/activate
 
