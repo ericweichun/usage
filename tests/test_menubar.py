@@ -8,6 +8,7 @@ from typing import Any, cast
 
 import pytest
 
+import codex_loader
 import history_loader
 import menubar
 from usage_client import PollOutcome, PollState, UsageSnapshot
@@ -458,6 +459,47 @@ def test_project_rows_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(menubar, "load_entries", lambda *, hours_back=24: [])
 
     assert delegate._project_rows(hours_back=24) == []
+
+
+def test_load_history_entries_includes_codex_entries(monkeypatch: pytest.MonkeyPatch) -> None:
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    claude_entry = history_loader.UsageEntry(
+        timestamp=datetime(2026, 5, 21, tzinfo=UTC),
+        session_id="claude-session",
+        message_id="claude-message",
+        request_id="claude-request",
+        model="claude",
+        input_tokens=10,
+        output_tokens=5,
+        cache_creation_tokens=0,
+        cache_read_tokens=0,
+        cost_usd=0.01,
+        project="ClaudeProject",
+    )
+    codex_entry = history_loader.UsageEntry(
+        timestamp=datetime(2026, 5, 22, tzinfo=UTC),
+        session_id="codex-session",
+        message_id="codex-message",
+        request_id="",
+        model="gpt",
+        input_tokens=20,
+        output_tokens=7,
+        cache_creation_tokens=0,
+        cache_read_tokens=0,
+        cost_usd=None,
+        project="CodexProject",
+    )
+
+    monkeypatch.setattr(menubar, "load_entries", lambda *, hours_back=720: [claude_entry])
+    monkeypatch.setattr(
+        codex_loader,
+        "load_entries",
+        lambda *, hours_back=720: [codex_entry],
+    )
+
+    entries = delegate._load_history_entries()
+
+    assert entries == [claude_entry, codex_entry]
 
 
 def test_project_rows_top3(monkeypatch: pytest.MonkeyPatch) -> None:
