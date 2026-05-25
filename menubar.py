@@ -167,6 +167,7 @@ class PopoverState:
     projects: list[tuple[str, int, float | None]]
     projects_7d: list[tuple[str, int, float | None]]
     projects_30d: list[tuple[str, int, float | None]]
+    projects_all: list[tuple[str, int, float | None]]
     rate_text: str
     status_text: str
     today_text: str
@@ -512,12 +513,14 @@ class AppDelegate(NSObject):
             project_rows = self._project_rows(hours_back=24, entries=all_entries)
             project_rows_7d = self._project_rows(hours_back=168, entries=all_entries)
             project_rows_30d = self._project_rows(hours_back=720, entries=all_entries)
+            project_rows_all = self._project_rows(hours_back=0, entries=all_entries)
             state = self._state_from_outcome(
                 outcome,
                 codex_rows,
                 project_rows,
                 project_rows_7d,
                 project_rows_30d,
+                project_rows_all,
                 history_entries=all_entries,
             )
         except Exception as exc:
@@ -683,6 +686,7 @@ class AppDelegate(NSObject):
         projects: list[tuple[str, int, float | None]],
         project_rows_7d: list[tuple[str, int, float | None]],
         project_rows_30d: list[tuple[str, int, float | None]],
+        project_rows_all: list[tuple[str, int, float | None]],
         history_entries: list[UsageEntry] | None = None,
     ) -> PopoverState:
         now = time.time()
@@ -754,6 +758,7 @@ class AppDelegate(NSObject):
             projects=projects,
             projects_7d=project_rows_7d,
             projects_30d=project_rows_30d,
+            projects_all=project_rows_all,
             rate_text=_t(self.language, "rate_text", value=group_name),
             status_text=status_text,
             today_text=today_text,
@@ -841,12 +846,12 @@ class AppDelegate(NSObject):
             return []
         entries: list[UsageEntry] = []
         try:
-            entries.extend(load_entries(hours_back=720))
+            entries.extend(load_entries(hours_back=0))
         except Exception:
             if os.environ.get("USAGE_DEBUG") == "1":
                 logger.warning("Claude project usage load failed", exc_info=True)
         try:
-            entries.extend(codex_loader.load_entries(hours_back=720))
+            entries.extend(codex_loader.load_entries(hours_back=0))
         except Exception:
             if os.environ.get("USAGE_DEBUG") == "1":
                 logger.warning("Codex project usage load failed", exc_info=True)
@@ -858,6 +863,12 @@ class AppDelegate(NSObject):
         entries: list[UsageEntry] | None = None,
     ) -> list[tuple[str, int, float | None]]:
         if self.mock:
+            if hours_back <= 0:
+                return [
+                    ("usage", 624_000_000, 361.00),
+                    ("FinMind", 172_800_000, 100.24),
+                    ("AI客服", 44_000_000, 26.40),
+                ]
             if hours_back <= 24:
                 return [
                     ("usage", 11_200_000, 6.47),
@@ -884,8 +895,11 @@ class AppDelegate(NSObject):
                     logger.warning("project usage load failed", exc_info=True)
                 return []
         else:
-            cutoff = datetime.now(tz=UTC) - timedelta(hours=hours_back)
-            resolved = [e for e in entries if e.timestamp >= cutoff]
+            if hours_back > 0:
+                cutoff = datetime.now(tz=UTC) - timedelta(hours=hours_back)
+                resolved = [e for e in entries if e.timestamp >= cutoff]
+            else:
+                resolved = entries
 
         aggregates: dict[str, list[float]] = {}
         for entry in resolved:
@@ -956,6 +970,7 @@ def _empty_state(language: str = "en") -> PopoverState:
         projects=[],
         projects_7d=[],
         projects_30d=[],
+        projects_all=[],
         rate_text=_t(language, "rate_text", value="--"),
         status_text=_t(language, "status_text", value=_t(language, "status_loading")),
         today_text=_t(language, "today_text", cost="0.00", tokens="0"),

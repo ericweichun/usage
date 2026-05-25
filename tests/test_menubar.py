@@ -254,6 +254,7 @@ def test_empty_state() -> None:
     assert state.projects == []
     assert state.projects_7d == []
     assert state.projects_30d == []
+    assert state.projects_all == []
     assert isinstance(state.statusline["enabled"], bool)
     assert state.show_install_button is False
 
@@ -490,11 +491,11 @@ def test_load_history_entries_includes_codex_entries(monkeypatch: pytest.MonkeyP
         project="CodexProject",
     )
 
-    monkeypatch.setattr(menubar, "load_entries", lambda *, hours_back=720: [claude_entry])
+    monkeypatch.setattr(menubar, "load_entries", lambda *, hours_back=0: [claude_entry])
     monkeypatch.setattr(
         codex_loader,
         "load_entries",
-        lambda *, hours_back=720: [codex_entry],
+        lambda *, hours_back=0: [codex_entry],
     )
 
     entries = delegate._load_history_entries()
@@ -601,6 +602,27 @@ def test_project_rows_30d_mock() -> None:
     assert rows[0][1] == 312_000_000
 
 
+def test_project_rows_all_time_does_not_filter_old_entries() -> None:
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    entries = [
+        history_loader.UsageEntry(
+            timestamp=datetime(2020, 1, 1, tzinfo=UTC),
+            session_id="old",
+            message_id="old-msg",
+            request_id="old-req",
+            model="claude",
+            input_tokens=100,
+            output_tokens=50,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            cost_usd=0.01,
+            project="OldProject",
+        )
+    ]
+
+    assert delegate._project_rows(hours_back=0, entries=entries) == [("OldProject", 150, 0.01)]
+
+
 def test_apply_refresh_result_pushes_state_only_when_popover_is_shown() -> None:
     class FakeController:
         def __init__(self) -> None:
@@ -687,7 +709,7 @@ def test_state_from_outcome_replaces_claude_reset_with_warning(
         ),
     )
 
-    state = delegate._state_from_outcome(outcome, delegate._codex_rows()[0], [], [], [])
+    state = delegate._state_from_outcome(outcome, delegate._codex_rows()[0], [], [], [], [])
 
     assert state.claude_session.warning is True
     assert state.claude_session.reset_text == "⚠ 剩 18分鐘 用完(重置還要 51分鐘)"
@@ -717,7 +739,7 @@ def test_state_from_outcome_keeps_reset_when_burn_rate_is_not_positive(
         ),
     )
 
-    state = delegate._state_from_outcome(outcome, delegate._codex_rows()[0], [], [], [])
+    state = delegate._state_from_outcome(outcome, delegate._codex_rows()[0], [], [], [], [])
 
     assert state.claude_session.warning is False
     assert state.claude_session.reset_text == "重置 51分鐘"
@@ -730,6 +752,7 @@ def test_state_from_outcome_translates_awaiting_rate_limits_message() -> None:
     state = delegate._state_from_outcome(
         PollOutcome(state=PollState.LOADING, message="awaiting_rate_limits"),
         delegate._codex_rows()[0],
+        [],
         [],
         [],
         [],
@@ -752,6 +775,7 @@ def test_codex_only_state_hides_claude_setup_button_and_uses_codex_status(
     state = delegate._state_from_outcome(
         PollOutcome(state=PollState.TOKEN_ERROR, message="missing Claude"),
         codex_rows,
+        [],
         [],
         [],
         [],
