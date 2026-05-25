@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -91,3 +92,28 @@ def test_generate_html_switches_tip_content_by_language(monkeypatch: pytest.Monk
     assert "Compress the chat to save tokens" in en_report
     assert "把你目前跟 Claude 的對話『壓縮』成一份摘要。" in zh_report
     assert "This turns your current conversation with Claude into a shorter summary." in en_report
+
+
+def test_save_and_open_uses_macos_open_without_webbrowser(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(html_report.sys, "platform", "darwin")
+    monkeypatch.setattr(html_report.webbrowser, "open", lambda url: pytest.fail(url))
+    monkeypatch.setattr(
+        html_report.subprocess,
+        "run",
+        lambda cmd, **kwargs: calls.append(cmd),
+    )
+
+    out_path = tmp_path / "報告¬.html"
+
+    assert html_report.save_and_open(_report_data(), str(out_path)) == str(out_path)
+    assert calls == []
+
+    monkeypatch.setattr(html_report.Path, "home", lambda: tmp_path)
+    html_report.save_and_open(_report_data())
+
+    assert calls
+    assert calls[0][0] == "/usr/bin/open"
