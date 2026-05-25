@@ -7,6 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- **Visible popovers are repositioned when switching panels**: changing the active theme/panel while the popover is open now closes the old popover, rebuilds the content and size, then shows it again to avoid transient indentation or sizing glitches.
+
 ## [0.11.4] - 2026-05-25
 
 ### Added
