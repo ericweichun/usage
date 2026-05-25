@@ -65,4 +65,4 @@ def test_generate_analysis_report_uses_analyzer_pipeline(
     monkeypatch.setattr("ui.html_report.save_and_open", fake_save_and_open)
 
     assert menubar._generate_analysis_report() == "~/.usage-reports/usage-report-test.html"
-    assert calls == {"agents": agents, "period": "month", "data": report_data}
+    assert calls == {"agents": agents, "period": "last30", "data": report_data}

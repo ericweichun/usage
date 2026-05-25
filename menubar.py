@@ -943,7 +943,7 @@ def run_app(mock: bool = False, interval: int = 60) -> None:
     app.run()
 
 
-def _generate_analysis_report(period: str = "month") -> str:
+def _generate_analysis_report(period: str = "last30") -> str:
     from adapters.registry import detect_agents
     from analyzer.reporter import build_report_data
     from ui.html_report import save_and_open

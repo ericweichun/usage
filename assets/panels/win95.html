@@ -237,9 +237,11 @@
     }
 
     .proj-row {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr) auto;
+      align-items: center;
+      column-gap: 8px;
+      row-gap: 1px;
       padding: 8px 4px;
       border-top: 1px solid var(--line);
       font-size: 14px;
@@ -251,6 +253,7 @@
     }
 
     .proj-rank {
+      grid-row: 1 / span 2;
       width: 18px;
       color: var(--muted);
       font-weight: 700;
@@ -258,14 +261,15 @@
     }
 
     .proj-name {
-      flex: 1 1 96px;
-      min-width: 92px;
+      grid-column: 2 / 4;
+      min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
     .proj-tokens {
+      grid-column: 2;
       color: var(--accent);
       font-size: 12px;
       font-weight: 700;
@@ -273,6 +277,7 @@
     }
 
     .proj-cost {
+      grid-column: 3;
       color: var(--muted);
       font-size: 12px;
       white-space: nowrap;

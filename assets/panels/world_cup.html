@@ -420,13 +420,17 @@
 
     .project-row {
       display: grid;
-      grid-template-columns: 20px minmax(0, 1fr) minmax(80px, auto) minmax(70px, auto);
+      grid-template-columns: 20px minmax(0, 1fr) minmax(70px, auto);
+      grid-template-areas:
+        "rank name name"
+        "rank meter tokens";
       align-items: center;
-      gap: 8px;
-      min-height: 28px;
+      gap: 2px 8px;
+      min-height: 38px;
     }
 
     .rank {
+      grid-area: rank;
       display: grid;
       place-items: center;
       width: 20px;
@@ -440,6 +444,7 @@
     }
 
     .project-name {
+      grid-area: name;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -451,6 +456,7 @@
     }
 
     .project-meter {
+      grid-area: meter;
       position: relative;
       height: 7px;
       min-width: 80px;
@@ -471,6 +477,7 @@
     }
 
     .project-tokens {
+      grid-area: tokens;
       color: #ffffff;
       font-size: 12px;
       font-weight: 900;
@@ -552,7 +559,7 @@
       }
 
       .project-row {
-        grid-template-columns: 20px minmax(0, 1fr) minmax(56px, auto) minmax(58px, auto);
+        grid-template-columns: 20px minmax(0, 1fr) minmax(58px, auto);
         gap: 6px;
       }
     }
