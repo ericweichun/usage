@@ -6,7 +6,10 @@ from pathlib import Path
 from adapters.types import UsageEntry
 
 LITELLM_URL = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-CACHE_PATH = Path(os.path.expanduser("~/.claude/pricing_cache.json"))
+DEFAULT_CACHE_PATH = Path(os.path.expanduser("~/.usage/pricing_cache.json"))
+DEFAULT_LEGACY_CACHE_PATH = Path(os.path.expanduser("~/.claude/pricing_cache.json"))
+CACHE_PATH = DEFAULT_CACHE_PATH
+LEGACY_CACHE_PATH = DEFAULT_LEGACY_CACHE_PATH
 
 _pricing: dict | None = None
 
@@ -59,9 +62,11 @@ def _resolve_model_key(model: str, pricing: dict) -> str | None:
 
 
 def _load_pricing() -> dict:
-    if CACHE_PATH.exists():
+    use_legacy = CACHE_PATH == DEFAULT_CACHE_PATH or LEGACY_CACHE_PATH != DEFAULT_LEGACY_CACHE_PATH
+    cache_path = CACHE_PATH if CACHE_PATH.exists() or not use_legacy else LEGACY_CACHE_PATH
+    if cache_path.exists():
         try:
-            with open(CACHE_PATH) as f:
+            with cache_path.open(encoding="utf-8") as f:
                 return json.load(f)
         except (json.JSONDecodeError, OSError):
             pass
@@ -87,8 +92,9 @@ def _fetch_and_cache() -> dict:
             data = json.loads(resp.read().decode())
 
     try:
-        with open(CACHE_PATH, "w") as f:
-            json.dump(data, f)
+        CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with CACHE_PATH.open("w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
     except OSError:
         pass
 
