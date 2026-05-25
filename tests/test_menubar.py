@@ -695,6 +695,73 @@ def test_apply_refresh_result_pushes_state_only_when_popover_is_shown() -> None:
     assert delegate.codex_5h_pct == 34
 
 
+def test_switching_visible_panel_reopens_popover(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeController:
+        def __init__(self) -> None:
+            self.rebuilt: list[str] = []
+            self.states: list[menubar.PopoverState] = []
+
+        def rebuildWithPanel_(self, panel: Any) -> None:
+            self.rebuilt.append(panel.id)
+
+        def setState_(self, state: menubar.PopoverState) -> None:
+            self.states.append(state)
+
+    class FakeButton:
+        def bounds(self) -> str:
+            return "button-bounds"
+
+    class FakeStatusItem:
+        def __init__(self) -> None:
+            self._button = FakeButton()
+
+        def button(self) -> FakeButton:
+            return self._button
+
+    class FakePopover:
+        def __init__(self) -> None:
+            self.closed = 0
+            self.shown: list[tuple[object, object, object]] = []
+            self.sizes: list[object] = []
+
+        def isShown(self) -> bool:
+            return True
+
+        def performClose_(self, sender: object) -> None:
+            self.closed += 1
+
+        def setContentSize_(self, size: object) -> None:
+            self.sizes.append(size)
+
+        def showRelativeToRect_ofView_preferredEdge_(
+            self,
+            rect: object,
+            view: object,
+            edge: object,
+        ) -> None:
+            self.shown.append((rect, view, edge))
+
+    saved: list[str] = []
+    monkeypatch.setattr(menubar, "save_active_panel_id", lambda panel_id: saved.append(panel_id))
+
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(True, 60)
+    delegate.latest_state = menubar._empty_state(language="en")
+    delegate.popover_controller = FakeController()
+    delegate.popover = FakePopover()
+    delegate.status_item = FakeStatusItem()
+
+    delegate._set_active_panel_id("matrix")
+
+    assert saved == ["matrix"]
+    assert delegate.active_panel.id == "matrix"
+    assert delegate.popover_controller.rebuilt == ["matrix"]
+    assert delegate.popover_controller.states == [delegate.latest_state]
+    assert delegate.popover.closed == 1
+    assert len(delegate.popover.sizes) == 1
+    assert len(delegate.popover.shown) == 1
+    assert delegate.popover.shown[0][0] == "button-bounds"
+
+
 def test_state_from_outcome_replaces_claude_reset_with_warning(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
