@@ -368,9 +368,8 @@
     .section-head {
       position: relative;
       z-index: 1;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
       gap: 10px;
       margin-bottom: 12px;
     }
@@ -409,6 +408,18 @@
       flex: none;
       min-height: 26px;
       padding: 0 10px;
+    }
+
+    .project-actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .project-actions .range-chip {
+      width: 100%;
+      min-width: 0;
+      padding-inline: 8px;
     }
 
     [data-project-list] {
@@ -636,9 +647,11 @@
       <section class="standings">
         <div class="section-head">
           <div class="section-title">MATCH STATS</div>
-          <button class="range-chip" data-action="toggle-project-range">Today</button>
-          <button class="range-chip" data-action="analyze" data-i18n="analyze_usage">Analyze</button>
-          <button class="range-chip" data-action="toggle-statusline" data-i18n="cli">CLI</button>
+          <div class="project-actions">
+            <button class="range-chip" data-action="toggle-project-range">Today</button>
+            <button class="range-chip" data-action="analyze" data-i18n="analyze_usage">Analyze</button>
+            <button class="range-chip" data-action="toggle-statusline" data-i18n="cli">CLI</button>
+          </div>
         </div>
         <div data-project-list></div>
       </section>

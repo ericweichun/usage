@@ -483,11 +483,21 @@ class AppDelegate(NSObject):
 
     def _set_active_panel_id(self, panel_id: str) -> None:
         panel = panels.get_panel(panel_id)
+        was_shown = bool(self.popover.isShown())
+        if was_shown:
+            self.popover.performClose_(None)
         save_active_panel_id(panel.id)
         self.active_panel = panel
         self.popover_controller.rebuildWithPanel_(panel)
         self.popover_controller.setState_(self.latest_state)
         self.popover.setContentSize_(_popover_size(self.latest_state, panel))
+        if was_shown:
+            button = self.status_item.button()
+            self.popover.showRelativeToRect_ofView_preferredEdge_(
+                button.bounds(),
+                button,
+                NSMinYEdge,
+            )
 
     def togglePopover_(self, sender: Any) -> None:
         if self.popover.isShown():
