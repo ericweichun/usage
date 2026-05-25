@@ -90,6 +90,19 @@ def test_html_panels_place_analyze_and_cli_in_project_header() -> None:
         assert 'class="action" data-action="analyze"' not in html
 
 
+def test_classic_project_header_expands_for_action_row() -> None:
+    panel_path = Path(__file__).resolve().parent.parent / "assets" / "panels" / "classic.html"
+    html = panel_path.read_text(encoding="utf-8")
+    project_brand_css = html[
+        html.index('.card[data-card="projects"] .brand {') :
+        html.index('.card[data-card="projects"] .brand-icon {')
+    ]
+
+    assert "display: grid;" in project_brand_css
+    assert "height: auto;" in project_brand_css
+    assert "margin-bottom: 14px;" in project_brand_css
+
+
 def test_missing_panel_id_falls_back_to_classic() -> None:
     panel = panels.get_panel("missing")
 
