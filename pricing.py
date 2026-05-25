@@ -57,12 +57,14 @@ def calculate_cost(entry: UsageEntry) -> float:
     )
     cache_read_cost = model_pricing.get("cache_read_input_token_cost", input_cost * 0.1)
 
-    return (
+    cost = (
         entry.input_tokens * input_cost
         + entry.output_tokens * output_cost
         + entry.cache_creation_tokens * cache_creation_cost
         + entry.cache_read_tokens * cache_read_cost
     )
+    entry.cost_usd = cost
+    return cost
 
 
 def get_pricing() -> PricingTable:
