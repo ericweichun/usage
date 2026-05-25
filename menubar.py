@@ -905,7 +905,12 @@ class AppDelegate(NSObject):
                     logger.warning("project usage load failed", exc_info=True)
                 return []
         else:
-            if hours_back > 0:
+            if hours_back == 24:
+                today = datetime.now().astimezone().date()
+                resolved = [
+                    e for e in entries if e.timestamp.astimezone().date() == today
+                ]
+            elif hours_back > 0:
                 cutoff = datetime.now(tz=UTC) - timedelta(hours=hours_back)
                 resolved = [e for e in entries if e.timestamp >= cutoff]
             else:
@@ -1191,8 +1196,11 @@ def _today_title(
         total_tokens = 0
         total_cost = 0.0
 
-        history = entries if entries is not None else load_entries(hours_back=24)
-        all_entries = list(history) + codex_loader.load_entries(hours_back=24)
+        all_entries = (
+            entries
+            if entries is not None
+            else list(load_entries(hours_back=24)) + codex_loader.load_entries(hours_back=24)
+        )
         for entry in all_entries:
             if entry.timestamp.astimezone().date() != today:
                 continue
