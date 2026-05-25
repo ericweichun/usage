@@ -15,10 +15,13 @@ def _patch_paths(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> tuple[Path, Path, Path]:
     claude_dir = tmp_path / ".claude"
+    codex_dir = tmp_path / ".codex"
     settings = claude_dir / "settings.json"
     hook_target = claude_dir / "usage-statusline.py"
     forwarder_target = claude_dir / "usage-statusline-forwarder.py"
     status_file = claude_dir / "usage-status.json"
+    codex_config = codex_dir / "config.toml"
+    codex_backup = codex_dir / "usage-backup.json"
     hook_source = tmp_path / "hook_source.py"
     forwarder_source = tmp_path / "forwarder_source.py"
     hook_source.write_text("print('hook')\n", encoding="utf-8")
@@ -28,6 +31,9 @@ def _patch_paths(
     monkeypatch.setattr(setup_hook, "HOOK_TARGET", hook_target)
     monkeypatch.setattr(setup_hook, "FORWARDER_TARGET", forwarder_target)
     monkeypatch.setattr(setup_hook, "STATUS_FILE", status_file)
+    monkeypatch.setattr(setup_hook, "CODEX_CONFIG", codex_config)
+    monkeypatch.setattr(setup_hook, "CODEX_BACKUP", codex_backup)
+    monkeypatch.setattr(setup_hook, "LEGACY_CODEX_BACKUP", codex_dir / "tt-backup.json")
     monkeypatch.setattr(
         setup_hook,
         "LEGACY_HOOK_TARGET",
@@ -169,3 +175,41 @@ def test_statusline_command_quotes_paths_with_spaces(
     result = subprocess.run(["/bin/sh", "-c", cmd], capture_output=True)
     assert result.returncode == 0, result.stderr.decode("utf-8", "replace")
     assert argv_file.read_text(encoding="utf-8").strip() == str(hook_file)
+
+
+def test_setup_codex_only_configures_status_line_without_claude(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _patch_paths(monkeypatch, tmp_path)
+    setup_hook.CLAUDE_SETTINGS.parent.rmdir()
+    setup_hook.CODEX_CONFIG.parent.mkdir()
+    setup_hook.CODEX_CONFIG.write_text("[tui]\n", encoding="utf-8")
+
+    exit_code = setup_hook.setup()
+
+    assert exit_code == 0
+    content = setup_hook.CODEX_CONFIG.read_text(encoding="utf-8")
+    assert "status_line = [" in content
+    assert '"five-hour-limit"' in content
+    assert not setup_hook.HOOK_TARGET.exists()
+
+
+def test_unsetup_codex_restores_previous_status_line(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _patch_paths(monkeypatch, tmp_path)
+    setup_hook.CLAUDE_SETTINGS.parent.rmdir()
+    setup_hook.CODEX_CONFIG.parent.mkdir()
+    setup_hook.CODEX_CONFIG.write_text(
+        '[tui]\nstatus_line = [\n  "model",\n]\n',
+        encoding="utf-8",
+    )
+
+    assert setup_hook.setup() == 0
+    assert setup_hook.CODEX_BACKUP.exists()
+    assert setup_hook.unsetup() == 0
+
+    content = setup_hook.CODEX_CONFIG.read_text(encoding="utf-8")
+    assert '"model"' in content
+    assert '"five-hour-limit"' not in content
+    assert not setup_hook.CODEX_BACKUP.exists()

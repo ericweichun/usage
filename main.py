@@ -19,7 +19,8 @@ from usage_rate import UsageRateTracker
 SPRITE_INTERVAL_S = [2.0, 0.8, 0.4, 0.15]  # idle/normal/active/heavy
 IMPORT_RETRY_ATTEMPTS = 6
 IMPORT_RETRY_DELAY_S = 3.0
-PREFERENCES_FILE = Path(os.path.expanduser("~/.claude/usage-preferences.json"))
+PREFERENCES_FILE = Path(os.path.expanduser("~/.usage/preferences.json"))
+LEGACY_PREFERENCES_FILE = Path(os.path.expanduser("~/.claude/usage-preferences.json"))
 REPAIR_DISMISS_SECONDS = 24 * 3600
 
 logger = logging.getLogger(__name__)
@@ -70,10 +71,11 @@ def _health_language() -> str:
 
 
 def _load_preferences() -> dict[str, Any]:
-    if not PREFERENCES_FILE.exists():
+    path = PREFERENCES_FILE if PREFERENCES_FILE.exists() else LEGACY_PREFERENCES_FILE
+    if not path.exists():
         return {}
     try:
-        data = json.loads(PREFERENCES_FILE.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
     return data if isinstance(data, dict) else {}
@@ -156,6 +158,13 @@ def _show_repair_dialog() -> str:
 
 
 def health_check() -> None:
+    try:
+        import setup_hook
+
+        if not setup_hook.has_claude():
+            return
+    except Exception:
+        return
     if _is_our_hook_in_settings():
         return
     if _is_first_run():
@@ -175,7 +184,7 @@ def health_check() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="顯示 Claude Code 用量的工具")
+    parser = argparse.ArgumentParser(description="顯示 Codex 與 Claude Code 用量的工具")
     parser.add_argument("--mock", action="store_true", help="使用假資料預覽介面")
     parser.add_argument(
         "--interval",
@@ -198,12 +207,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--setup",
         action="store_true",
-        help="安裝 statusLine hook 到 Claude Code（首次使用必跑）",
+        help="設定偵測到的 agent（Codex status_line；Claude Code statusLine hook 為可選）",
     )
     parser.add_argument(
         "--unsetup",
         action="store_true",
-        help="從 Claude Code 移除 statusLine hook 並還原原設定",
+        help="還原 Codex status_line 與 Claude Code statusLine hook 設定",
     )
     args = parser.parse_args()
     args.interval = max(30, args.interval)

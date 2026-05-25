@@ -694,3 +694,34 @@ def test_state_from_outcome_translates_awaiting_rate_limits_message() -> None:
     )
 
     assert state.status_text == "狀態：請對 Claude Code 發送一句訊息以同步配額"
+
+
+def test_codex_only_state_hides_claude_setup_button_and_uses_codex_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    delegate.language = "en"
+    monkeypatch.setattr(delegate, "_claude_setup_available", lambda: False)
+    codex_rows = (
+        menubar.QuotaRowState("Session", 12, "12% used", "Resets in 1h", (0, 0, 1), True, True),
+        menubar.QuotaRowState("Weekly", 20, "20% used", "Resets in 1d", (0, 0, 1), True, True),
+    )
+
+    state = delegate._state_from_outcome(
+        PollOutcome(state=PollState.TOKEN_ERROR, message="missing Claude"),
+        codex_rows,
+        [],
+        [],
+        [],
+    )
+
+    assert state.show_install_button is False
+    assert state.status_text == "Status: ✓ Codex synced; Claude Code optional"
+
+
+def test_compose_title_prefers_codex_when_claude_is_missing() -> None:
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    state = menubar._empty_state("en")
+    delegate.codex_5h_pct = 42
+
+    assert delegate._compose_title(state) == "📜 42%"

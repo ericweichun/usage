@@ -668,6 +668,14 @@ class AppDelegate(NSObject):
             return _t(self.language, "awaiting_rate_limits")
         return outcome.message or _t(self.language, fallback_key)
 
+    def _claude_setup_available(self) -> bool:
+        try:
+            import setup_hook
+
+            return setup_hook.has_claude()
+        except Exception:
+            return False
+
     def _state_from_outcome(
         self,
         outcome: PollOutcome,
@@ -680,11 +688,11 @@ class AppDelegate(NSObject):
         now = time.time()
         today_text = _today_title(self.mock, self.language, entries=history_entries)
         group_name = _group_name(self.tracker.group(), self.language)
-        status_text = _t(
-            self.language,
-            "status_text",
-            value=self._status_message_value(outcome, "status_loading"),
-        )
+        has_codex_data = codex_rows[0].available or codex_rows[1].available
+        status_value = self._status_message_value(outcome, "status_loading")
+        if outcome.state == PollState.TOKEN_ERROR and has_codex_data:
+            status_value = _t(self.language, "codex_status_synced")
+        status_text = _t(self.language, "status_text", value=status_value)
 
         if outcome.state == PollState.SUCCESS and outcome.snapshot is not None:
             snapshot = outcome.snapshot
@@ -728,10 +736,13 @@ class AppDelegate(NSObject):
         else:
             claude_session = _missing_row("Session", CLAUDE_COLOR, self.language)
             claude_weekly = _missing_row("Weekly", CLAUDE_COLOR, self.language)
+            status_value = self._status_message_value(outcome, "status_no_data")
+            if outcome.state == PollState.TOKEN_ERROR and has_codex_data:
+                status_value = _t(self.language, "codex_status_synced")
             status_text = _t(
                 self.language,
                 "status_text",
-                value=self._status_message_value(outcome, "status_no_data"),
+                value=status_value,
             )
 
         return PopoverState(
@@ -747,7 +758,9 @@ class AppDelegate(NSObject):
             status_text=status_text,
             today_text=today_text,
             statusline=_statusline_payload(self.language),
-            show_install_button=outcome.state == PollState.TOKEN_ERROR,
+            show_install_button=(
+                outcome.state == PollState.TOKEN_ERROR and self._claude_setup_available()
+            ),
         )
 
     def _codex_rows(self) -> tuple[tuple[QuotaRowState, QuotaRowState], int | None]:
@@ -891,12 +904,13 @@ class AppDelegate(NSObject):
         return rows
 
     def _compose_title(self, state: PopoverState) -> str:
-        base = (
-            "🐾 --"
-            if state.claude_session.percent is None
-            else f"🐾 {_format_percent(state.claude_session.percent)}%"
-        )
-        if self.codex_5h_pct is None:
+        claude_percent = state.claude_session.percent
+        claude_available = claude_percent is not None
+        codex_available = self.codex_5h_pct is not None
+        if codex_available and not claude_available:
+            return f"📜 {self.codex_5h_pct}%"
+        base = "🐾 --" if claude_percent is None else f"🐾 {_format_percent(claude_percent)}%"
+        if not codex_available:
             return base
         return f"{base} · 📜 {self.codex_5h_pct}%"
 

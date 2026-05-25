@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`usage` is a macOS menu bar (and TUI) app that pins Claude Code + Codex quota usage to the screen. Python 3.13, PyObjC for the menu bar UI, `rich` for the TUI. **No Anthropic/OpenAI APIs are ever called** — all numbers come from files on disk (a statusLine hook Claude Code writes, and Codex's `~/.codex/sessions/*.jsonl` logs).
+`usage` is a macOS menu bar (and TUI) app that pins Codex quota usage to the screen and keeps Claude Code as an optional integration. Python 3.13, PyObjC for the menu bar UI, `rich` for the TUI. **No Anthropic/OpenAI APIs are ever called** — all numbers come from files on disk (Codex's `~/.codex/sessions/*.jsonl` logs, plus a statusLine hook Claude Code writes when enabled).
 
 ## Commands
 
@@ -19,7 +19,7 @@ python3 -m venv .venv && source .venv/bin/activate && pip install -e .
 python3 main.py
 python3 main.py --mock                  # preview with fake data
 python3 main.py --tui                   # terminal TUI mode
-python3 main.py --setup / --unsetup     # (un)install Claude Code statusLine hook
+python3 main.py --setup / --unsetup     # configure/restore Codex status_line and optional Claude hook
 USAGE_DEBUG=1 python3 main.py           # surface swallowed exceptions
 
 # Pre-PR checks — all three must pass (CI runs identical commands)
@@ -43,9 +43,10 @@ Tests **must not** touch real `~/.claude/` or `~/.codex/` files — patch the pa
 Two separate input channels feed one UI:
 
 ```
-Claude Code ──stdin──> usage_statusline.py (hook) ──write──> ~/.claude/usage-status.json
-                                                                       │
-~/.codex/sessions/*.jsonl  (Codex writes these natively) ──┐           │
+~/.codex/sessions/*.jsonl  (Codex writes these natively) ──┐
+                                                            │
+Claude Code ──stdin──> usage_statusline.py (optional hook) ─┴─write──> ~/.claude/usage-status.json
+                                                                        │
                                                             ▼           ▼
                                               codex_loader.py    usage_client.py
                                                             └────┬──────┘
@@ -53,8 +54,8 @@ Claude Code ──stdin──> usage_statusline.py (hook) ──write──> ~/.
                                                    menubar.py  /  tui.py
 ```
 
-- **Claude Code side**: `usage_statusline.py` is installed into `~/.claude/usage-statusline.py` by `setup_hook.py` and wired into `~/.claude/settings.json`'s `statusLine`. Every time Claude Code refreshes its status line, it pipes the session JSON to the hook on stdin; the hook atomically writes it to `~/.claude/usage-status.json`. The UI reads that file — never the network.
-- **Codex side**: no hook is possible (Codex CLI has no equivalent), so `codex_loader.py` scans `~/.codex/sessions/**/*.jsonl` and pulls `rate_limits` straight from the conversation logs.
+- **Codex side**: `setup_hook.py` configures `~/.codex/config.toml` `tui.status_line`, and `codex_loader.py` scans `~/.codex/sessions/**/*.jsonl` to pull `rate_limits` straight from the conversation logs.
+- **Claude Code side**: `usage_statusline.py` is installed into `~/.claude/usage-statusline.py` by `setup_hook.py` only when Claude Code exists, then wired into `~/.claude/settings.json`'s `statusLine`. Every time Claude Code refreshes its status line, it pipes the session JSON to the hook on stdin; the hook atomically writes it to `~/.claude/usage-status.json`. The UI reads that file — never the network.
 - **Read priority** in `usage_client.py`: `usage-status.json` → `usag-status.json` (v0.1.x legacy) → `tt-status.json` (compat fallback for users migrating from the third-party tool `stormzhang/token-tracker`; **NOT an in-repo module — no `token-tracker` directory or source exists anywhere on this machine**).
 
 ### Module map
@@ -65,14 +66,14 @@ Claude Code ──stdin──> usage_statusline.py (hook) ──write──> ~/.
 | `usage_client.py` | Reads the Claude Code status JSON, builds a `UsageSnapshot`. Async interface preserved for the polling loop even though reads are sync. |
 | `codex_loader.py` | Parses Codex JSONL session logs for both rate-limits and per-message token usage. Also reads `~/.codex/state_5.sqlite` (read-only) for thread→model mapping. |
 | `history_loader.py` | Parses Claude Code's per-project JSONL logs under `~/.claude/projects/` for token totals and cost. |
-| `pricing.py` | Cost estimation. Downloads LiteLLM's `model_prices_and_context_window.json` once, caches to `~/.claude/pricing_cache.json` (TTL 7 days; 10-min TTL on fallback so offline-then-online recovers). |
+| `pricing.py` | Cost estimation. Downloads LiteLLM's `model_prices_and_context_window.json` once, caches to `~/.usage/pricing_cache.json` (legacy `~/.claude/pricing_cache.json` still read; TTL 7 days; 10-min TTL on fallback so offline-then-online recovers). |
 | `usage_rate.py` | Burn-rate classifier (Idle/Normal/Active/Heavy) — drives sprite animation speed in TUI. |
 | `burn_rate.py` | Burn-rate prediction core used by `menubar.py`. |
 | `menubar.py` | PyObjC menu bar + popover UI. `# mypy: disable-error-code="import-untyped,misc"` is intentional (PyObjC has no stubs). UI layout constants near the top of the file are part of the visual design — don't tweak casually. |
 | `tui.py`, `tui_sprite.py` | `rich`-based terminal renderer. |
 | `tips_loader.py` | Loads tips for the TUI. |
 | `usage_lang.py` | Detects `USAGE_LANG` / system locale. |
-| `setup_hook.py` | Idempotent install/uninstall of the Claude Code statusLine hook, including migration of v0.1.x `usag-*` artifacts. Backs up any pre-existing `statusLine` under `settings["usage"]["previousStatusLine"]`. |
+| `setup_hook.py` | Idempotent setup/unsetup for Codex `tui.status_line` and optional Claude Code statusLine hook, including migration of v0.1.x `usag-*` artifacts. Backs up any pre-existing `statusLine` under `settings["usage"]["previousStatusLine"]`. |
 | `usage_statusline.py` | The hook itself. **Stdlib-only** so it can run under macOS's bundled `/usr/bin/python3` (3.9) — that's why `tool.ruff.lint.per-file-ignores` excludes `UP017` (`datetime.UTC`) for this one file; use `timezone.utc` here. |
 | `usage_statusline_forwarder.py` | Multi-hook fan-out. **Stdlib-only** so it can run under macOS's bundled `/usr/bin/python3` (3.9), with the same constraints as `usage_statusline.py`. |
 | `update_checker.py` | GitHub Releases update check added in v0.11.0. |

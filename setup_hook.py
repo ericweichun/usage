@@ -1,9 +1,12 @@
-"""Install or remove usage's statusLine hook for Claude Code.
+"""Configure usage integrations for Codex and optionally Claude Code.
 
 Claude Code calls the command configured in ~/.claude/settings.json statusLine
 and sends session JSON on stdin whenever it refreshes the status line. The
 installer copies usage_statusline.py to ~/.claude/usage-statusline.py and points
 statusLine at it, so the main app can read a local status file.
+
+Codex does not use a hook; usage configures ~/.codex/config.toml so Codex writes
+the status-line fields that usage reads from local session logs.
 
 The previous statusLine is backed up under settings["usage"]["previousStatusLine"]
 and restored by unsetup.
@@ -372,6 +375,14 @@ def is_setup() -> bool:
     return True
 
 
+def has_claude() -> bool:
+    return CLAUDE_SETTINGS.parent.exists()
+
+
+def has_codex() -> bool:
+    return CODEX_CONFIG.exists()
+
+
 def _install_forwarder(settings: dict[str, Any]) -> None:
     """Copy usage_statusline_forwarder.py to ~/.claude/ and update settings.json."""
     _copy_hook_script()
@@ -381,13 +392,20 @@ def _install_forwarder(settings: dict[str, Any]) -> None:
     _save_settings(settings)
 
 
-def setup(force_forwarder: bool = False) -> int:
+def setup(force_forwarder: bool = False, auto: bool = False) -> int:
     _migrate_from_legacy_usage()
     has_claude = CLAUDE_SETTINGS.parent.exists()
     has_codex = CODEX_CONFIG.exists()
     if not has_claude and not has_codex:
-        print(_t("setup_no_agents"), file=sys.stderr)
+        if not auto:
+            print(_t("setup_no_agents"), file=sys.stderr)
         return 1
+
+    if auto:
+        print(_t("first_setup"))
+
+    if has_codex:
+        _setup_codex()
 
     if has_claude:
         settings = _load_settings()
@@ -410,9 +428,11 @@ def setup(force_forwarder: bool = False) -> int:
             print(_t("setup_hook_installed", path=HOOK_TARGET))
             print(_t("setup_settings_updated", path=CLAUDE_SETTINGS))
             print(_t("setup_claude_restart_required"))
+    elif auto:
+        print(_t("cc_not_found"))
 
-    if has_codex:
-        _setup_codex()
+    if not has_codex and auto:
+        print(_t("codex_not_found"))
 
     return 0
 

@@ -16,6 +16,7 @@ import usage_statusline_forwarder
 
 def _patch_setup_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, Path, Path]:
     claude_dir = tmp_path / ".claude"
+    codex_dir = tmp_path / ".codex"
     claude_dir.mkdir()
     settings = claude_dir / "settings.json"
     hook_target = claude_dir / "usage-statusline.py"
@@ -29,6 +30,9 @@ def _patch_setup_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple
     monkeypatch.setattr(setup_hook, "HOOK_TARGET", hook_target)
     monkeypatch.setattr(setup_hook, "FORWARDER_TARGET", forwarder_target)
     monkeypatch.setattr(setup_hook, "STATUS_FILE", claude_dir / "usage-status.json")
+    monkeypatch.setattr(setup_hook, "CODEX_CONFIG", codex_dir / "config.toml")
+    monkeypatch.setattr(setup_hook, "CODEX_BACKUP", codex_dir / "usage-backup.json")
+    monkeypatch.setattr(setup_hook, "LEGACY_CODEX_BACKUP", codex_dir / "tt-backup.json")
     monkeypatch.setattr(setup_hook, "_resolve_hook_source", lambda: hook_source)
     monkeypatch.setattr(setup_hook, "_resolve_forwarder_source", lambda: forwarder_source)
     monkeypatch.setattr("setup_hook.shutil.which", lambda _: "/usr/bin/python3")

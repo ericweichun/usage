@@ -2,13 +2,13 @@
 
 [Traditional Chinese](README.md) / English
 
-[![CI](https://github.com/aqua5230/usage/actions/workflows/check.yml/badge.svg)](https://github.com/aqua5230/usage/actions/workflows/check.yml)
-[![Latest Release](https://img.shields.io/github/v/release/aqua5230/usage)](https://github.com/aqua5230/usage/releases/latest)
+[![CI](https://github.com/ericweichun/usage/actions/workflows/check.yml/badge.svg)](https://github.com/ericweichun/usage/actions/workflows/check.yml)
+[![Latest Release](https://img.shields.io/github/v/release/ericweichun/usage)](https://github.com/ericweichun/usage/releases/latest)
 [![Python](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-`usage` is a macOS menu bar tool that pins your **Claude Code and Codex** usage to the top-right of your screen. Click the icon for a popover showing Session, Weekly, per-project usage (today / 7-day / monthly), and today's token usage and cost estimate.
+`usage` is a macOS menu bar tool that pins your **Codex** usage to the top-right of your screen, while keeping **Claude Code** as an optional integration. Click the icon for a popover showing Session, Weekly, per-project usage (today / 7-day / monthly), and today's token usage and cost estimate.
 
 It **never calls the Anthropic / OpenAI API** and **never reads the Keychain**, so it avoids the observer effect of "pinging once a minute counts as usage."
 
@@ -18,11 +18,17 @@ It **never calls the Anthropic / OpenAI API** and **never reads the Keychain**, 
 
 ## How it gets the data
 
-Usage numbers come from local files written by Claude Code and Codex — no Anthropic / OpenAI API calls. Network access is limited to two things: (1) to estimate Codex costs, usage needs a token pricing table — if no local cache exists (`~/.claude/pricing_cache.json`), it downloads the public [LiteLLM pricing JSON](https://github.com/BerriAI/litellm) once and caches it for 7 days. If the download fails, a built-in fallback price is used — usage percentage display is unaffected. On first launch without a cache, the fetch is synchronous and may take ~10 seconds on slow networks. (2) Starting in v0.11.0, usage pings the GitHub Releases API at most once per 24h to check for new versions (toggleable from the "Switch Panel" menu).
+Usage numbers come from local files written by Codex and Claude Code — no Anthropic / OpenAI API calls. Network access is limited to two things: (1) to estimate Codex costs, usage needs a token pricing table — if no local cache exists (`~/.usage/pricing_cache.json`; the legacy `~/.claude/pricing_cache.json` is still read), it downloads the public [LiteLLM pricing JSON](https://github.com/BerriAI/litellm) once and caches it for 7 days. If the download fails, a built-in fallback price is used — usage percentage display is unaffected. On first launch without a cache, the fetch is synchronous and may take ~10 seconds on slow networks. (2) Starting in v0.11.0, usage pings the GitHub Releases API at most once per 24h to check for new versions (toggleable from the "Switch Panel" menu).
 
-### Claude Code usage
+### Codex usage
 
-usage installs a small **statusLine hook** — a script that Claude Code automatically pipes data into every time it refreshes its status line. The flow:
+Codex CLI leaves conversation logs on disk (`~/.codex/sessions/*.jsonl`). Codex writes `rate_limits` data directly into each log entry — usage reads those fields to get the 5-hour and 7-day quota percentages directly. Today's token count and cost are summed from the token usage recorded in the same files.
+
+`python3 main.py --setup` configures Codex's `tui.status_line` in `~/.codex/config.toml` when Codex is detected, so Codex writes the quota fields usage expects. Claude Code is not required for Codex usage tracking.
+
+### Claude Code usage (optional)
+
+If you also use Claude Code, usage installs a small **statusLine hook** — a script that Claude Code automatically pipes data into every time it refreshes its status line. The flow:
 
 1. Claude Code refreshes the status line and packages usage info (5-hour percentage, 7-day percentage, etc.) as JSON.
 2. It pipes that JSON to the hook via stdin.
@@ -47,17 +53,13 @@ Read priority:
 2. `~/.claude/usag-status.json` — automatic v0.1.x legacy fallback; new users should not encounter this.
 3. `~/.claude/tt-status.json` — fallback for users migrating from the third-party tool [stormzhang/token-tracker](https://github.com/stormzhang/token-tracker); usage will share its status file. (**Note: unrelated to this project's internal modules; it's purely external-community compat.**)
 
-### Codex usage
-
-Codex CLI doesn't expose a statusLine hook, so usage takes a different route: it scans the conversation logs Codex CLI leaves on disk (`~/.codex/sessions/*.jsonl`). Codex writes `rate_limits` data directly into each log entry — usage reads those fields to get the 5-hour and 7-day quota percentages directly. Today's token count and cost are summed from the token usage recorded in the same files.
-
-If Codex isn't installed or the directory doesn't exist, that part of the UI hides itself and Claude Code stats continue to work normally.
+If Claude Code is not installed or `~/.claude/` does not exist, that part of the UI hides itself and Codex stats continue to work normally.
 
 ## Requirements
 
 - macOS
 - Python 3.13
-- Claude Code installed and signed in (Codex is optional)
+- Codex installed and signed in (Claude Code is optional)
 
 ## Quick start
 
@@ -69,14 +71,14 @@ If Codex isn't installed or the directory doesn't exist, that part of the UI hid
 
 ## Download the app
 
-Go to the [GitHub Releases page](https://github.com/aqua5230/usage/releases/latest) and download the latest `usage.app.zip`. Unzip it and move `usage.app` wherever you like (e.g. `/Applications`).
+Go to the [GitHub Releases page](https://github.com/ericweichun/usage/releases/latest) and download the latest `usage.app.zip`. Unzip it and move `usage.app` wherever you like (e.g. `/Applications`).
 
 ⚠️ Because this app is not signed with an Apple Developer certificate, **macOS Gatekeeper will block the first launch**.
 To open it: find `usage.app` in Finder → right-click → Open → confirm Open. After that, double-clicking works normally.
 
-### First launch: install the hook
+### First launch: set up the status line
 
-The first time you open usage, if Claude Code has never been wired up yet, the popover will detect the missing status file and **show an extra "Install hook now" button at the bottom**. Click it once — it installs the hook for you. Then **fully quit Claude Code (Cmd+Q) and re-open it**, click "Refresh now" in usage, and the numbers will appear.
+The first time you open usage, if you have already used Codex, the Codex card can show data immediately. If usage needs to configure Codex status-line fields, or if you also want Claude Code integration, the popover may show a **"Set Up Status Line"** button at the bottom. Click it once to configure detected agents. Restart Codex afterward; if Claude Code was configured too, fully quit Claude Code (Cmd+Q) and re-open it.
 
 If the button doesn't show, usage is already reading data (e.g. you previously installed the third-party tool [stormzhang/token-tracker](https://github.com/stormzhang/token-tracker) and its status file works as a fallback) — nothing else to do.
 
@@ -84,7 +86,7 @@ If the button doesn't show, usage is already reading data (e.g. you previously i
 > If the in-app button doesn't work or you prefer the command line, run the following in Terminal (download first, inspect, then run):
 >
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/aqua5230/usage/main/scripts/install-hook.sh -o /tmp/usage-install.sh
+> curl -fsSL https://raw.githubusercontent.com/ericweichun/usage/main/scripts/install-hook.sh -o /tmp/usage-install.sh
 > cat /tmp/usage-install.sh   # review the script before running
 > bash /tmp/usage-install.sh
 > ```
@@ -92,11 +94,11 @@ If the button doesn't show, usage is already reading data (e.g. you previously i
 ## Download
 
 ```bash
-git clone https://github.com/aqua5230/usage.git
+git clone https://github.com/ericweichun/usage.git
 cd usage
 ```
 
-If you don't use git, go to the [GitHub project page](https://github.com/aqua5230/usage), click the green **Code → Download ZIP**, then `cd` into the unzipped folder.
+If you don't use git, go to the [GitHub project page](https://github.com/ericweichun/usage), click the green **Code → Download ZIP**, then `cd` into the unzipped folder.
 
 ## Set up the environment
 
@@ -108,23 +110,24 @@ pip install -e .
 
 This creates an isolated Python environment (`.venv`) for the project, activates it, and installs usage plus its dependencies into it.
 
-## First install (wire up the Claude Code hook — source mode only)
+## Configure Codex / Claude Code from source
 
-> Using the .app? Just click the "Install hook now" button in the popover on first launch instead — you don't need this section. The steps below are for developers running usage from source.
+> Using the .app? Just click the "Set Up Status Line" button in the popover on first launch instead — you don't need this section. The steps below are for developers running usage from source.
 
-This single command does two things: copies the hook script into `~/.claude/`, and updates your Claude Code settings to point at it.
+This command configures detected agents: Codex gets `tui.status_line` in `~/.codex/config.toml`; if Claude Code is present, usage also copies the hook script into `~/.claude/` and updates Claude Code settings to point at it.
 
 ```bash
 source .venv/bin/activate
 python3 main.py --setup
 ```
 
-**Restart Claude Code once after running this** so it re-reads `~/.claude/settings.json` and refreshes its status line. That refresh is when usage data first lands on disk.
+**Restart Codex once after running this**. If Claude Code was configured, restart Claude Code too so it re-reads `~/.claude/settings.json` and refreshes its status line.
 
 What `--setup` does in detail:
 
-- Copies `usage_statusline.py` to `~/.claude/usage-statusline.py`.
-- Points `statusLine` in `~/.claude/settings.json` at that hook.
+- Configures `tui.status_line` in `~/.codex/config.toml`.
+- If Claude Code is present, copies `usage_statusline.py` to `~/.claude/usage-statusline.py`.
+- If Claude Code is present, points `statusLine` in `~/.claude/settings.json` at that hook.
 - If you already had a custom `statusLine`, it is backed up to `settings.usage.previousStatusLine` so nothing is overwritten.
 
 To uninstall:
@@ -260,7 +263,7 @@ python3 main.py --tui --mock
 
 ## Options
 
-- `--setup` / `--unsetup` — install or remove the Claude Code statusLine hook.
+- `--setup` / `--unsetup` — configure or restore detected agents (Codex `status_line`; Claude Code `statusLine` hook is optional).
 - `--tui` — force terminal TUI mode (no menu bar).
 - `--interval N` — how often (seconds) the UI re-reads the status file. Minimum 30, default 60.
 - `--mock` — use fake data; don't read any status file.
@@ -297,7 +300,7 @@ USAGE_LANG=zh-CN python3 main.py   # Simplified Chinese
 
 ## Behaviour notes
 
-- usage only reads `~/.claude/usage-status.json`, the v0.1.x legacy `~/.claude/usag-status.json`, `~/.claude/tt-status.json`, and Codex's session files. It does not call the Anthropic / OpenAI API and does not read the Keychain. Network activity is limited to two things: (a) a one-time download of the LiteLLM pricing table for Codex cost estimates (cached for 7 days; offline fallback available); (b) starting in v0.11.0, an at-most-daily ping to the GitHub Releases API to check for new versions (toggleable from the "Switch Panel" menu).
+- usage only reads Codex session files, optional `~/.claude/usage-status.json`, the v0.1.x legacy `~/.claude/usag-status.json`, and `~/.claude/tt-status.json`. It does not call the Anthropic / OpenAI API and does not read the Keychain. Network activity is limited to two things: (a) a one-time download of the LiteLLM pricing table for Codex cost estimates (cached at `~/.usage/pricing_cache.json`; legacy `~/.claude/pricing_cache.json` still works; offline fallback available); (b) starting in v0.11.0, an at-most-daily ping to the GitHub Releases API to check for new versions (toggleable from the "Switch Panel" menu).
 - When Claude Code isn't running, the status file isn't updated — but actual usage isn't changing either (until reset time), so the displayed value is still accurate. After reset time passes, it auto-resets to zero.
 - If the status file hasn't been updated for more than 6 hours, the status message shows `⚠ usage stale Nm` (where N is the actual minute count) to flag potentially out-of-date numbers.
 
@@ -311,13 +314,13 @@ The "Fix" column distinguishes three kinds of users — find yours first:
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| Menu bar shows `--` | Hook not installed, or Claude Code hasn't refreshed yet | **.app users**: click the "Install hook now" button in the popover. **Source users**: run `python3 main.py --setup`. Either way, restart Claude Code once afterwards |
+| Menu bar shows `--` | No Codex `rate_limits` yet, or the optional Claude Code hook has not refreshed | Run one Codex conversation first. For Claude Code integration, **.app users** click "Set Up Status Line"; **Source users** run `python3 main.py --setup` |
 | Accidentally hit "Quit", paw icon disappeared from the menu bar | "Quit" fully terminates the usage process; you have to relaunch it | **.app users**: press `Cmd+Space` for Spotlight, type `usage`, hit Enter; or double-click `usage.app` from `/Applications`. **LaunchAgent users**: run `launchctl start com.lollapalooza.usage` in Terminal. **Source users**: run `python3 main.py` in Terminal again |
 | Status says "N minutes stale" | Claude Code isn't running | Open Claude Code and let it run; it updates the file on its next status refresh |
 | Codex section is empty | `~/.codex/sessions/` doesn't exist or has no `rate_limits` events yet | Run a Codex conversation to generate log entries |
-| Today's cost shows $0.00 | Model name doesn't match the pricing table, or pricing download/cache failed | Delete `~/.claude/pricing_cache.json` to force a re-fetch; or run with `USAGE_DEBUG=1` for details |
+| Today's cost shows $0.00 | Model name doesn't match the pricing table, or pricing download/cache failed | Delete `~/.usage/pricing_cache.json` to force a re-fetch; legacy cache lives at `~/.claude/pricing_cache.json`; or run with `USAGE_DEBUG=1` for details |
 | App won't open (blocked by macOS) | Gatekeeper blocks unsigned apps | Finder → find `usage.app` → right-click → Open → confirm Open |
-| App crashes immediately on launch (macOS Sequoia / arm64) | You're on v0.10.x or v0.11.0 — these had a py2app bundling bug | Upgrade to **v0.11.1 or newer** by downloading `usage.app.zip` from [Releases](https://github.com/aqua5230/usage/releases/latest) |
+| App crashes immediately on launch (macOS Sequoia / arm64) | You're on v0.10.x or v0.11.0 — these had a py2app bundling bug | Upgrade to **v0.11.1 or newer** by downloading `usage.app.zip` from [Releases](https://github.com/ericweichun/usage/releases/latest) |
 
 ## Build a .app bundle (optional)
 
