@@ -41,6 +41,12 @@ flowchart LR
     style F stroke:#c0392b,stroke-dasharray:5 5
 ```
 
+<p align="center">
+  <img src="docs/statusline.en.png" alt="Claude Code statusLine display (English)" width="640">
+  <br>
+  <sub>What you see at the bottom of the Claude Code window: 5h / 7d quota bars, context usage, session duration, current model — all on one line. Percentages share the bar color, so the warning level reads at a glance.</sub>
+</p>
+
 Read priority:
 
 1. `~/.claude/usage-status.json` — written by the hook usage installs.

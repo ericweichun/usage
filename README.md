@@ -41,6 +41,12 @@ flowchart LR
     style F stroke:#c0392b,stroke-dasharray:5 5
 ```
 
+<p align="center">
+  <img src="docs/statusline.png" alt="Claude Code statusLine 顯示樣式（繁中）" width="640">
+  <br>
+  <sub>Claude Code 視窗底部會看到這樣的 statusLine —— 5 小時 / 7 天配額條、對話窗用量、會話時長、目前模型，全擠在一行；數字跟進度條同色，掃一眼就知道警示級別。</sub>
+</p>
+
 讀檔的優先順序：
 
 1. `~/.claude/usage-status.json` —— usage 自己 hook 寫的
