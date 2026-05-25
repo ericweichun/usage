@@ -6,6 +6,18 @@
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-05-25
+
+### 修正
+- **`usage_cli.py` 第一次執行必 crash**（感謝 @will30-blockchain 的 [#7](https://github.com/aqua5230/usage/pull/7)）：`setup(auto=True)` 傳了不存在的參數給 `setup_hook.setup()`，導致 fresh 安裝或 `unsetup` 後第一次跑 `usage_cli.py` 就噴 `TypeError`。已裝過 hook 的使用者不受影響。修正：拿掉多餘的 `auto=True`。
+
+### 效能
+- **JSONL 增量解析**：`history_loader` 與 `codex_loader` 新增 module-level mtime+size 快取，僅在檔案內容變動時重新解析，大幅減少每次 UI 刷新的磁碟 I/O。
+- **Hook 並行轉發**：`usage_statusline_forwarder` 改用 `ThreadPoolExecutor` 同時執行所有 hook，單一 hook 逾時不再阻塞其他 hook，最壞情況從 `n × 5s` 降為 `5s`。
+- **多 session 寫入保護**：`usage_statusline.py` 的 `save()` 加入 `fcntl.LOCK_EX` 檔案鎖，防止多個 Claude Code session 同時寫入時資料互蓋。
+- **Python 路徑優先順序**：`setup_hook` 安裝 hook 時改用 `_find_system_python()`，優先選 `.app` 內建 Python，其次 `/usr/bin/python3`，避免 Xcode 更新後 `shutil.which("python3")` 指到壞掉的 stub。
+- **FSEvents 事件驅動 UI 更新**：`menubar` 改用 CoreServices `FSEventStream`（ctypes）監聽 `~/.claude/`，`usage-status.json` 一有變動立即觸發 `_refresh()`，更新延遲從最多 60 秒降至毫秒；`NSTimer` 降為 300 秒 fallback，CoreServices 不可用時自動降級。
+
 ## [0.11.1] - 2026-05-24
 
 ### 修正
