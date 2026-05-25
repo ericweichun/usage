@@ -14,6 +14,7 @@ usage 主程式會反向讀這個檔，呈現給 menubar / TUI。
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import sys
@@ -24,6 +25,9 @@ from typing import Any, Dict, List, Optional, Tuple
 __version__ = "1.0"
 
 STATUS_FILE = os.path.expanduser("~/.claude/usage-status.json")
+LOCK_FILE = os.path.expanduser("~/.claude/usage-status.lock")
+PREFERENCES_FILE = os.path.expanduser("~/.claude/usage-preferences.json")
+UPDATE_HINT_STALE_SECONDS = 30 * 86400
 STATUSLINE_TRANSLATIONS = {
     "zh-TW": {
         "five_hour": "5小時",
@@ -42,6 +46,7 @@ STATUSLINE_TRANSLATIONS = {
         "effort_normal": "標準",
         "effort_low": "速答",
         "fast_mode": "⚡快速",
+        "update_available_suffix": "可更新",
     },
     "zh-CN": {
         "five_hour": "5小时",
@@ -60,6 +65,7 @@ STATUSLINE_TRANSLATIONS = {
         "effort_normal": "标准",
         "effort_low": "速答",
         "fast_mode": "⚡快速",
+        "update_available_suffix": "可更新",
     },
     "en": {
         "five_hour": "5h",
@@ -78,6 +84,7 @@ STATUSLINE_TRANSLATIONS = {
         "effort_normal": "Standard",
         "effort_low": "Quick",
         "fast_mode": "⚡Fast",
+        "update_available_suffix": "available",
     },
     "ja": {
         "five_hour": "5時間",
@@ -96,6 +103,7 @@ STATUSLINE_TRANSLATIONS = {
         "effort_normal": "標準",
         "effort_low": "即答",
         "fast_mode": "⚡高速",
+        "update_available_suffix": "更新あり",
     },
     "ko": {
         "five_hour": "5시간",
@@ -114,6 +122,7 @@ STATUSLINE_TRANSLATIONS = {
         "effort_normal": "표준",
         "effort_low": "빠른 답변",
         "fast_mode": "⚡빠름",
+        "update_available_suffix": "업데이트",
     },
 }
 C = {
@@ -157,19 +166,54 @@ def _t(key: str) -> str:
     return table.get(key, key)
 
 
+def _read_update_hint(now_ts: float) -> Optional[str]:
+    """Return latest_version when an update is fresh, available, and not skipped."""
+    try:
+        with open(PREFERENCES_FILE, encoding="utf-8") as f:
+            prefs = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(prefs, dict):
+        return None
+    info = prefs.get("last_update_check")
+    if not isinstance(info, dict):
+        return None
+    latest = info.get("latest_version")
+    current = info.get("current_version")
+    checked_at = info.get("checked_at")
+    if not isinstance(latest, str) or not isinstance(current, str):
+        return None
+    if not isinstance(checked_at, (int, float)) or isinstance(checked_at, bool):
+        return None
+    if latest == current:
+        return None
+    if prefs.get("update_skipped_version") == latest:
+        return None
+    if now_ts - float(checked_at) > UPDATE_HINT_STALE_SECONDS:
+        return None
+    return latest
+
+
 def save(data: Dict[str, Any], now: datetime) -> None:
     data["_received_at"] = now.isoformat()
     data["_received_at_ts"] = now.timestamp()
     target_dir = os.path.dirname(STATUS_FILE)
     os.makedirs(target_dir, exist_ok=True)
+    os.makedirs(os.path.dirname(LOCK_FILE), exist_ok=True)
     tmp_path: str | None = None
+    lock_fd = os.open(LOCK_FILE, os.O_CREAT | os.O_RDWR, 0o600)
     try:
-        fd, tmp_path = tempfile.mkstemp(dir=target_dir, suffix=".tmp")
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False)
-        os.replace(tmp_path, STATUS_FILE)
-        tmp_path = None
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        try:
+            fd, tmp_path = tempfile.mkstemp(dir=target_dir, suffix=".tmp")
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False)
+            os.replace(tmp_path, STATUS_FILE)
+            tmp_path = None
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
     finally:
+        os.close(lock_fd)
         if tmp_path and os.path.exists(tmp_path):
             try:
                 os.unlink(tmp_path)
@@ -237,7 +281,8 @@ def progress_bar(value: Any, bar_width: int = 8) -> str:
     filled = round(pct / 100 * bar_width)
     return (
         f"{color_by_pct(pct)}{filled_char * filled}{C['reset']}"
-        f"{empty_char * (bar_width - filled)} {pct:.0f}%"
+        f"{empty_char * (bar_width - filled)} "
+        f"{color_by_pct(pct)}{pct:.0f}%{C['reset']}"
     )
 
 
@@ -331,13 +376,11 @@ def _render_core(data: Dict[str, Any], now: datetime) -> str:
             if remain > 0:
                 if lang in ("zh-TW", "zh-CN"):
                     reset_str = (
-                        f" {C['dim']}({_t('remaining_prefix')}{fmt_duration(remain)})"
-                        f"{C['reset']}"
+                        f" ({_t('remaining_prefix')}{fmt_duration(remain)})"
                     )
                 else:
                     reset_str = (
-                        f" {C['dim']}({fmt_duration(remain)} {_t('remaining_prefix')})"
-                        f"{C['reset']}"
+                        f" ({fmt_duration(remain)} {_t('remaining_prefix')})"
                     )
         rl_parts.append(
             (
@@ -352,8 +395,8 @@ def _render_core(data: Dict[str, Any], now: datetime) -> str:
     if ctx_pct is not None:
         size = ctx.get("context_window_size", 0)
         ctx_parts = [
-            f"{C['blue']}{_t('context')}({fmt_tokens(size)}):{C['reset']}"
-            f"{progress_bar(ctx_pct, bar_w)}",
+            f"{C['blue']}{_t('context')}:{C['reset']}"
+            f"{progress_bar(ctx_pct, bar_w)} / {fmt_tokens(size)}",
             f"{C['blue']}{_t('context')}:{C['reset']}{float(ctx_pct):.0f}%",
         ]
 
@@ -394,12 +437,16 @@ def _render_core(data: Dict[str, Any], now: datetime) -> str:
             model_name += f"/{effort_label}"
         if data.get("fast_mode"):
             model_name += f" {_t('fast_mode')}"
-        else:
-            model_name += "/nofast"
         line3.append(f"{C['dim']}{C['magenta']}{model_name}{C['reset']}")
 
     if vlen(" | ".join(line3)) > width and duration_part:
         line3 = [p for p in line3 if p != duration_part]
+
+    update_version = _read_update_hint(now.timestamp())
+    if update_version:
+        line3.append(
+            f"{C['cyan']}🆕 v{update_version} {_t('update_available_suffix')}{C['reset']}"
+        )
 
     output = [" | ".join(line) for line in (line1, line3) if line]
     return "\n".join(output) if output else "usage"

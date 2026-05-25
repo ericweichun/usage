@@ -7,6 +7,46 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.11.5] - 2026-05-25
+
+### Changed
+- **Synced upstream 0.11.4**: brought in the v0.11.2-v0.11.4 fixes and performance updates, including incremental JSONL parsing, parallel hook forwarding, FSEvents refresh, read-only CLI commands no longer mutating settings, atomic Codex config writes, pricing consolidation, statusLine update hints, and README/Homebrew docs.
+- **Kept this fork Codex-first**: preserves Codex as the primary path, Claude Code as an optional integration, fork README/release links, Codex project usage, all-time project range, consistent analysis-report counting, and manual refresh queueing.
+
+## [0.11.4] - 2026-05-25
+
+### Added
+- **statusLine shows an "update available" hint**: after every successful update check, menubar writes the result to `~/.claude/usage-preferences.json` under `last_update_check`. statusLine reads this and renders `🆕 vX.Y.Z available` (cyan) on the model line when a newer version is cached, the cache is fresh (<30 days), and the version isn't on the user's skip list. New `update_available_suffix` translation across all 5 languages (zh-TW「可更新」/ zh-CN「可更新」/ en「available」/ ja「更新あり」/ ko「업데이트」).
+
+### Changed
+- **statusLine context-window label format**: `對話窗(1.0M):[bar]` → `對話窗:[bar] 15% / 1.0M`. The capacity moves from a middle parenthetical to a right-aligned suffix, reading more naturally as "15% of 1M".
+- **statusLine fast-mode display flipped**: previously both states showed a label (`⚡Fast` vs `/nofast`); now only the *on* state shows `⚡Fast`, off renders nothing — like an AC unit's indicator light: the light *being on* is the signal.
+- **statusLine percentages now share the bar color**: previously rendered in neutral gray; now matched to the bar's warning color (yellow / green / red). The number alone tells you the warning level at a glance.
+- **statusLine `(X left)` no longer dimmed**: previously rendered with ANSI dim, hard to read on dark terminal backgrounds. Removed dim; parentheses alone now carry the "supplementary info" semantic.
+
+## [0.11.3] - 2026-05-25
+
+### Fixed
+- **Read-only CLI commands silently mutated user settings**: `usage daily` / `report` / `sessions` / `dashboard` and other read commands unconditionally called `setup()` or `update_hook()`, potentially writing to `~/.claude/settings.json` or `~/.codex/config.toml` on every invocation. Fix: only `setup` / `unsetup` mutate user settings; other commands now show a one-line "Hook not installed. Run: usage setup" hint when the hook isn't installed.
+- **Opus 4.6 / 4.7 cost was underestimated 3× on offline cold start**: `pricing.py`'s fallback table listed Opus as `5e-6 / 25e-6` (input / output per token), but the published Anthropic rate is `15e-6 / 75e-6`. Affected scenario: no pricing cache *and* LiteLLM live fetch fails. Users with network access or a cached price table are unaffected.
+- **`adapters/codex.py` sqlite connection leak**: `_load_thread_models()` wrapped the work in `try / except`, but `conn.close()` ran *after* `execute().fetchall()` — any exception in between left the connection dangling. Now uses `contextlib.closing()` to guarantee release.
+- **Mid-write crash could leave `~/.codex/config.toml` truncated**: `setup_hook.py`'s `_setup_codex` / `_unsetup_codex` used plain `write_text()`, so a crash or kill during setup could corrupt Codex config. Now uses `mkstemp + os.replace` atomic write, sharing a single module-private helper with Claude settings.
+
+### Changed
+- **`analyzer/cost.py` removed**: it was a weakened duplicate of `pricing.py` — bidirectional substring model matching (prone to misclassification), no cache TTL, and an SSL-cert-verification-disabled fallback when fetching the price table (a security concern for cost data). `analyzer/{aggregator,blocks,reporter}` now import `pricing.calculate_cost` directly; the latter accepts a `typing.Protocol` so both `history_loader.UsageEntry` and `adapters.types.UsageEntry` work. Net 76 lines of duplicate cost-calc code removed.
+
+## [0.11.2] - 2026-05-25
+
+### Fixed
+- **`usage_cli.py` crashed on every first run** (thanks @will30-blockchain — [#7](https://github.com/aqua5230/usage/pull/7)): `setup(auto=True)` passed a non-existent keyword argument to `setup_hook.setup()`, causing a `TypeError` on any fresh install or after `unsetup`. Users who already had the hook installed were unaffected. Fix: drop the stale `auto=True` kwarg.
+
+### Performance
+- **Incremental JSONL parsing**: `history_loader` and `codex_loader` now maintain module-level mtime+size caches and skip re-parsing files whose content hasn't changed, significantly reducing per-refresh disk I/O.
+- **Parallel hook forwarding**: `usage_statusline_forwarder` now dispatches all hooks concurrently via `ThreadPoolExecutor`; a single slow or timing-out hook no longer stalls the others. Worst-case latency drops from `n × 5s` to `5s`.
+- **Multi-session write protection**: `usage_statusline.py`'s `save()` now acquires `fcntl.LOCK_EX` before writing, preventing concurrent Claude Code sessions from clobbering each other's data.
+- **Python path resolution**: `setup_hook` now uses `_find_system_python()` when building hook commands — preferring the bundled `.app` Python, then `/usr/bin/python3`, avoiding the broken Xcode stub that `shutil.which("python3")` can resolve to after an Xcode update.
+- **FSEvents-driven UI refresh**: `menubar` now uses a CoreServices `FSEventStream` (via ctypes) to watch `~/.claude/`. Changes to `usage-status.json` trigger `_refresh()` immediately, cutting update latency from up to 60 seconds to milliseconds. `NSTimer` is demoted to a 300-second fallback; silently degrades to timer-only mode if CoreServices is unavailable.
+
 ## [0.11.1] - 2026-05-24
 
 ### Fixed

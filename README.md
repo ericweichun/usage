@@ -55,6 +55,19 @@ flowchart LR
 
 沒裝 Claude Code 或沒有 `~/.claude/` 的話，這部分會自動隱藏，不會影響 Codex 顯示。
 
+## 跟其他工具比較
+
+| 功能 | usage | ccusage | TokenTracker |
+|------|:-----:|:-------:|:------------:|
+| macOS menu bar | ✅ | — | ✅ |
+| Claude Code 用量 | ✅ | ✅ | ✅ |
+| Codex 用量 | ✅ | — | ✅ |
+| HTML 深度報告 | ✅ | ✅ | — |
+| 5 語言 i18n | ✅ | — | — |
+| 視覺面板 9 款 | ✅ | — | — |
+| 零 API 呼叫 | ✅ | ✅ | ✅ |
+| 開源授權 | AGPL-3.0 | MIT | — |
+
 ## 你需要的東西
 
 - macOS
@@ -65,9 +78,24 @@ flowchart LR
 
 | 我是… | 怎麼用 |
 |-------|--------|
-| 一般使用者，想直接用 | [下載現成 App](#下載現成-app) |
+| 一般使用者，想直接用 | [下載 App](#下載現成-app) |
 | 開發者，想從原始碼跑 | [建環境](#建環境) |
 | 只想先看看 UI 長什麼樣 | [預覽模式](#想先看看-ui-長什麼樣預覽模式) |
+
+## 上游 Homebrew 安裝（可選）
+
+這個 Homebrew tap 目前安裝的是 upstream `aqua5230/usage` 版本，不是本 fork 的 Codex-first build。若你要使用本 fork，請下載本頁下方的 `ericweichun/usage` release 或從原始碼建置。
+
+```bash
+brew tap aqua5230/homebrew-usage
+brew install aqua5230/homebrew-usage/usage
+```
+
+裝完後在 Finder 找到 `usage.app`（位於 `/opt/homebrew/Cellar/usage/` 底下），按住 Ctrl 右鍵 → 打開，讓 macOS 放行一次。之後把它連結到 Applications：
+
+```bash
+ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $2}')/usage.app /Applications/usage.app
+```
 
 ## 下載現成 App
 
@@ -90,6 +118,14 @@ flowchart LR
 > cat /tmp/usage-install.sh   # 可先瀏覽腳本內容
 > bash /tmp/usage-install.sh
 > ```
+
+裝完 hook 重啟 Claude Code 後，視窗底部會看到這樣的 statusLine —— **5 小時 / 7 天配額條、對話窗用量、會話時長、目前模型，全擠在一行**；數字跟進度條同色（黃 / 綠 / 紅），掃一眼就知道警示級別：
+
+<p align="center">
+  <img src="docs/statusline.png" alt="Claude Code statusLine 顯示樣式（繁中）" width="640">
+</p>
+
+裝完之後，若想隨時關掉 / 重裝 statusLine（例如想看看 Claude Code 原本的狀態列），可以從 menubar popover 的「專案」section 工具列點 **CLI ✓** 按鈕一鍵切換 —— 不需要再跑 `--unsetup` / `--setup`。
 
 ## 拿到原始碼
 
@@ -341,6 +377,8 @@ USAGE_LANG=zh-CN python3 main.py   # 簡體中文
 採用 AGPL-3.0-only（見頂部 badge 與 [LICENSE](LICENSE)）。若 fork 或發佈衍生版本，請標注原作者與專案連結：https://github.com/aqua5230/usage
 
 ## 支持這個專案
+
+如果 usage 幫你避開了 quota（API 配額）耗盡的中斷，請點 ⭐ —— 讓更多人找到它。
 
 如果這個工具幫到你、歡迎請我喝杯咖啡 ☕
 

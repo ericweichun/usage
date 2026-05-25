@@ -88,9 +88,18 @@ def _resolve_forwarder_source() -> Path:
 
 
 def _statusline_command() -> str:
-    # Use system python3, not a venv; the hook is stdlib-only.
-    python = shutil.which("python3") or "python3"
+    # Prefer /usr/bin/python3 or bundled app Python, not a venv; the hook is stdlib-only.
+    python = _find_system_python()
     return f"{_shell_arg(python)} {_shell_arg(str(HOOK_TARGET))}"
+
+
+def _find_system_python() -> str:
+    executable = sys.executable
+    if ".app/Contents" in executable:
+        return executable
+    if os.path.exists("/usr/bin/python3"):
+        return "/usr/bin/python3"
+    return shutil.which("python3") or "python3"
 
 
 def _shell_arg(value: str) -> str:
@@ -98,7 +107,7 @@ def _shell_arg(value: str) -> str:
 
 
 def _forwarder_command() -> str:
-    python = shutil.which("python3") or "python3"
+    python = _find_system_python()
     return f"{shlex.quote(python)} {shlex.quote(str(FORWARDER_TARGET))}"
 
 
@@ -214,20 +223,24 @@ def _load_settings() -> dict[str, Any]:
     return data
 
 
-def _save_settings(data: dict[str, Any]) -> None:
-    CLAUDE_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+def _atomic_write_text(path: Path, content: str, encoding: str = "utf-8") -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path: str | None = None
     try:
-        fd, tmp_path = tempfile.mkstemp(dir=CLAUDE_SETTINGS.parent, suffix=".tmp")
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-        os.replace(tmp_path, CLAUDE_SETTINGS)
+        fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+        with os.fdopen(fd, "w", encoding=encoding) as f:
+            f.write(content)
+        os.replace(tmp_path, path)
         tmp_path = None
     finally:
         if tmp_path and os.path.exists(tmp_path):
             with contextlib.suppress(OSError):
                 os.unlink(tmp_path)
+
+
+def _save_settings(data: dict[str, Any]) -> None:
+    payload = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+    _atomic_write_text(CLAUDE_SETTINGS, payload)
 
 
 def _copy_hook_script() -> None:
@@ -300,7 +313,7 @@ def _setup_codex() -> None:
     else:
         content += f"\n[tui]\n{_status_line_toml(CODEX_STATUS_LINE)}\n"
 
-    CODEX_CONFIG.write_text(content, encoding="utf-8")
+    _atomic_write_text(CODEX_CONFIG, content)
     print(_t("setup_codex_configured"))
     if old is not None:
         print(_t("setup_codex_backup_written", path=CODEX_BACKUP))
@@ -329,7 +342,7 @@ def _unsetup_codex() -> None:
         content = re.sub(r"status_line\s*=\s*\[.*?\]\n?", "", content, flags=re.DOTALL)
         print(_t("setup_codex_removed"))
 
-    CODEX_CONFIG.write_text(content, encoding="utf-8")
+    _atomic_write_text(CODEX_CONFIG, content)
 
 
 def _installed_hook_version() -> str | None:

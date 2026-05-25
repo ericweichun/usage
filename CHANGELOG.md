@@ -6,6 +6,46 @@
 
 ## [Unreleased]
 
+## [0.11.5] - 2026-05-25
+
+### 變更
+- **同步 upstream 0.11.4**：吸收 v0.11.2–v0.11.4 的修正與效能更新，包括 JSONL 增量解析、hook 並行轉發、FSEvents 即時刷新、唯讀 CLI 不再修改設定、Codex config atomic write、pricing 整併、statusLine 可更新提示與 README/Homebrew 文件更新。
+- **保留 fork 的 Codex-first 行為**：維持 Codex 為主要流程、Claude Code 為可選整合，保留 fork 版 README/release 連結、Codex project usage、all-time project range、analysis report 一致算法與 manual refresh queueing。
+
+## [0.11.4] - 2026-05-25
+
+### 新增
+- **statusLine 顯示「可更新」提示**：menubar 跑 update check 後會把結果寫進 `~/.claude/usage-preferences.json` 的 `last_update_check`；statusLine 讀這個檔，發現有新版時在 model 行末顯示 `🆕 vX.Y.Z 可更新`（青色）。尊重「跳過此版本」設定，cache 超過 30 天視為過期不顯示。新增五語言翻譯 `update_available_suffix`（zh-TW「可更新」/ zh-CN「可更新」/ en「available」/ ja「更新あり」/ ko「업데이트」）。
+
+### 變更
+- **statusLine 對話窗格式調整**：「對話窗(1.0M):[bar]」改為「對話窗:[bar] 15% / 1.0M」—— 容量上限從中間括號移到尾巴跟百分比並排，讀起來更像「15% of 1M」。
+- **statusLine fast mode 顯示反轉**：以前 on/off 都顯示標籤（`⚡快速` / `/nofast`），改為只有開啟才顯示 `⚡快速`，關閉不顯示 —— 像家裡的冷氣指示燈，亮燈即表示「在運作」。
+- **statusLine 百分比跟進度條同色**：之前百分比都是灰白，現在跟進度條同色（黃 / 綠 / 紅）—— 一眼看數字就知道警示級別。
+- **statusLine 「(剩 X 時間)」亮度提升**：之前用 ANSI dim 在深背景下太暗，現在拿掉 dim 用正常亮度，仍靠括號表達「補充資訊」。
+
+## [0.11.3] - 2026-05-25
+
+### 修正
+- **CLI 讀取型命令會偷偷改使用者設定**：`usage daily` / `report` / `sessions` / `dashboard` 等只讀命令會無條件呼叫 `setup()` 或 `update_hook()`，每次跑都可能改到 `~/.claude/settings.json` 或 `~/.codex/config.toml`。修正後只有 `setup` / `unsetup` 才會寫使用者設定；其他命令在 hook 未安裝時改顯示一行提示「Hook 尚未安裝。請執行：usage setup」。
+- **Opus 4.6 / 4.7 離線冷啟動成本估算低 3 倍**：`pricing.py` 的 fallback 表把 Opus 寫成 `5e-6 / 25e-6`（input / output per token），Anthropic 官方是 `15e-6 / 75e-6`。受影響條件：沒有 pricing cache 且 LiteLLM 線上 fetch 失敗的離線冷啟動；連線正常或已有 cache 的使用者不受影響。
+- **`adapters/codex.py` sqlite connection 漏關**：`_load_thread_models()` 用 `try / except` 包，但 `conn.close()` 在 `execute().fetchall()` 之後，中間任何例外都會留下未釋放的連線。改用 `contextlib.closing()` 確保必定釋放。
+- **`~/.codex/config.toml` 寫入中斷會留下 truncated TOML**：`setup_hook.py` 的 `_setup_codex` / `_unsetup_codex` 用 `write_text()` 直接覆寫，setup 過程被 crash / kill 會壞掉 Codex 設定檔。改成 `mkstemp + os.replace` atomic write，並與 Claude settings 共用同一個 module-private helper。
+
+### 變更
+- **`analyzer/cost.py` 退場**：原本是 `pricing.py` 的劣化複製品 —— 寬鬆雙向子字串模型比對會誤配、無 cache TTL、SSL 憑證錯誤時自動關閉驗證重抓（對成本資料是安全風險）。`analyzer/{aggregator,blocks,reporter}` 改用 `pricing.calculate_cost`；後者改接 `typing.Protocol`，同時支援 `history_loader.UsageEntry` 與 `adapters.types.UsageEntry`。整體淨減 76 行重複實作。
+
+## [0.11.2] - 2026-05-25
+
+### 修正
+- **`usage_cli.py` 第一次執行必 crash**（感謝 @will30-blockchain 的 [#7](https://github.com/aqua5230/usage/pull/7)）：`setup(auto=True)` 傳了不存在的參數給 `setup_hook.setup()`，導致 fresh 安裝或 `unsetup` 後第一次跑 `usage_cli.py` 就噴 `TypeError`。已裝過 hook 的使用者不受影響。修正：拿掉多餘的 `auto=True`。
+
+### 效能
+- **JSONL 增量解析**：`history_loader` 與 `codex_loader` 新增 module-level mtime+size 快取，僅在檔案內容變動時重新解析，大幅減少每次 UI 刷新的磁碟 I/O。
+- **Hook 並行轉發**：`usage_statusline_forwarder` 改用 `ThreadPoolExecutor` 同時執行所有 hook，單一 hook 逾時不再阻塞其他 hook，最壞情況從 `n × 5s` 降為 `5s`。
+- **多 session 寫入保護**：`usage_statusline.py` 的 `save()` 加入 `fcntl.LOCK_EX` 檔案鎖，防止多個 Claude Code session 同時寫入時資料互蓋。
+- **Python 路徑優先順序**：`setup_hook` 安裝 hook 時改用 `_find_system_python()`，優先選 `.app` 內建 Python，其次 `/usr/bin/python3`，避免 Xcode 更新後 `shutil.which("python3")` 指到壞掉的 stub。
+- **FSEvents 事件驅動 UI 更新**：`menubar` 改用 CoreServices `FSEventStream`（ctypes）監聽 `~/.claude/`，`usage-status.json` 一有變動立即觸發 `_refresh()`，更新延遲從最多 60 秒降至毫秒；`NSTimer` 降為 300 秒 fallback，CoreServices 不可用時自動降級。
+
 ## [0.11.1] - 2026-05-24
 
 ### 修正

@@ -103,11 +103,11 @@ def test_forwarder_calls_all_hooks(tmp_path: Path, monkeypatch: pytest.MonkeyPat
 
     usage_statusline_forwarder.main()
 
-    assert [Path(call[1]).name for call in calls] == [
+    assert {Path(call[1]).name for call in calls} == {
         "a-statusline.py",
         "b-statusline.py",
         "c-statusline.py",
-    ]
+    }
     assert stdout.getvalue() == "a-statusline.py\nb-statusline.py\nc-statusline.py\n"
 
 

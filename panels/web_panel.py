@@ -209,6 +209,7 @@ def _load_i18n_bundle() -> dict[str, dict[str, str]]:
     }
 
 
+@lru_cache(maxsize=4)
 def _data_uri(asset_name: str) -> str:
     path = Path(resolve_resource(asset_name))
     mime = "image/png" if path.suffix.lower() == ".png" else "image/webp"

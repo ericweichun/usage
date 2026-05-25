@@ -9,9 +9,7 @@ import tempfile
 import time
 import urllib.request
 from pathlib import Path
-from typing import Any, Literal
-
-from history_loader import UsageEntry
+from typing import Any, Literal, Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +40,16 @@ PricingSource = Literal["cache", "fetched", "fallback"]
 _pricing_cache: tuple[PricingTable, PricingSource, float] | None = None
 
 
-def calculate_cost(entry: UsageEntry) -> float:
+class _CostEntry(Protocol):
+    model: str
+    input_tokens: int
+    output_tokens: int
+    cache_creation_tokens: int
+    cache_read_tokens: int
+    cost_usd: float | None
+
+
+def calculate_cost(entry: _CostEntry) -> float:
     if entry.cost_usd is not None:
         return entry.cost_usd
 
@@ -60,12 +67,14 @@ def calculate_cost(entry: UsageEntry) -> float:
     )
     cache_read_cost = model_pricing.get("cache_read_input_token_cost", input_cost * 0.1)
 
-    return (
+    cost = (
         entry.input_tokens * input_cost
         + entry.output_tokens * output_cost
         + entry.cache_creation_tokens * cache_creation_cost
         + entry.cache_read_tokens * cache_read_cost
     )
+    entry.cost_usd = cost
+    return cost
 
 
 def get_pricing() -> PricingTable:
@@ -210,16 +219,16 @@ def _normalize_model_name(model: str) -> str:
 def _fallback_pricing() -> PricingTable:
     return {
         "claude-opus-4-6": {
-            "input_cost_per_token": 5e-6,
-            "output_cost_per_token": 25e-6,
-            "cache_creation_input_token_cost": 6.25e-6,
-            "cache_read_input_token_cost": 0.5e-6,
+            "input_cost_per_token": 15e-6,
+            "output_cost_per_token": 75e-6,
+            "cache_creation_input_token_cost": 18.75e-6,
+            "cache_read_input_token_cost": 1.5e-6,
         },
         "claude-opus-4-7": {
-            "input_cost_per_token": 5e-6,
-            "output_cost_per_token": 25e-6,
-            "cache_creation_input_token_cost": 6.25e-6,
-            "cache_read_input_token_cost": 0.5e-6,
+            "input_cost_per_token": 15e-6,
+            "output_cost_per_token": 75e-6,
+            "cache_creation_input_token_cost": 18.75e-6,
+            "cache_read_input_token_cost": 1.5e-6,
         },
         "claude-sonnet-4-6": {
             "input_cost_per_token": 3e-6,

@@ -55,6 +55,19 @@ Read priority:
 
 If Claude Code is not installed or `~/.claude/` does not exist, that part of the UI hides itself and Codex stats continue to work normally.
 
+## Comparison
+
+| Feature | usage | ccusage | TokenTracker |
+|---------|:-----:|:-------:|:------------:|
+| macOS menu bar | ✅ | — | ✅ |
+| Claude Code usage | ✅ | ✅ | ✅ |
+| Codex usage | ✅ | — | ✅ |
+| HTML deep reports | ✅ | ✅ | — |
+| 5-language i18n | ✅ | — | — |
+| 9 visual panel themes | ✅ | — | — |
+| Zero API calls | ✅ | ✅ | ✅ |
+| Open-source license | AGPL-3.0 | MIT | — |
+
 ## Requirements
 
 - macOS
@@ -68,6 +81,21 @@ If Claude Code is not installed or `~/.claude/` does not exist, that part of the
 | Just use it, no setup | [Download the app](#download-the-app) |
 | Run from source | [Set up the environment](#set-up-the-environment) |
 | Preview the UI without installing | [Preview mode](#preview-mode-no-install-required) |
+
+## Upstream Homebrew (optional)
+
+This Homebrew tap currently installs the upstream `aqua5230/usage` build, not this fork's Codex-first build. To use this fork, download the `ericweichun/usage` release below or build from source.
+
+```bash
+brew tap aqua5230/homebrew-usage
+brew install aqua5230/homebrew-usage/usage
+```
+
+After install, find `usage.app` under `/opt/homebrew/Cellar/usage/` and right-click → Open once to pass Gatekeeper. Then optionally symlink it to Applications:
+
+```bash
+ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $2}')/usage.app /Applications/usage.app
+```
 
 ## Download the app
 
@@ -90,6 +118,14 @@ If the button doesn't show, usage is already reading data (e.g. you previously i
 > cat /tmp/usage-install.sh   # review the script before running
 > bash /tmp/usage-install.sh
 > ```
+
+After the hook is installed and Claude Code is restarted, the bottom of the Claude Code window will show a statusLine like this — **5h / 7d quota bars, context usage, session duration, current model — all on one line**. Percentages share the bar color (yellow / green / red), so the warning level reads at a glance:
+
+<p align="center">
+  <img src="docs/statusline.en.png" alt="Claude Code statusLine display (English)" width="640">
+</p>
+
+To toggle the statusLine on / off later (e.g. you want to see Claude Code's native status line), click the **CLI ✓** button in the menubar popover's "Projects" section toolbar — no need to run `--unsetup` / `--setup` again.
 
 ## Download
 
@@ -340,6 +376,8 @@ Licensed under AGPL-3.0-only (see the badge at the top and [LICENSE](LICENSE)). 
 https://github.com/aqua5230/usage
 
 ## Support
+
+If usage has ever saved you from a surprise quota cutoff mid-task, a ⭐ helps other developers find it.
 
 If this tool helps you, consider buying me a coffee ☕
 
