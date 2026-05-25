@@ -229,6 +229,7 @@ class AppDelegate(NSObject):
     codex_5h_pct = objc.ivar()
     burn_rate_trackers = objc.ivar()
     _refresh_in_flight = objc.ivar()
+    _refresh_queued = objc.ivar()
     language = objc.ivar()
 
     def initWithMock_interval_(self, mock: bool, interval: int) -> AppDelegate:
@@ -249,6 +250,7 @@ class AppDelegate(NSObject):
             "codex_weekly": BurnRateTracker(),
         }
         self._refresh_in_flight = False
+        self._refresh_queued = False
         return self
 
     def applicationDidFinishLaunching_(self, notification: Any) -> None:
@@ -286,7 +288,7 @@ class AppDelegate(NSObject):
         self._refresh()
 
     def refreshNow_(self, sender: Any) -> None:
-        self._refresh()
+        self._refresh(queue_if_busy=True)
 
     def installHook_(self, sender: Any) -> None:
         thread = threading.Thread(target=self._install_hook_in_background, daemon=True)
@@ -508,8 +510,10 @@ class AppDelegate(NSObject):
         button = self.status_item.button()
         self.popover.showRelativeToRect_ofView_preferredEdge_(button.bounds(), button, NSMinYEdge)
 
-    def _refresh(self) -> None:
+    def _refresh(self, queue_if_busy: bool = False) -> None:
         if self._refresh_in_flight:
+            if queue_if_busy:
+                self._refresh_queued = True
             return
         self._refresh_in_flight = True
         thread = threading.Thread(target=self._refresh_in_background, daemon=True)
@@ -547,16 +551,23 @@ class AppDelegate(NSObject):
         )
 
     def _applyRefreshResult_(self, result: dict[str, Any]) -> None:
-        state = result["state"]
-        codex_5h_pct = result["codex_5h_pct"]
-        self.codex_5h_pct = codex_5h_pct
-        self.latest_state = state
-        if self.popover.isShown():
-            self.popover_controller.setState_(self.latest_state)
-        self.popover.setContentSize_(_popover_size(state, self.active_panel))
-        self._inject_web_language(state.language)
-        self.status_item.button().setTitle_(self._compose_title(state))
-        self._refresh_in_flight = False
+        should_refresh_again = False
+        try:
+            state = result["state"]
+            codex_5h_pct = result["codex_5h_pct"]
+            self.codex_5h_pct = codex_5h_pct
+            self.latest_state = state
+            if self.popover.isShown():
+                self.popover_controller.setState_(self.latest_state)
+            self.popover.setContentSize_(_popover_size(state, self.active_panel))
+            self._inject_web_language(state.language)
+            self.status_item.button().setTitle_(self._compose_title(state))
+        finally:
+            should_refresh_again = bool(self._refresh_queued)
+            self._refresh_queued = False
+            self._refresh_in_flight = False
+        if should_refresh_again:
+            self._refresh()
 
     def _inject_web_language(self, language: str) -> None:
         content_view = self.popover_controller.content_view
