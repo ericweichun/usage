@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -91,3 +92,30 @@ def test_generate_html_switches_tip_content_by_language(monkeypatch: pytest.Monk
     assert "Compress the chat to save tokens" in en_report
     assert "把你目前跟 Claude 的對話『壓縮』成一份摘要。" in zh_report
     assert "This turns your current conversation with Claude into a shorter summary." in en_report
+
+
+def test_save_and_open_uses_macos_open(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], *, check: bool) -> None:
+        calls.append(command)
+        assert check is False
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(html_report.sys, "platform", "darwin")
+    monkeypatch.setattr(html_report.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        html_report.webbrowser,
+        "open",
+        lambda url: pytest.fail(f"unexpected webbrowser.open({url})"),
+    )
+
+    display_path = html_report.save_and_open(_report_data())
+
+    assert display_path.startswith("~/.usage-reports/usage-report-")
+    assert calls
+    assert calls[0][0] == "/usr/bin/open"
+    assert calls[0][1].startswith(str(tmp_path / ".usage-reports"))

@@ -7,6 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- **HTML reports and the default panel layout are more robust**: macOS now opens generated analysis reports with `/usr/bin/open`, avoiding local file URL encoding issues; the Classic panel's Project Usage header now uses a two-row layout so action buttons do not squeeze the title or overlap the first project row.
+
 ## [0.11.4] - 2026-05-25
 
 ### Added
