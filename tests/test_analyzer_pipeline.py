@@ -59,8 +59,13 @@ def test_generate_analysis_report_uses_analyzer_pipeline(
         calls["period"] = period
         return report_data
 
-    def fake_save_and_open(received_data: dict[str, object]) -> str:
+    def fake_save_and_open(
+        received_data: dict[str, object],
+        *,
+        language: str | None = None,
+    ) -> str:
         calls["data"] = received_data
+        calls["language"] = language
         return "~/.usage-reports/usage-report-test.html"
 
     monkeypatch.setattr("adapters.registry.detect_agents", lambda: agents)
@@ -68,7 +73,39 @@ def test_generate_analysis_report_uses_analyzer_pipeline(
     monkeypatch.setattr("ui.html_report.save_and_open", fake_save_and_open)
 
     assert menubar._generate_analysis_report() == "~/.usage-reports/usage-report-test.html"
-    assert calls == {"agents": agents, "period": "month", "data": report_data}
+    assert calls == {"agents": agents, "period": "month", "data": report_data, "language": None}
+
+
+def test_generate_analysis_report_propagates_language(
+    monkeypatch: Any,
+) -> None:
+    agents = [AgentInfo("codex", "Codex", "~/.codex", True)]
+    report_data: dict[str, object] = {"summary": {"total_tokens": 123}}
+    calls: dict[str, object] = {}
+
+    def fake_build_report_data(received_agents: list[AgentInfo], period: str) -> dict[str, object]:
+        calls["agents"] = received_agents
+        calls["period"] = period
+        return report_data
+
+    def fake_save_and_open(
+        received_data: dict[str, object],
+        *,
+        language: str | None = None,
+    ) -> str:
+        calls["data"] = received_data
+        calls["language"] = language
+        return "~/.usage-reports/usage-report-test.html"
+
+    monkeypatch.setattr("adapters.registry.detect_agents", lambda: agents)
+    monkeypatch.setattr("analyzer.reporter.build_report_data", fake_build_report_data)
+    monkeypatch.setattr("ui.html_report.save_and_open", fake_save_and_open)
+
+    assert (
+        menubar._generate_analysis_report(language="zh-TW")
+        == "~/.usage-reports/usage-report-test.html"
+    )
+    assert calls == {"agents": agents, "period": "month", "data": report_data, "language": "zh-TW"}
 
 
 def test_report_codex_entries_use_shared_loader(monkeypatch: Any) -> None:

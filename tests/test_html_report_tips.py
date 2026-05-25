@@ -91,3 +91,12 @@ def test_generate_html_switches_tip_content_by_language(monkeypatch: pytest.Monk
     assert "Compress the chat to save tokens" in en_report
     assert "把你目前跟 Claude 的對話『壓縮』成一份摘要。" in zh_report
     assert "This turns your current conversation with Claude into a shorter summary." in en_report
+
+
+def test_generate_html_uses_explicit_language_over_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("USAGE_LANG", "en")
+
+    report = html_report.generate_html(_report_data(), language="zh-TW")
+
+    assert '<html lang="zh-TW">' in report
+    assert "壓縮對話節省 token" in report

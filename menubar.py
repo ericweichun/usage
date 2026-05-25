@@ -786,7 +786,7 @@ class AppDelegate(NSObject):
     def _analyze_usage_in_background(self) -> None:
         result: dict[str, str | bool]
         try:
-            saved = _generate_analysis_report()
+            saved = _generate_analysis_report(language=self.language)
             result = {"success": True, "message": saved}
         except Exception as exc:
             if os.environ.get("USAGE_DEBUG") == "1":
@@ -1073,14 +1073,14 @@ def run_app(mock: bool = False, interval: int = 60) -> None:
     app.run()
 
 
-def _generate_analysis_report(period: str = "month") -> str:
+def _generate_analysis_report(period: str = "month", language: str | None = None) -> str:
     from adapters.registry import detect_agents
     from analyzer.reporter import build_report_data
     from ui.html_report import save_and_open
 
     agents = detect_agents()
     data = build_report_data(agents, period)
-    return cast(str, save_and_open(data))
+    return cast(str, save_and_open(data, language=language))
 
 
 def _popover_size(state: PopoverState, panel: UsagePanel | None = None) -> Any:
