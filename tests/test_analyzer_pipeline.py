@@ -14,20 +14,28 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_all_languages_have_analyze_label() -> None:
     bundle = json.loads((ROOT / "i18n.json").read_text(encoding="utf-8"))
 
-    assert bundle["zh-TW"]["analyze_usage"] == "分析"
-    assert bundle["zh-CN"]["analyze_usage"] == "分析"
-    assert bundle["en"]["analyze_usage"] == "Analyze"
-    assert bundle["ja"]["analyze_usage"] == "分析"
-    assert bundle["ko"]["analyze_usage"] == "분석"
+    assert bundle["zh-TW"]["analyze_usage"] == "報告"
+    assert bundle["zh-CN"]["analyze_usage"] == "报告"
+    assert bundle["en"]["analyze_usage"] == "Report"
+    assert bundle["ja"]["analyze_usage"] == "レポート"
+    assert bundle["ko"]["analyze_usage"] == "리포트"
 
 
 def test_all_languages_have_cli_statusline_labels() -> None:
     bundle = json.loads((ROOT / "i18n.json").read_text(encoding="utf-8"))
 
-    for table in bundle.values():
-        assert table["cli"] == "CLI"
-        assert table["cli_disabled"] == "CLI"
-        assert table["cli_enabled"] == "CLI ✓"
+    expected = {
+        "zh-TW": ("終端", "終端", "終端 ✓"),
+        "zh-CN": ("终端", "终端", "终端 ✓"),
+        "en": ("Terminal", "Terminal", "Terminal ✓"),
+        "ja": ("ターミナル", "ターミナル", "ターミナル ✓"),
+        "ko": ("터미널", "터미널", "터미널 ✓"),
+    }
+    for lang, (label, disabled, enabled) in expected.items():
+        table = bundle[lang]
+        assert table["cli"] == label
+        assert table["cli_disabled"] == disabled
+        assert table["cli_enabled"] == enabled
         removed_statusline_message_keys = {
             "statusline_" + suffix for suffix in ("installed", "uninstalled")
         }
@@ -89,7 +97,10 @@ def test_app_analyze_uses_all_time_report(monkeypatch: Any) -> None:
     delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
     monkeypatch.setattr("menubar.threading.Thread", InlineThread)
 
-    def fake_generate_analysis_report(period: str = "last30") -> str:
+    def fake_generate_analysis_report(
+        period: str = "last30",
+        language: str | None = None,
+    ) -> str:
         calls.append(period)
         return "~/.usage-reports/all.html"
 

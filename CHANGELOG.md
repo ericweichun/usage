@@ -10,6 +10,19 @@
 - **README 改成更明確的 Codex-first fork 說明**：補清楚 Codex 是主要流程、Claude Code 是可選整合，並同步 Project Usage 的 all-time range。
 - **Report 預設改為 all-time**：popover 的「分析」與 `usage_cli.py report` 現在預設產生全部資料報告；CLI 需要近 30 天時可使用 `--last30`。
 
+## [0.11.5+codex.1] - 2026-05-27
+
+### 變更
+- **版本基底對齊 upstream 0.11.5**：fork build 改用 `0.11.5+codex.1`，同步 upstream v0.11.5 的語言偵測、report 開啟與文件/隱私修正，同時保留 Codex-first 行為。
+- **新增 GitHub Pages landing page**：同步 upstream 的多語介紹頁與最新面板截圖，並改成 `ericweichun/usage` 與 Codex-first 文案。
+- **Popover 文案同步 upstream**：「分析」改為「報告」，「CLI」改為「終端」，更貼近實際功能。
+
+### 修正
+- **Report 語言跟隨 app 語言**：menubar 產生 HTML report 時會把目前 UI 語言傳入 report renderer。
+- **statusLine update hint 不再污染狀態 JSON**：只有真正渲染 statusLine 文字時才附加新版提示，避免寫入給 app 讀的 JSON payload。
+- **語言偵測共用 `usage_lang.detect_lang()`**：Finder / launchd 啟動 `.app` 時也會依 macOS preferred languages 判定語言。
+- **隱私與 CI hygiene**：issue template 明確提醒不要貼上 `~/.codex/sessions/**/*.jsonl` 或 Claude 狀態檔；CI actions 改 pin SHA；移除未使用的 Antigravity icon asset。
+
 ## [0.11.4+codex.2] - 2026-05-26
 
 ### 修正

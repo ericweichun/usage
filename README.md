@@ -8,7 +8,9 @@
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-`usage` 是一個 macOS menu bar（螢幕右上角的選單列）小工具，把 **Codex** 的用量釘在你的螢幕右上角，並保留 **Claude Code** 作為可選整合。點開可以看到 Session、Weekly、各專案用量（今日 / 7 日 / 月 / 全部），以及今日 token 用量與成本估算；按「分析」會產生 all-time HTML report。
+🌐 **介紹頁**：[ericweichun.github.io/usage](https://ericweichun.github.io/usage/)
+
+`usage` 是一個 macOS menu bar（螢幕右上角的選單列）小工具，把 **Codex** 的用量釘在你的螢幕右上角，並保留 **Claude Code** 作為可選整合。點開可以看到 Session、Weekly、各專案用量（今日 / 7 日 / 月 / 全部），以及今日 token 用量與成本估算；按「報告」會產生 all-time HTML report。
 
 不呼叫 Anthropic / OpenAI 的 API（接口）、也不讀 Keychain（macOS 內建的密碼保險箱），所以不會發生「自己每分鐘 ping 一次也算用量」這種事。
 
@@ -125,7 +127,7 @@ ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $
   <img src="docs/statusline.png" alt="Claude Code statusLine 顯示樣式（繁中）" width="640">
 </p>
 
-裝完之後，若想隨時關掉 / 重裝 statusLine（例如想看看 Claude Code 原本的狀態列），可以從 menubar popover 的「專案」section 工具列點 **CLI ✓** 按鈕一鍵切換 —— 不需要再跑 `--unsetup` / `--setup`。
+裝完之後，若想隨時關掉 / 重裝 statusLine（例如想看看 Claude Code 原本的狀態列），可以從 menubar popover 的「專案」section 工具列點 **終端 ✓** 按鈕一鍵切換 —— 不需要再跑 `--unsetup` / `--setup`。
 
 ## 拿到原始碼
 
@@ -227,7 +229,7 @@ python3 main.py --tui
 
 ## 報告與深度分析
 
-除了選單列跟 TUI，popover 裡的「分析」按鈕會直接產生 **all-time HTML report**。如果你想指定時間範圍，也可以用 CLI 進入點 `usage_cli.py` 匯出 HTML 報告、或在終端機開互動式 dashboard（儀表板，互動式統計面板）：
+除了選單列跟 TUI，popover 裡的「報告」按鈕會直接產生 **all-time HTML report**。如果你想指定時間範圍，也可以用 CLI 進入點 `usage_cli.py` 匯出 HTML 報告、或在終端機開互動式 dashboard（儀表板，互動式統計面板）：
 
 <p align="center">
   <img src="docs/report.png" alt="HTML 報告畫面：你的 AI 用量回顧" width="520">

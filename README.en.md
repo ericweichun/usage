@@ -8,7 +8,9 @@
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-`usage` is a macOS menu bar tool that pins your **Codex** usage to the top-right of your screen, while keeping **Claude Code** as an optional integration. Click the icon for a popover showing Session, Weekly, per-project usage (today / 7-day / monthly / all-time), and today's token usage and cost estimate; click Analyze to generate an all-time HTML report.
+🌐 **Landing page**: [ericweichun.github.io/usage](https://ericweichun.github.io/usage/)
+
+`usage` is a macOS menu bar tool that pins your **Codex** usage to the top-right of your screen, while keeping **Claude Code** as an optional integration. Click the icon for a popover showing Session, Weekly, per-project usage (today / 7-day / monthly / all-time), and today's token usage and cost estimate; click Report to generate an all-time HTML report.
 
 It **never calls the Anthropic / OpenAI API** and **never reads the Keychain**, so it avoids the observer effect of "pinging once a minute counts as usage."
 
@@ -125,7 +127,7 @@ After the hook is installed and Claude Code is restarted, the bottom of the Clau
   <img src="docs/statusline.en.png" alt="Claude Code statusLine display (English)" width="640">
 </p>
 
-To toggle the statusLine on / off later (e.g. you want to see Claude Code's native status line), click the **CLI ✓** button in the menubar popover's "Projects" section toolbar — no need to run `--unsetup` / `--setup` again.
+To toggle the statusLine on / off later (e.g. you want to see Claude Code's native status line), click the **Terminal ✓** button in the menubar popover's "Projects" section toolbar — no need to run `--unsetup` / `--setup` again.
 
 ## Download
 
@@ -225,7 +227,7 @@ Press `Ctrl+C` to exit.
 
 ## Reports and deep analytics
 
-Beyond the menu bar and TUI, the popover's **Analyze** button generates an **all-time HTML report**. If you want a specific range, the `usage_cli.py` analytics entrypoint can export HTML reports or run an interactive terminal dashboard:
+Beyond the menu bar and TUI, the popover's **Report** button generates an **all-time HTML report**. If you want a specific range, the `usage_cli.py` analytics entrypoint can export HTML reports or run an interactive terminal dashboard:
 
 <p align="center">
   <img src="docs/report.en.png" alt="HTML report screen: Your AI Usage Recap" width="520">

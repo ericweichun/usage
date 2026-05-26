@@ -11,6 +11,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - **README now frames this fork more clearly as Codex-first**: clarified Codex as the primary path, Claude Code as optional, and documented the Project Usage all-time range.
 - **Reports now default to all-time**: the popover Analyze button and `usage_cli.py report` now generate all-data reports by default; use `--last30` in the CLI for the previous rolling 30-day range.
 
+## [0.11.5+codex.1] - 2026-05-27
+
+### Changed
+- **Version base now matches upstream 0.11.5**: this fork build now uses `0.11.5+codex.1`, bringing over upstream v0.11.5 language detection, report opening, docs, and privacy fixes while preserving Codex-first behavior.
+- **Added the GitHub Pages landing page**: synced upstream's multilingual landing page and latest panel screenshots, then retargeted it to `ericweichun/usage` and Codex-first messaging.
+- **Popover labels now match upstream wording**: "Analyze" is now "Report", and "CLI" is now "Terminal".
+
+### Fixed
+- **Reports follow the app language**: menubar now passes the active UI language into the HTML report renderer.
+- **statusLine update hints no longer pollute status JSON**: update hints are appended only when rendering statusLine text, avoiding accidental text in the JSON payload read by the app.
+- **Language detection is centralized through `usage_lang.detect_lang()`**: `.app` launches from Finder / launchd now honor macOS preferred languages.
+- **Privacy and CI hygiene**: issue templates now warn against pasting `~/.codex/sessions/**/*.jsonl` or Claude status files; CI actions are pinned by SHA; an unused Antigravity icon asset was removed.
+
 ## [0.11.4+codex.2] - 2026-05-26
 
 ### Fixed

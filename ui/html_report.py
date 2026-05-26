@@ -246,8 +246,8 @@ def _cost_value(cost_usd: float, lang: str) -> tuple[str, str]:
     return main, sub
 
 
-def generate_html(data: dict) -> str:
-    lang = _detect_lang()
+def generate_html(data: dict, language: str | None = None) -> str:
+    lang = language or _detect_lang()
     tip = load_tip(lang)
     generated_at = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
     summary = data["summary"]
@@ -599,7 +599,11 @@ document.addEventListener('click', async (e) => {{
 """
 
 
-def save_and_open(data: dict, out_path: str | None = None) -> str:
+def save_and_open(
+    data: dict,
+    out_path: str | None = None,
+    language: str | None = None,
+) -> str:
     if out_path:
         path = Path(os.path.expanduser(out_path))
         display_path = str(path.expanduser())
@@ -609,7 +613,7 @@ def save_and_open(data: dict, out_path: str | None = None) -> str:
         path = reports_dir / f"usage-report-{datetime.now().strftime('%Y%m%d-%H%M%S')}.html"
         display_path = f"~/.usage-reports/{path.name}"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(generate_html(data), encoding="utf-8")
+    path.write_text(generate_html(data, language=language), encoding="utf-8")
     if out_path is None:
         if sys.platform == "darwin":
             subprocess.run(["/usr/bin/open", str(path.resolve())], check=False)
