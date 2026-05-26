@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -240,6 +240,32 @@ def test_today_title_returns_zero_fallback_when_loaders_fail(
     assert menubar._today_title(mock=False, language="zh-TW") == "今日：$0.00 (0 tokens)"
 
 
+def test_today_title_does_not_reload_codex_when_entries_are_provided(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    entry = history_loader.UsageEntry(
+        timestamp=datetime.now(tz=UTC),
+        session_id="codex",
+        message_id="m1",
+        request_id="r1",
+        model="gpt",
+        input_tokens=100,
+        output_tokens=50,
+        cache_creation_tokens=0,
+        cache_read_tokens=0,
+        cost_usd=0.01,
+        project="usage",
+    )
+    monkeypatch.setattr(
+        "menubar.codex_loader.load_entries",
+        lambda *, hours_back=24: pytest.fail("Codex should already be included"),
+    )
+
+    assert menubar._today_title(mock=False, language="en", entries=[entry]) == (
+        "Today: $0.01 (150 tokens)"
+    )
+
+
 def test_empty_state() -> None:
     state = menubar._empty_state()
     rows = (
@@ -277,7 +303,6 @@ def test_switch_panel_menu_contains_update_items(monkeypatch: pytest.MonkeyPatch
     assert _FakeMenu.last is not None
     titles = [item.title for item in _FakeMenu.last.items]
     assert "Automatically Check for Updates" in titles
-    assert "Check for Updates Now" in titles
     auto_item = next(
         item for item in _FakeMenu.last.items if item.title == "Automatically Check for Updates"
     )
@@ -534,12 +559,48 @@ def test_project_rows_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     assert delegate._project_rows(hours_back=24) == []
 
 
+def test_load_history_entries_includes_codex_entries(monkeypatch: pytest.MonkeyPatch) -> None:
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    claude_entry = history_loader.UsageEntry(
+        timestamp=datetime(2026, 5, 21, tzinfo=UTC),
+        session_id="claude",
+        message_id="m1",
+        request_id="r1",
+        model="claude",
+        input_tokens=1,
+        output_tokens=2,
+        cache_creation_tokens=3,
+        cache_read_tokens=4,
+        cost_usd=0.1,
+        project="usage",
+    )
+    codex_entry = history_loader.UsageEntry(
+        timestamp=datetime(2026, 5, 21, tzinfo=UTC),
+        session_id="codex",
+        message_id="m2",
+        request_id="r2",
+        model="gpt",
+        input_tokens=5,
+        output_tokens=6,
+        cache_creation_tokens=7,
+        cache_read_tokens=8,
+        cost_usd=0.2,
+        project="usage",
+    )
+
+    monkeypatch.setattr(menubar, "load_entries", lambda *, hours_back: [claude_entry])
+    monkeypatch.setattr("menubar.codex_loader.load_entries", lambda *, hours_back: [codex_entry])
+
+    assert delegate._load_history_entries() == [claude_entry, codex_entry]
+
+
 def test_project_rows_top3(monkeypatch: pytest.MonkeyPatch) -> None:
     delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    now = datetime.now(tz=UTC)
 
     entries = [
         history_loader.UsageEntry(
-            timestamp=datetime(2026, 5, 21, tzinfo=UTC),
+            timestamp=now,
             session_id="s1",
             message_id="m1",
             request_id="r1",
@@ -552,7 +613,7 @@ def test_project_rows_top3(monkeypatch: pytest.MonkeyPatch) -> None:
             project="usage",
         ),
         history_loader.UsageEntry(
-            timestamp=datetime(2026, 5, 21, tzinfo=UTC),
+            timestamp=now,
             session_id="s2",
             message_id="m2",
             request_id="r2",
@@ -565,7 +626,7 @@ def test_project_rows_top3(monkeypatch: pytest.MonkeyPatch) -> None:
             project="FinMind",
         ),
         history_loader.UsageEntry(
-            timestamp=datetime(2026, 5, 21, tzinfo=UTC),
+            timestamp=now,
             session_id="s3",
             message_id="m3",
             request_id="r3",
@@ -578,7 +639,7 @@ def test_project_rows_top3(monkeypatch: pytest.MonkeyPatch) -> None:
             project="AI客服",
         ),
         history_loader.UsageEntry(
-            timestamp=datetime(2026, 5, 21, tzinfo=UTC),
+            timestamp=now,
             session_id="s4",
             message_id="m4",
             request_id="r4",
@@ -591,7 +652,7 @@ def test_project_rows_top3(monkeypatch: pytest.MonkeyPatch) -> None:
             project="sidecar",
         ),
         history_loader.UsageEntry(
-            timestamp=datetime(2026, 5, 21, tzinfo=UTC),
+            timestamp=now,
             session_id="s5",
             message_id="m5",
             request_id="r5",
@@ -613,6 +674,40 @@ def test_project_rows_top3(monkeypatch: pytest.MonkeyPatch) -> None:
     assert rows[0] == ("usage", 5_000_000, 2.0)
     assert rows[1][0] == "FinMind"
     assert rows[2][0] == "AI客服"
+
+
+def test_project_rows_today_uses_calendar_day() -> None:
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    today_entry = history_loader.UsageEntry(
+        timestamp=datetime.now(tz=UTC),
+        session_id="today",
+        message_id="today-msg",
+        request_id="today-req",
+        model="claude",
+        input_tokens=100,
+        output_tokens=50,
+        cache_creation_tokens=0,
+        cache_read_tokens=0,
+        cost_usd=0.01,
+        project="TodayProject",
+    )
+    old_entry = history_loader.UsageEntry(
+        timestamp=datetime.now(tz=UTC) - timedelta(days=1),
+        session_id="old",
+        message_id="old-msg",
+        request_id="old-req",
+        model="claude",
+        input_tokens=10_000,
+        output_tokens=5_000,
+        cache_creation_tokens=0,
+        cache_read_tokens=0,
+        cost_usd=1.0,
+        project="OldProject",
+    )
+
+    assert delegate._project_rows(hours_back=24, entries=[today_entry, old_entry]) == [
+        ("TodayProject", 150, 0.01)
+    ]
 
 
 def test_project_rows_7d_mock() -> None:
@@ -693,6 +788,73 @@ def test_apply_refresh_result_pushes_state_only_when_popover_is_shown() -> None:
     assert controller.calls == []
     assert delegate.latest_state == state
     assert delegate.codex_5h_pct == 34
+
+
+def test_switching_visible_panel_reopens_popover(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeController:
+        def __init__(self) -> None:
+            self.rebuilt: list[str] = []
+            self.states: list[menubar.PopoverState] = []
+
+        def rebuildWithPanel_(self, panel: Any) -> None:
+            self.rebuilt.append(panel.id)
+
+        def setState_(self, state: menubar.PopoverState) -> None:
+            self.states.append(state)
+
+    class FakeButton:
+        def bounds(self) -> str:
+            return "button-bounds"
+
+    class FakeStatusItem:
+        def __init__(self) -> None:
+            self._button = FakeButton()
+
+        def button(self) -> FakeButton:
+            return self._button
+
+    class FakePopover:
+        def __init__(self) -> None:
+            self.closed = 0
+            self.shown: list[tuple[object, object, object]] = []
+            self.sizes: list[object] = []
+
+        def isShown(self) -> bool:
+            return True
+
+        def performClose_(self, sender: object) -> None:
+            self.closed += 1
+
+        def setContentSize_(self, size: object) -> None:
+            self.sizes.append(size)
+
+        def showRelativeToRect_ofView_preferredEdge_(
+            self,
+            rect: object,
+            view: object,
+            edge: object,
+        ) -> None:
+            self.shown.append((rect, view, edge))
+
+    saved: list[str] = []
+    monkeypatch.setattr(menubar, "save_active_panel_id", lambda panel_id: saved.append(panel_id))
+
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(True, 60)
+    delegate.latest_state = menubar._empty_state(language="en")
+    delegate.popover_controller = FakeController()
+    delegate.popover = FakePopover()
+    delegate.status_item = FakeStatusItem()
+
+    delegate._set_active_panel_id("matrix")
+
+    assert saved == ["matrix"]
+    assert delegate.active_panel.id == "matrix"
+    assert delegate.popover_controller.rebuilt == ["matrix"]
+    assert delegate.popover_controller.states == [delegate.latest_state]
+    assert delegate.popover.closed == 1
+    assert len(delegate.popover.sizes) == 1
+    assert len(delegate.popover.shown) == 1
+    assert delegate.popover.shown[0][0] == "button-bounds"
 
 
 def test_state_from_outcome_replaces_claude_reset_with_warning(

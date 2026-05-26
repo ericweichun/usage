@@ -7,7 +7,11 @@
 ## [Unreleased]
 
 ### 修正
-- **HTML 報告與預設面板版面更穩定**：macOS 開啟分析報告改用 `/usr/bin/open`，避免本機 file URL 編碼造成開啟失敗；預設 Classic 面板的 Project Usage 標題列改成兩列排版，避免按鈕擠壓標題或覆蓋第一筆專案資料。
+- **分析報告語言跟隨 menu bar 浮窗**：按下「分析」時，HTML 報告現在使用目前 menu bar 偵測到的語言，而不是在報告產生階段重新只看環境變數，避免 LaunchAgent 未設定 `LANG` 時 fallback 成英文。
+- **切換面板時重新定位已開啟的 popover**：使用者在 popover 開啟狀態下切換 theme/panel 時，先關閉舊 popover、重建內容與尺寸後再重新顯示，避免視圖短暫縮排或尺寸錯亂。
+- **Codex 專案用量與分析報告統一算法**：同一個 Codex session 出現在多個 JSONL 檔時，改選較新的 cumulative token entry；分析報告改共用 `codex_loader.load_entries()`，Project Usage 也納入 Codex session，避免同一份資料在 app 與 report 顯示不同數字。Project Usage 的 Today 現在與底部 Today 同樣使用本地日曆日，且底部 Today 不會在呼叫端已提供 Codex entries 時重複載入 Codex。
+- **Matrix 與 Classic 面板「專案用量」標題不再被按鈕擠斷**：在 zh-TW 中文標題下，原本「📁 專案用量」標題會被 [TODAY]/[ANALYZE]/[CLI] 三顆按鈕擠到斷字（顯示成「專案用...」）。兩個面板的 `.card[data-card="projects"] .brand` 都改成 grid 兩列排版，圖示+標題在上、三顆按鈕等寬排在下。感謝 @ericweichun 補上 Classic 面板版本（#9）。
+- **macOS 開啟分析報告改用 `/usr/bin/open`**：以前用 `webbrowser.open()` 走 `file://` URI，路徑含空格或中文字時可能被瀏覽器拒絕；改用 `/usr/bin/open` 直接傳路徑，更穩定。感謝 @ericweichun（#9）。
 
 ## [0.11.4] - 2026-05-25
 

@@ -119,3 +119,12 @@ def test_save_and_open_uses_macos_open(
     assert calls
     assert calls[0][0] == "/usr/bin/open"
     assert calls[0][1].startswith(str(tmp_path / ".usage-reports"))
+
+
+def test_generate_html_uses_explicit_language_over_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("USAGE_LANG", "en")
+
+    report = html_report.generate_html(_report_data(), language="zh-TW")
+
+    assert '<html lang="zh-TW">' in report
+    assert "壓縮對話節省 token" in report

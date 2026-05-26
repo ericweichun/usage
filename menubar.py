@@ -482,13 +482,6 @@ class AppDelegate(NSObject):
         auto_update_item.setTarget_(self)
         auto_update_item.setState_(1 if _auto_update_check_enabled() else 0)
         menu.addItem_(auto_update_item)
-        check_update_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            _t(self.language, "update_check_now"),
-            "checkUpdateNow:",
-            "",
-        )
-        check_update_item.setTarget_(self)
-        menu.addItem_(check_update_item)
         menu.popUpMenuPositioningItem_atLocation_inView_(None, NSMakePoint(0, 0), sender)
 
     def selectPanel_(self, sender: Any) -> None:
@@ -512,14 +505,13 @@ class AppDelegate(NSObject):
         _save_preferences(prefs)
         if hasattr(sender, "setState_"):
             sender.setState_(1 if enabled else 0)
-
-    def checkUpdateNow_(self, sender: Any) -> None:
-        thread = threading.Thread(
-            target=self._check_update_in_background,
-            kwargs={"manual": True, "ignore_cooldown": True, "ignore_skipped": True},
-            daemon=True,
-        )
-        thread.start()
+        if enabled:
+            thread = threading.Thread(
+                target=self._check_update_in_background,
+                kwargs={"manual": True, "ignore_cooldown": True, "ignore_skipped": True},
+                daemon=True,
+            )
+            thread.start()
 
     def _maybe_check_update_in_background(self) -> None:
         self._check_update_in_background(
@@ -622,11 +614,21 @@ class AppDelegate(NSObject):
 
     def _set_active_panel_id(self, panel_id: str) -> None:
         panel = panels.get_panel(panel_id)
+        was_shown = bool(self.popover.isShown())
+        if was_shown:
+            self.popover.performClose_(None)
         save_active_panel_id(panel.id)
         self.active_panel = panel
         self.popover_controller.rebuildWithPanel_(panel)
         self.popover_controller.setState_(self.latest_state)
         self.popover.setContentSize_(_popover_size(self.latest_state, panel))
+        if was_shown:
+            button = self.status_item.button()
+            self.popover.showRelativeToRect_ofView_preferredEdge_(
+                button.bounds(),
+                button,
+                NSMinYEdge,
+            )
 
     def togglePopover_(self, sender: Any) -> None:
         if self.popover.isShown():
@@ -776,7 +778,7 @@ class AppDelegate(NSObject):
     def _analyze_usage_in_background(self) -> None:
         result: dict[str, str | bool]
         try:
-            saved = _generate_analysis_report()
+            saved = _generate_analysis_report(language=self.language)
             result = {"success": True, "message": saved}
         except Exception as exc:
             if os.environ.get("USAGE_DEBUG") == "1":
@@ -966,12 +968,18 @@ class AppDelegate(NSObject):
     def _load_history_entries(self) -> list[UsageEntry]:
         if self.mock:
             return []
+        entries: list[UsageEntry] = []
         try:
-            return load_entries(hours_back=720)
+            entries.extend(load_entries(hours_back=720))
         except Exception:
             if os.environ.get("USAGE_DEBUG") == "1":
-                logger.warning("project usage load failed", exc_info=True)
-            return []
+                logger.warning("Claude project usage load failed", exc_info=True)
+        try:
+            entries.extend(codex_loader.load_entries(hours_back=720))
+        except Exception:
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("Codex project usage load failed", exc_info=True)
+        return entries
 
     def _project_rows(
         self,
@@ -1005,8 +1013,16 @@ class AppDelegate(NSObject):
                     logger.warning("project usage load failed", exc_info=True)
                 return []
         else:
-            cutoff = datetime.now(tz=UTC) - timedelta(hours=hours_back)
-            resolved = [e for e in entries if e.timestamp >= cutoff]
+            if hours_back == 24:
+                today = datetime.now().astimezone().date()
+                resolved = [
+                    e for e in entries if e.timestamp.astimezone().date() == today
+                ]
+            elif hours_back > 0:
+                cutoff = datetime.now(tz=UTC) - timedelta(hours=hours_back)
+                resolved = [e for e in entries if e.timestamp >= cutoff]
+            else:
+                resolved = entries
 
         aggregates: dict[str, list[float]] = {}
         for entry in resolved:
@@ -1049,14 +1065,14 @@ def run_app(mock: bool = False, interval: int = 60) -> None:
     app.run()
 
 
-def _generate_analysis_report(period: str = "month") -> str:
+def _generate_analysis_report(period: str = "month", language: str | None = None) -> str:
     from adapters.registry import detect_agents
     from analyzer.reporter import build_report_data
     from ui.html_report import save_and_open
 
     agents = detect_agents()
     data = build_report_data(agents, period)
-    return cast(str, save_and_open(data))
+    return cast(str, save_and_open(data, language=language))
 
 
 def _popover_size(state: PopoverState, panel: UsagePanel | None = None) -> Any:
@@ -1286,8 +1302,11 @@ def _today_title(
         total_tokens = 0
         total_cost = 0.0
 
-        history = entries if entries is not None else load_entries(hours_back=24)
-        all_entries = list(history) + codex_loader.load_entries(hours_back=24)
+        all_entries = (
+            entries
+            if entries is not None
+            else list(load_entries(hours_back=24)) + codex_loader.load_entries(hours_back=24)
+        )
         for entry in all_entries:
             if entry.timestamp.astimezone().date() != today:
                 continue

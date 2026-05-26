@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import history_loader
 import menubar
 from adapters.types import AgentInfo
+from analyzer import reporter
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -56,8 +59,13 @@ def test_generate_analysis_report_uses_analyzer_pipeline(
         calls["period"] = period
         return report_data
 
-    def fake_save_and_open(received_data: dict[str, object]) -> str:
+    def fake_save_and_open(
+        received_data: dict[str, object],
+        *,
+        language: str | None = None,
+    ) -> str:
         calls["data"] = received_data
+        calls["language"] = language
         return "~/.usage-reports/usage-report-test.html"
 
     monkeypatch.setattr("adapters.registry.detect_agents", lambda: agents)
@@ -65,4 +73,66 @@ def test_generate_analysis_report_uses_analyzer_pipeline(
     monkeypatch.setattr("ui.html_report.save_and_open", fake_save_and_open)
 
     assert menubar._generate_analysis_report() == "~/.usage-reports/usage-report-test.html"
-    assert calls == {"agents": agents, "period": "month", "data": report_data}
+    assert calls == {"agents": agents, "period": "month", "data": report_data, "language": None}
+
+
+def test_generate_analysis_report_propagates_language(
+    monkeypatch: Any,
+) -> None:
+    agents = [AgentInfo("codex", "Codex", "~/.codex", True)]
+    report_data: dict[str, object] = {"summary": {"total_tokens": 123}}
+    calls: dict[str, object] = {}
+
+    def fake_build_report_data(received_agents: list[AgentInfo], period: str) -> dict[str, object]:
+        calls["agents"] = received_agents
+        calls["period"] = period
+        return report_data
+
+    def fake_save_and_open(
+        received_data: dict[str, object],
+        *,
+        language: str | None = None,
+    ) -> str:
+        calls["data"] = received_data
+        calls["language"] = language
+        return "~/.usage-reports/usage-report-test.html"
+
+    monkeypatch.setattr("adapters.registry.detect_agents", lambda: agents)
+    monkeypatch.setattr("analyzer.reporter.build_report_data", fake_build_report_data)
+    monkeypatch.setattr("ui.html_report.save_and_open", fake_save_and_open)
+
+    assert (
+        menubar._generate_analysis_report(language="zh-TW")
+        == "~/.usage-reports/usage-report-test.html"
+    )
+    assert calls == {"agents": agents, "period": "month", "data": report_data, "language": "zh-TW"}
+
+
+def test_report_codex_entries_use_shared_loader(monkeypatch: Any) -> None:
+    source_entry = history_loader.UsageEntry(
+        timestamp=datetime(2026, 5, 21, tzinfo=UTC),
+        session_id="s1",
+        message_id="m1",
+        request_id="r1",
+        model="gpt-test",
+        input_tokens=1,
+        output_tokens=2,
+        cache_creation_tokens=3,
+        cache_read_tokens=4,
+        cost_usd=0.5,
+        project="usage",
+    )
+    calls: dict[str, int] = {}
+
+    def fake_load_entries(*, hours_back: int = 0) -> list[history_loader.UsageEntry]:
+        calls["hours_back"] = hours_back
+        return [source_entry]
+
+    monkeypatch.setattr("analyzer.reporter.codex_loader.load_entries", fake_load_entries)
+
+    entries = reporter._load_agent_entries(AgentInfo("codex", "Codex", "~/.codex", True), 24)
+
+    assert calls == {"hours_back": 24}
+    assert len(entries) == 1
+    assert entries[0].agent_id == "codex"
+    assert entries[0].total_tokens == source_entry.total_tokens

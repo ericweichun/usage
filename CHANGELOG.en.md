@@ -8,7 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Fixed
-- **HTML reports and the default panel layout are more robust**: macOS now opens generated analysis reports with `/usr/bin/open`, avoiding local file URL encoding issues; the Classic panel's Project Usage header now uses a two-row layout so action buttons do not squeeze the title or overlap the first project row.
+- **Analysis reports now follow the menu bar popover language**: clicking Analyze now passes the menu bar's current language into HTML report generation instead of redetecting from environment variables only, avoiding English fallback when LaunchAgent does not set `LANG`.
+- **Visible popovers are repositioned when switching panels**: changing the active theme/panel while the popover is open now closes the old popover, rebuilds the content and size, then shows it again to avoid transient indentation or sizing glitches.
+- **Codex project usage and analysis reports now share one counting path**: when the same Codex session appears in multiple JSONL files, usage keeps the newer cumulative token entry; analysis reports now reuse `codex_loader.load_entries()`, and Project Usage includes Codex sessions so the app and report do not disagree for the same local data. Project Usage's Today range now matches the footer's local calendar day, and the footer no longer reloads Codex when the caller already supplied Codex entries.
+- **Matrix and Classic panel Project Usage header no longer truncates the title**: with CJK titles (e.g. zh-TW「專案用量」), the original `.brand` layout squeezed `[TODAY]/[ANALYZE]/[CLI]` against the title, clipping it to `專案用...`. Both panels' `.card[data-card="projects"] .brand` is now a two-row grid: icon + title on top, three action buttons evenly distributed below. Thanks to @ericweichun for the Classic panel fix (#9).
+- **macOS now opens analysis reports with `/usr/bin/open`**: previously `webbrowser.open()` constructed a `file://` URI, which some browsers refused for paths containing spaces or CJK characters. Switching to `/usr/bin/open` with the resolved path is more reliable. Thanks to @ericweichun (#9).
 
 ## [0.11.4] - 2026-05-25
 
