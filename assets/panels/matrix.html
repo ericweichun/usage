@@ -245,6 +245,7 @@
 
     .proj-row {
       display: flex;
+      flex-wrap: wrap;
       align-items: baseline;
       gap: 8px;
       padding: 7px 0;
@@ -290,6 +291,37 @@
       color: var(--muted);
       font-size: 12px;
       white-space: nowrap;
+    }
+
+    .proj-bar {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 3px;
+      margin-top: 6px;
+      align-self: end;
+      overflow: hidden;
+      border-radius: 2px;
+      background: rgba(0, 140, 50, 0.2);
+    }
+
+    .proj-bar-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 72%, transparent), var(--accent));
+      opacity: 0.7;
+    }
+
+    .proj-row:first-child .proj-bar {
+      height: 3.5px;
+    }
+
+    .proj-row:first-child .proj-bar-fill {
+      opacity: 1;
+    }
+
+    .proj-row:last-child .proj-bar {
+      margin-bottom: 10px;
     }
 
     .footer {
@@ -351,6 +383,28 @@
     .action:hover,
     .switch:hover {
       box-shadow: 0 0 12px rgba(46, 242, 114, 0.18);
+    }
+
+    .action.primary:hover {
+      background: color-mix(in srgb, var(--accent) 24%, var(--button));
+      border-color: var(--accent);
+      box-shadow: 0 0 16px rgba(46, 242, 114, 0.28);
+    }
+
+    .action:not(.primary):hover {
+      background: color-mix(in srgb, var(--accent) 10%, var(--button));
+      color: var(--text);
+    }
+
+    .switch:hover {
+      background: color-mix(in srgb, var(--accent) 10%, var(--button));
+      border-color: color-mix(in srgb, var(--accent) 60%, var(--button-border));
+    }
+
+    .switch[data-active="true"] {
+      background: color-mix(in srgb, var(--accent) 18%, var(--button));
+      color: #000;
+      border-color: var(--accent);
     }
 
     .action:active,
@@ -620,14 +674,21 @@
       const list = document.querySelector("[data-project-list]");
       if (!list) return;
       const ranks = ["①", "②", "③"];
-      list.innerHTML = (projects || []).slice(0, 3).map((project, index) => `
+      const rows = (projects || []).slice(0, 3);
+      const totalTokens = rows.reduce((s, p) => s + Math.max(0, Number(p.tokens) || 0), 0);
+      list.innerHTML = rows.map((project, index) => {
+        const tokens = Math.max(0, Number(project.tokens) || 0);
+        const width = totalTokens > 0 ? Math.max(0, Math.min(100, (tokens / totalTokens) * 100)) : 0;
+        return `
         <div class="proj-row">
           <span class="proj-rank">${ranks[index]}</span>
           <span class="proj-name">${project.name}</span>
           <span class="proj-tokens">${project.tokensText}</span>
           <span class="proj-cost">${project.costText}</span>
+          <div class="proj-bar"><div class="proj-bar-fill" style="width:${width}%"></div></div>
         </div>
-      `).join("") || `<div style="color:var(--muted);font-size:13px;padding:8px 0">${t("projects_empty")}</div>`;
+      `;
+      }).join("") || `<div style="color:var(--muted);font-size:13px;padding:8px 0">${t("projects_empty")}</div>`;
     }
 
 

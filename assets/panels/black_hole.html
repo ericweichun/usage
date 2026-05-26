@@ -110,7 +110,13 @@
 
     .card[data-card="claude"],
     .card[data-card="codex"] {
-      min-height: 224px;
+      min-height: 210px;
+      padding: 10px 14px;
+    }
+
+    .card[data-card="claude"] .header,
+    .card[data-card="codex"] .header {
+      margin-bottom: 8px;
     }
 
     .header {
@@ -159,6 +165,51 @@
       text-overflow: ellipsis;
     }
 
+    .card[data-card="projects"] .header {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      align-items: center;
+      height: auto;
+      column-gap: 10px;
+      row-gap: 10px;
+    }
+
+    .card[data-card="projects"] .singularity-badge {
+      grid-column: 1;
+      grid-row: 1;
+      justify-self: start;
+    }
+
+    .card[data-card="projects"] .header-copy {
+      grid-column: 2;
+      grid-row: 1;
+      min-width: 0;
+    }
+
+    .card[data-card="projects"] h1 {
+      overflow: visible;
+      text-overflow: clip;
+      white-space: normal;
+    }
+
+    .card[data-card="projects"] .range-chip {
+      grid-column: 1 / 3;
+      grid-row: 2;
+      width: calc((100% - 16px) / 3);
+    }
+
+    .card[data-card="projects"] .range-chip:nth-of-type(1) {
+      justify-self: start;
+    }
+
+    .card[data-card="projects"] .range-chip:nth-of-type(2) {
+      justify-self: center;
+    }
+
+    .card[data-card="projects"] .range-chip:nth-of-type(3) {
+      justify-self: end;
+    }
+
     .switch,
     .range-chip,
     .action {
@@ -194,9 +245,19 @@
       padding: 10px 0 0;
     }
 
+    .card[data-card="claude"] .row,
+    .card[data-card="codex"] .row {
+      padding-top: 8px;
+    }
+
     .row + .row {
       margin-top: 10px;
       border-top: 1px solid rgba(255, 120, 20, 0.15);
+    }
+
+    .card[data-card="claude"] .row + .row,
+    .card[data-card="codex"] .row + .row {
+      margin-top: 8px;
     }
 
     .row-head {
@@ -295,8 +356,6 @@
     [data-project-list] {
       position: relative;
       z-index: 1;
-      display: grid;
-      gap: 8px;
     }
 
     .proj-row {
@@ -305,10 +364,12 @@
       grid-template-columns: 1fr auto auto;
       align-items: center;
       gap: 8px;
-      padding: 6px 10px;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 120, 20, 0.16);
-      background: rgba(18, 7, 0, 0.66);
+      padding: 8px 0 11px;
+      border-top: 1px solid rgba(255, 120, 20, 0.15);
+    }
+
+    .proj-row:first-child {
+      border-top: none;
     }
 
     .proj-topline {
@@ -401,6 +462,29 @@
       min-height: 28px;
       padding: 0 10px;
       border-radius: 999px;
+    }
+
+    .action.primary:hover {
+      background: color-mix(in srgb, #ff6600 26%, var(--surface));
+      border-color: rgba(255, 160, 32, 0.68);
+      box-shadow: 0 0 18px rgba(255, 100, 0, 0.24), inset 0 0 12px rgba(255, 160, 32, 0.12);
+    }
+
+    .action:not(.primary):hover {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .switch:hover,
+    .range-chip:hover {
+      background: color-mix(in srgb, #ff6600 12%, var(--surface));
+      border-color: rgba(255, 120, 20, 0.52);
+    }
+
+    .range-chip[data-active="true"] {
+      background: color-mix(in srgb, #ff6600 18%, var(--surface));
+      color: var(--text);
+      border-color: rgba(255, 120, 20, 0.55);
     }
 
     .action[data-action="install"] {
@@ -643,7 +727,8 @@
         return;
       }
       items.forEach((project, index) => {
-        list.append(projectMarkup(project, index));
+        const row = projectMarkup(project, index);
+        list.append(row);
       });
     }
 

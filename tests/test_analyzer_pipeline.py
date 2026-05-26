@@ -16,20 +16,28 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_all_languages_have_analyze_label() -> None:
     bundle = json.loads((ROOT / "i18n.json").read_text(encoding="utf-8"))
 
-    assert bundle["zh-TW"]["analyze_usage"] == "分析"
-    assert bundle["zh-CN"]["analyze_usage"] == "分析"
-    assert bundle["en"]["analyze_usage"] == "Analyze"
-    assert bundle["ja"]["analyze_usage"] == "分析"
-    assert bundle["ko"]["analyze_usage"] == "분석"
+    assert bundle["zh-TW"]["analyze_usage"] == "報告"
+    assert bundle["zh-CN"]["analyze_usage"] == "报告"
+    assert bundle["en"]["analyze_usage"] == "Report"
+    assert bundle["ja"]["analyze_usage"] == "レポート"
+    assert bundle["ko"]["analyze_usage"] == "리포트"
 
 
 def test_all_languages_have_cli_statusline_labels() -> None:
     bundle = json.loads((ROOT / "i18n.json").read_text(encoding="utf-8"))
 
-    for table in bundle.values():
-        assert table["cli"] == "CLI"
-        assert table["cli_disabled"] == "CLI"
-        assert table["cli_enabled"] == "CLI ✓"
+    expected = {
+        "zh-TW": "終端",
+        "zh-CN": "终端",
+        "en": "Terminal",
+        "ja": "ターミナル",
+        "ko": "터미널",
+    }
+    for lang, table in bundle.items():
+        label = expected[lang]
+        assert table["cli"] == label
+        assert table["cli_disabled"] == label
+        assert table["cli_enabled"] == f"{label} ✓"
         removed_statusline_message_keys = {
             "statusline_" + suffix for suffix in ("installed", "uninstalled")
         }

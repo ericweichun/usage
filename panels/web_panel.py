@@ -239,15 +239,30 @@ def _state_payload(state: PopoverState) -> dict[str, object]:
             "weekly": _row_payload(state.codex_weekly),
         },
         "projects": [
-            {"name": name, "tokensText": _fmt_tokens(tokens), "costText": _fmt_cost(cost)}
+            {
+                "name": name,
+                "tokens": tokens,
+                "tokensText": _fmt_tokens(tokens),
+                "costText": _fmt_cost(cost),
+            }
             for name, tokens, cost in state.projects
         ],
         "projects7d": [
-            {"name": name, "tokensText": _fmt_tokens(tokens), "costText": _fmt_cost(cost)}
+            {
+                "name": name,
+                "tokens": tokens,
+                "tokensText": _fmt_tokens(tokens),
+                "costText": _fmt_cost(cost),
+            }
             for name, tokens, cost in state.projects_7d
         ],
         "projects30d": [
-            {"name": name, "tokensText": _fmt_tokens(tokens), "costText": _fmt_cost(cost)}
+            {
+                "name": name,
+                "tokens": tokens,
+                "tokensText": _fmt_tokens(tokens),
+                "costText": _fmt_cost(cost),
+            }
             for name, tokens, cost in state.projects_30d
         ],
         "statusline": state.statusline,

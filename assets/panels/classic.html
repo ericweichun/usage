@@ -12,15 +12,16 @@
       --line: rgba(255, 255, 255, 0.13);
       --text: rgba(255, 255, 255, 0.94);
       --muted: rgba(255, 255, 255, 0.58);
-      --track: rgba(255, 255, 255, 0.12);
+      --track: rgba(255, 255, 255, 0.07);
       --button: rgba(255, 255, 255, 0.08);
       --button-border: rgba(255, 255, 255, 0.18);
+      --button-hover: rgba(255, 255, 255, 0.13);
       --claude: #f49164;
       --codex: #58d6e6;
       --projects: #30d158;
       --warn: #ffc439;
       --danger: #ff453a;
-      --radius: 18px;
+      --radius: 8px;
     }
 
     @media (prefers-color-scheme: light) {
@@ -31,9 +32,10 @@
         --line: rgba(20, 28, 38, 0.13);
         --text: rgba(12, 18, 26, 0.9);
         --muted: rgba(12, 18, 26, 0.55);
-        --track: rgba(12, 18, 26, 0.11);
+        --track: rgba(12, 18, 26, 0.06);
         --button: rgba(12, 18, 26, 0.05);
         --button-border: rgba(12, 18, 26, 0.14);
+        --button-hover: rgba(12, 18, 26, 0.10);
       }
     }
 
@@ -57,39 +59,49 @@
     }
 
     body {
-      padding: 14px;
+      padding: 12px;
       background:
-        radial-gradient(circle at 20% 0%, rgba(48, 209, 88, 0.14), transparent 34%),
-        linear-gradient(180deg, #101922 0%, var(--bg) 100%);
+        linear-gradient(180deg, #111b25 0%, #0b1118 44%, var(--bg) 100%);
     }
 
     @media (prefers-color-scheme: light) {
       body {
         background:
-          radial-gradient(circle at 20% 0%, rgba(48, 209, 88, 0.12), transparent 34%),
-          linear-gradient(180deg, #f7f9fc 0%, var(--bg) 100%);
+          linear-gradient(180deg, #f8fafc 0%, #eef3f8 48%, var(--bg) 100%);
       }
     }
 
     .wrap {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 10px;
       width: 100%;
       height: 100%;
     }
 
     .card,
     .footer {
+      position: relative;
       background: var(--panel);
       border: 1px solid var(--panel-border);
       border-radius: var(--radius);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      box-shadow:
+        0 10px 24px rgba(0, 0, 0, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.07);
       overflow: hidden;
     }
 
     .card {
-      padding: 16px 18px 14px;
+      padding: 13px 15px 12px;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 3px;
+      background: linear-gradient(180deg, var(--accent), transparent 72%);
+      opacity: 0.72;
     }
 
     .brand {
@@ -106,6 +118,9 @@
       border-radius: 8px;
       object-fit: cover;
       flex: none;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.12),
+        0 6px 14px color-mix(in srgb, var(--accent) 24%, transparent);
     }
 
     .brand-icon {
@@ -116,6 +131,9 @@
       align-items: center;
       justify-content: center;
       flex: none;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent);
     }
 
     .brand h1 {
@@ -127,7 +145,7 @@
       white-space: nowrap;
       font-size: 21px;
       line-height: 1;
-      font-weight: 750;
+      font-weight: 780;
     }
 
     .card[data-card="projects"] .brand {
@@ -136,7 +154,7 @@
       align-items: center;
       height: auto;
       row-gap: 10px;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
 
     .card[data-card="projects"] .brand-icon {
@@ -163,7 +181,7 @@
       height: 28px;
       padding: 0 10px;
       border: 1px solid var(--button-border);
-      border-radius: 9px;
+      border-radius: 8px;
       background: var(--button);
       color: var(--text);
       font: 650 12px/26px -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif;
@@ -172,8 +190,8 @@
 
     .row + .row {
       border-top: 1px solid var(--line);
-      margin-top: 10px;
-      padding-top: 10px;
+      margin-top: 8px;
+      padding-top: 8px;
     }
 
     .row-head {
@@ -181,13 +199,13 @@
       align-items: baseline;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 6px;
+      margin-bottom: 5px;
     }
 
     .row-title {
       font-size: 15px;
       line-height: 18px;
-      font-weight: 720;
+      font-weight: 740;
     }
 
     .percent {
@@ -203,6 +221,7 @@
       border-radius: 99px;
       overflow: hidden;
       background: var(--track);
+      box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.18);
     }
 
     .fill {
@@ -210,7 +229,9 @@
       height: 100%;
       min-width: 0;
       border-radius: inherit;
-      background: var(--accent);
+      background: var(--fill-color, var(--accent));
+      background-image: linear-gradient(180deg, color-mix(in srgb, var(--fill-color, var(--accent)) 100%, white 12%), var(--fill-color, var(--accent)));
+      box-shadow: 0 0 12px color-mix(in srgb, var(--fill-color, var(--accent)) 30%, transparent);
       transition: width 140ms ease-out, background-color 140ms ease-out;
     }
 
@@ -238,10 +259,11 @@
     }
 
     .proj-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr) auto auto;
       align-items: baseline;
       gap: 8px;
-      padding: 7px 0;
+      padding: 8px 0 11px;
       border-top: 1px solid var(--line);
       font-size: 13.5px;
       line-height: 18px;
@@ -249,51 +271,95 @@
 
     .proj-row:first-child {
       border-top: none;
+      font-weight: 760;
     }
 
     .proj-rank {
       width: 16px;
       color: var(--muted);
       font-weight: 720;
-      flex: none;
+      font-size: 12px;
     }
 
     .proj-name {
-      flex: 1;
+      min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
+    .proj-row:first-child .proj-name {
+      color: var(--text);
+    }
+
     .proj-tokens {
       color: var(--accent);
-      font-weight: 760;
+      font-weight: 790;
       white-space: nowrap;
+      text-align: right;
+      min-width: 84px;
     }
 
     .proj-cost {
-      color: var(--muted);
+      color: color-mix(in srgb, var(--muted) 70%, transparent);
       font-size: 12px;
       white-space: nowrap;
     }
 
+    .proj-bar {
+      grid-column: 1 / -1;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--track);
+      overflow: hidden;
+      align-self: end;
+    }
+
+    .proj-bar-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 72%, transparent), var(--accent));
+      opacity: 0.7;
+    }
+
+    .proj-row:first-child .proj-bar {
+      height: 3.5px;
+    }
+
+    .proj-row:first-child .proj-bar-fill {
+      opacity: 1;
+    }
+
     .footer {
       min-height: 144px;
-      padding: 14px 18px 12px;
+      padding: 12px 15px 11px;
     }
 
     .meta {
-      display: grid;
+      display: flex;
+      flex-wrap: wrap;
       gap: 6px;
+    }
+
+    .meta > div {
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: color-mix(in srgb, var(--button) 78%, transparent);
+      border: 1px solid var(--button-border);
       color: var(--muted);
-      font-size: 13.5px;
-      line-height: 18px;
-      font-weight: 620;
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 640;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
     }
 
     .today {
-      margin-top: 10px;
-      padding-top: 10px;
+      margin-top: 8px;
+      padding-top: 8px;
       border-top: 1px solid var(--line);
       color: var(--text);
       font-size: 15px;
@@ -307,7 +373,7 @@
     .actions {
       display: flex;
       gap: 10px;
-      margin-top: 14px;
+      margin-top: 10px;
     }
 
 
@@ -318,8 +384,8 @@
       height: 32px;
       border: 1px solid var(--button-border);
       border-radius: 8px;
-      background: var(--button);
-      color: var(--text);
+      background: color-mix(in srgb, var(--button) 70%, transparent);
+      color: var(--muted);
       font: 700 13px/1 -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif;
       white-space: nowrap;
       flex: 1;
@@ -337,14 +403,44 @@
     }
 
     .action.primary {
-      border-color: rgba(88, 214, 230, 0.45);
+      border-color: rgba(88, 214, 230, 0.30);
+      background: linear-gradient(180deg, rgba(88, 214, 230, 0.26), rgba(24, 172, 216, 0.18));
+      color: rgba(255, 255, 255, 0.92);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .action.primary:hover {
+      border-color: rgba(88, 214, 230, 0.55);
       background: linear-gradient(180deg, #34d7f2, #18acd8);
       color: white;
     }
 
+    .action:not(.primary):hover {
+      background: var(--button);
+      color: var(--text);
+    }
+
+    .switch:hover {
+      background: var(--button-hover);
+      border-color: rgba(255, 255, 255, 0.28);
+    }
+
+    .switch[data-active="true"] {
+      color: white;
+      border-color: color-mix(in srgb, var(--projects) 42%, transparent);
+      background: color-mix(in srgb, var(--projects) 12%, var(--button));
+    }
+
+    @media (prefers-color-scheme: light) {
+      .switch:hover {
+        background: rgba(12, 18, 26, 0.10);
+        border-color: rgba(12, 18, 26, 0.22);
+      }
+    }
+
     .attribution {
       font-size: 10px;
-      color: rgba(255,255,255,0.25);
+      color: rgba(255,255,255,0.18);
       text-align: center;
       margin-top: 6px;
     }
@@ -352,6 +448,12 @@
     .attribution a {
       color: inherit;
       text-decoration: none;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .attribution {
+        color: rgba(12,18,26,0.30);
+      }
     }
 
 
@@ -502,7 +604,7 @@
       reset.dataset.warning = data.warning === true ? "true" : "false";
       percent.style.color = available ? color : "";
       fill.style.width = available ? `${Math.max(0, Math.min(100, data.percent))}%` : "0%";
-      fill.style.background = color;
+      fill.style.setProperty("--fill-color", color);
     }
 
     function applyCard(name, rows) {
@@ -514,14 +616,21 @@
       const list = document.querySelector('[data-project-list]');
       if (!list) return;
       const ranks = ["①", "②", "③"];
-      list.innerHTML = (projects || []).slice(0, 3).map((p, i) => `
+      const rows = (projects || []).slice(0, 3);
+      const totalTokens = rows.reduce((s, p) => s + Math.max(0, Number(p.tokens) || 0), 0);
+      list.innerHTML = rows.map((p, i) => {
+        const tokens = Math.max(0, Number(p.tokens) || 0);
+        const width = totalTokens > 0 ? Math.max(0, Math.min(100, (tokens / totalTokens) * 100)) : 0;
+        return `
         <div class="proj-row">
           <span class="proj-rank">${ranks[i]}</span>
           <span class="proj-name">${p.name}</span>
           <span class="proj-tokens">${p.tokensText}</span>
           <span class="proj-cost">${p.costText}</span>
+          <div class="proj-bar"><div class="proj-bar-fill" style="width:${width}%"></div></div>
         </div>
-      `).join("") || `<div style="color:var(--muted);font-size:13px;padding:8px 0">${t("projects_empty")}</div>`;
+      `;
+      }).join("") || `<div style="color:var(--muted);font-size:13px;padding:8px 0">${t("projects_empty")}</div>`;
     }
 
 

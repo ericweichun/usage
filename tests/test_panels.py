@@ -67,7 +67,7 @@ def test_classic_panel_preferred_size() -> None:
 def test_win95_panel_preferred_size() -> None:
     panel = panels.get_panel("win95")
 
-    assert panel.preferred_size() == (364.0, 768.0)
+    assert panel.preferred_size() == (364.0, 800.0)
 
 
 def test_html_panels_place_analyze_and_cli_in_project_header() -> None:
@@ -101,7 +101,7 @@ def test_classic_project_header_expands_for_action_row() -> None:
     assert '<div class="project-actions">' in html
     assert "display: grid;" in project_brand_css
     assert "height: auto;" in project_brand_css
-    assert "margin-bottom: 14px;" in project_brand_css
+    assert "margin-bottom: 10px;" in project_brand_css
 
 
 def test_missing_panel_id_falls_back_to_classic() -> None:

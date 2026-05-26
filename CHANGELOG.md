@@ -6,12 +6,28 @@
 
 ## [Unreleased]
 
+## [0.11.5] - 2026-05-26
+
+### 新增
+- **「終端」按鈕開啟狀態變色**：之前只有勾勾「終端 ✓」表示 statusLine 開關狀態，現在按鈕底色也會跟著變（每個面板用自己的主色），一眼看出開還是關。
+
+### 變更
+- **按鈕名稱對非工程師更直觀**：「分析」→「報告」、「CLI」→「終端」/ Terminal / ターミナル / 터미널 / 终端，五國語言同步。
+- **所有按鈕都有 hover 反饋**：原本只有「立即更新」滑鼠移上去會變色，「結束」「更換面板」「今日」「報告」「終端」全沒反應像 disabled。現在 hover 都有對應視覺回饋，強度按 primary > secondary > switch 階層遞減。
+- **classic 面板大幅視覺精修**：往「macOS 系統工具」風格調 —— 卡片圓角 18→8、間距收緊、進度條加 inset 軌道凹陷感與外發光、排行榜加相對佔比比例條（前 3 名比例橫條，第一名強調）、底部狀態變 chip pill、左邊加品牌色細條、brand icon 加底色與光暈。
+- **6 個面板套同樣 UX 三件套**（matrix / win95 / newspaper / aquarium / cloud_observation / prism_arcade / black_hole）：比例條、終端開啟變色、按鈕 hover；各面板完整保留自己原本的主題視覺（駭客綠 / 像素 / 報紙 / 水紋 / 雲 / 彩虹 / 橘漸層）。
+- **landing page panel 展示從 6 個擴成 9 個**：新增 aquarium / prism_arcade / black_hole 三個；classic 改用專屬截圖（之前借用 popover.png）。
+- **更新 9 個面板的中英文截圖**：README 與 https://aqua5230.github.io/usage/ 上的展示截圖全部換成最新版。
+
 ### 修正
-- **分析報告語言跟隨 menu bar 浮窗**：按下「分析」時，HTML 報告現在使用目前 menu bar 偵測到的語言，而不是在報告產生階段重新只看環境變數，避免 LaunchAgent 未設定 `LANG` 時 fallback 成英文。
-- **切換面板時重新定位已開啟的 popover**：使用者在 popover 開啟狀態下切換 theme/panel 時，先關閉舊 popover、重建內容與尺寸後再重新顯示，避免視圖短暫縮排或尺寸錯亂。
-- **Codex 專案用量與分析報告統一算法**：同一個 Codex session 出現在多個 JSONL 檔時，改選較新的 cumulative token entry；分析報告改共用 `codex_loader.load_entries()`，Project Usage 也納入 Codex session，避免同一份資料在 app 與 report 顯示不同數字。Project Usage 的 Today 現在與底部 Today 同樣使用本地日曆日，且底部 Today 不會在呼叫端已提供 Codex entries 時重複載入 Codex。
-- **Matrix 與 Classic 面板「專案用量」標題不再被按鈕擠斷**：在 zh-TW 中文標題下，原本「📁 專案用量」標題會被 [TODAY]/[ANALYZE]/[CLI] 三顆按鈕擠到斷字（顯示成「專案用...」）。兩個面板的 `.card[data-card="projects"] .brand` 都改成 grid 兩列排版，圖示+標題在上、三顆按鈕等寬排在下。感謝 @ericweichun 補上 Classic 面板版本（#9）。
-- **macOS 開啟分析報告改用 `/usr/bin/open`**：以前用 `webbrowser.open()` 走 `file://` URI，路徑含空格或中文字時可能被瀏覽器拒絕；改用 `/usr/bin/open` 直接傳路徑，更穩定。感謝 @ericweichun（#9）。
+- **分析報告語言跟隨 menu bar 浮窗**：按下「報告」時 HTML 報告改用 menu bar 目前語言，避免 LaunchAgent 未設 `LANG` 時 fallback 成英文。
+- **切換面板時重新定位已開啟的 popover**：popover 開啟狀態下切 theme/panel，先關舊 popover、重建內容尺寸再顯示，避免短暫排版錯亂。
+- **Codex 專案用量與分析報告統一算法**：同一個 Codex session 出現在多個 JSONL 檔時改選較新的 cumulative token entry；分析報告改共用 `codex_loader.load_entries()`，Project Usage 也納入 Codex session。Project Usage 的 Today 與底部 Today 同步用本地日曆日，底部 Today 不會在呼叫端已提供 Codex entries 時重複載入。
+- **9 個面板「專案用量」標題不再被按鈕擠斷**：classic 與 matrix 由 @ericweichun 補上（#9），這次補完剩 6 個面板（win95 / newspaper / aquarium / cloud_observation / prism_arcade / black_hole），全部改成 2 列 grid 版型（icon+標題在上、三顆按鈕等寬排在下），配合英文「Project Usage」與日韓較長字串。
+- **macOS 開啟分析報告改用 `/usr/bin/open`**：以前 `webbrowser.open()` 走 `file://` URI 對含空格或中文字路徑可能失敗，改用 `/usr/bin/open` 更穩。感謝 @ericweichun（#9）。
+- **matrix 面板 footer 被截**：加 ASCII 邊框與雨滴背景後內容變高，預設 panel height 812 裝不下「立即更新 / 結束」按鈕。改成 880。
+- **win95 / newspaper 面板「重置 X天 X小時」貼下邊框**：win95 panel height 768 → 800、newspaper → 850，並對 Claude/Codex 卡的 `.row:last-child` 加 padding-bottom 緩衝。
+- **4 個 grid 面板（aquarium / cloud_observation / prism_arcade / black_hole） Projects row 排版重構**：原 row 是有 border 的小卡片設計跟新加的比例條跨欄行為打架，改為 row 之間用 border-top 分隔（同 classic 風格），保留各面板主題色在 rank chip 與背景。同時拆掉這 4 個面板的比例條（grid + row 卡片化 + bar 跨欄三者本質衝突，ROI 過低），其他 4 個面板（classic / matrix / win95 / newspaper）的比例條保留。
 
 ## [0.11.4] - 2026-05-25
 

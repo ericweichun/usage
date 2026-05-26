@@ -7,12 +7,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.11.5] - 2026-05-26
+
+### Added
+- **Terminal toggle button now changes background when enabled**: previously only the `✓` check mark indicated that the statusLine hook was active; now the button background tints with each panel's accent color too, so the on/off state is obvious at a glance.
+
+### Changed
+- **Friendlier button labels for non-developers**: "Analyze" → "Report", "CLI" → "Terminal" (with per-language translations: 終端 / ターミナル / 터미널 / 终端). All five languages updated together.
+- **All buttons now have hover feedback**: previously only "Refresh Now" reacted to mouse hover; "Quit", "Switch Panel", "Today", "Report", "Terminal" looked disabled. Hover now produces visual feedback at a graded intensity (primary > secondary > switch).
+- **Classic panel large visual refinement**: pushed towards a "macOS system tool" feel — card corners 18→8, tightened spacing, progress bars gained inset track shadow and outer glow, projects list got a relative-share comparison bar (top-3 ranks emphasized), footer status became chip pills, brand-color accent stripe added on the left, brand icons gained background tint and glow.
+- **Six themed panels adopt the same UX trio** (matrix / win95 / newspaper / aquarium / cloud_observation / prism_arcade / black_hole): comparison bars, Terminal active-state coloring, button hover. Each panel's own theme art is preserved in full (Matrix green / Win95 pixel / newspaper print / aquarium ripple / cloud / prism rainbow / black-hole orange).
+- **Landing page panel gallery expanded from 6 to 9 themes**: added aquarium / prism_arcade / black_hole; classic now uses its own screenshot instead of borrowing `popover.png`.
+- **Refreshed all 9 panel screenshots (zh-TW & en)** in the README and on https://aqua5230.github.io/usage/.
+
 ### Fixed
-- **Analysis reports now follow the menu bar popover language**: clicking Analyze now passes the menu bar's current language into HTML report generation instead of redetecting from environment variables only, avoiding English fallback when LaunchAgent does not set `LANG`.
+- **Analysis reports now follow the menu bar popover language**: clicking Report (formerly Analyze) now passes the menu bar's current language into HTML report generation instead of redetecting from environment variables only, avoiding English fallback when LaunchAgent does not set `LANG`.
 - **Visible popovers are repositioned when switching panels**: changing the active theme/panel while the popover is open now closes the old popover, rebuilds the content and size, then shows it again to avoid transient indentation or sizing glitches.
 - **Codex project usage and analysis reports now share one counting path**: when the same Codex session appears in multiple JSONL files, usage keeps the newer cumulative token entry; analysis reports now reuse `codex_loader.load_entries()`, and Project Usage includes Codex sessions so the app and report do not disagree for the same local data. Project Usage's Today range now matches the footer's local calendar day, and the footer no longer reloads Codex when the caller already supplied Codex entries.
-- **Matrix and Classic panel Project Usage header no longer truncates the title**: with CJK titles (e.g. zh-TW「專案用量」), the original `.brand` layout squeezed `[TODAY]/[ANALYZE]/[CLI]` against the title, clipping it to `專案用...`. Both panels' `.card[data-card="projects"] .brand` is now a two-row grid: icon + title on top, three action buttons evenly distributed below. Thanks to @ericweichun for the Classic panel fix (#9).
+- **Project Usage header truncation fixed across all 9 panels**: classic & matrix were patched by @ericweichun (#9); this release completes the remaining six (win95 / newspaper / aquarium / cloud_observation / prism_arcade / black_hole). All now use a 2-row grid (icon + title on top, three buttons evenly distributed below) so English "Project Usage" and longer Japanese/Korean titles no longer clip.
 - **macOS now opens analysis reports with `/usr/bin/open`**: previously `webbrowser.open()` constructed a `file://` URI, which some browsers refused for paths containing spaces or CJK characters. Switching to `/usr/bin/open` with the resolved path is more reliable. Thanks to @ericweichun (#9).
+- **Matrix panel footer clipping**: the ASCII border + raindrop background made the content taller than the default 812 panel height, clipping the "Refresh Now / Quit" buttons. Raised to 880.
+- **win95 / newspaper "Resets in X" text was glued to the card edge**: bumped win95 panel height 768 → 800, newspaper → 850, and added padding-bottom to the Claude/Codex card's `.row:last-child`.
+- **Four grid panels (aquarium / cloud_observation / prism_arcade / black_hole) — Projects row layout rebuilt**: the original row-as-mini-card design (border + radius + background) fundamentally fought with the new column-spanning comparison bar (the bar always glued to the row card's bottom border; padding / margin / grid-template-rows tweaks all failed). Switched to flat rows with border-top dividers (same as classic), preserving each panel's theme color on the rank chip and background. Also removed the comparison bar from these four panels (grid + row-card + spanning bar is fundamentally conflicting; ROI too low). The other four panels (classic / matrix / win95 / newspaper) keep their comparison bars.
 
 ## [0.11.4] - 2026-05-25
 
