@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [0.11.6] - 2026-05-26
+
+### 修正
+- **Codex project usage 時間區間不再吃到整個 session 累積值**：Codex JSONL 的 `total_token_usage` 是 session 累積值，舊算法只取最後一筆並用最後更新時間歸類，會把長 session 的歷史用量灌進 Today / 7d / 30d。現在改成逐筆 `token_count` 計算增量，Today、7d、30d、all-time 會按實際事件時間窗累加。
+- **Codex-only 環境即時刷新**：FSEvents 現在也監聽 `~/.codex/sessions`，不只監聽 `~/.claude`，Codex logs 更新後 Project Usage 會更快刷新。
+
 ## [0.11.5] - 2026-05-25
 
 ### 變更

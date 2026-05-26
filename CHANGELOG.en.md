@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.11.6] - 2026-05-26
+
+### Fixed
+- **Codex project usage ranges no longer inherit a session's full cumulative total**: Codex JSONL `total_token_usage` is cumulative per session; the previous loader kept only the latest value and bucketed it by the latest timestamp, which could push old long-session usage into Today / 7d / 30d. The loader now converts each `token_count` record into a delta so Today, 7d, 30d, and all-time totals are bucketed by the actual event timestamps.
+- **Codex-only refresh is now event-driven too**: FSEvents now watches `~/.codex/sessions` in addition to `~/.claude`, so Project Usage refreshes sooner when Codex logs change.
+
 ## [0.11.5] - 2026-05-25
 
 ### Changed
