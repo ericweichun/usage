@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+## [0.11.9] - 2026-05-27
+
+### 修正
+- **TUI session 表遇 `cost_usd=None` 不再崩潰**：`ui/tables.py` 的 `_fmt_cost` 簽名擴成 `float | None`，Codex 端可能寫入 None 的紀錄現在會顯示 `--`，與 popover 側 `panels/web_panel.py` 行為一致。先前直接 `>=` 比較會丟 `TypeError`，整張表渲染失敗。
+- **更新檢查支援預發布版號**：`update_checker._parse_version` 改用 regex 切預發布後綴，`0.11.0-beta.1` / `0.11.0+build.5` 不再回 `None`、不再讓 `compare_versions` 報錯，beta tester 也能正常收到更新提示。沒有新增任何套件依賴。
+- **離線時退回過期 pricing 快取**：`pricing.py` 的 fallback 順序改成 fresh cache → 線上抓取 → stale cache → 硬編 fallback。先前快取過 7 天又斷網會直接掉到硬編值，導致成本估算大偏移；現在會優先用過期但真實的歷史快取。
+
 ## [0.11.8] - 2026-05-27
 
 ### 變更
