@@ -70,6 +70,8 @@ class UsageScriptBridge(NSObject):
             self.delegate.switchPanel_(self.web_view)
         elif action == "analyze":
             self.delegate.analyzeUsage_(None)
+        elif action in {"analyze_all", "analyze-all"}:
+            self.delegate.analyzeAllUsage_(None)
         elif action in {"toggle_statusline", "toggle-statusline"}:
             self.delegate.toggleStatusline_(None)
         elif action == "install_statusline":

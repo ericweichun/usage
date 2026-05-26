@@ -8,7 +8,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-`usage` is a macOS menu bar tool that pins your **Codex** usage to the top-right of your screen, while keeping **Claude Code** as an optional integration. Click the icon for a popover showing Session, Weekly, per-project usage (today / 7-day / monthly), and today's token usage and cost estimate.
+`usage` is a macOS menu bar tool that pins your **Codex** usage to the top-right of your screen, while keeping **Claude Code** as an optional integration. Click the icon for a popover showing Session, Weekly, per-project usage (today / 7-day / monthly / all-time), and today's token usage and cost estimate; click Analyze to generate an all-time HTML report.
 
 It **never calls the Anthropic / OpenAI API** and **never reads the Keychain**, so it avoids the observer effect of "pinging once a minute counts as usage."
 
@@ -185,13 +185,13 @@ source .venv/bin/activate
 python3 main.py
 ```
 
-- **Menu bar format:** `🐾 37%`. If Codex usage is also detected, a Codex suffix is appended: `🐾 37% · 📜 10%`.
+- **Menu bar format:** with Codex only, it shows `📜 10%`. If Claude Code usage is also detected, it shows `🐾 37% · 📜 10%`.
 
   <img src="docs/menubar.png" alt="menu bar display" width="240">
 
 - **Click the icon to expand the popover.** It has four sections:
-  1. Two cards for Claude Code and Codex. Each shows Session and Weekly progress bars with reset countdowns.
-  2. A projects card listing the top three projects by usage. Click the button in the top-right corner to cycle between today / 7-day / monthly views.
+  1. Two cards for Claude Code and Codex. Codex is the primary path; Claude Code remains optional when it is not installed.
+  2. A projects card listing the top three projects by usage. Click the button in the top-right corner to cycle between today / 7-day / monthly / all-time views.
   3. A footer card showing current rate, sync status, and today's token usage and cost estimate (Claude uses the actual `costUSD` from its log when available; Codex cost is estimated from token count × pricing table).
   4. Two buttons: "Refresh now" and "Quit".
 - **Panel**: click the **Switch Panel** button in the top-right corner to change panel styles. Nine built-in panels are available — **Classic** (clean light cards), **Matrix** (neon green digital rain), **Windows 95** (retro Win95 interface), **Newspaper** (aged newsprint), **Cloud Observation** (weather-station glass cards), **Midnight Aquarium** (deep-sea animation), **Prism Arcade** (rainbow holographic animation), **Black Hole** (rotating accretion disk), and the brand-new **World Cup 2026** — FIFA broadcast HUD with a green pitch, stick-figure players that chase and kick the ball, and bidirectional duel bars instead of standard progress bars.
@@ -223,9 +223,9 @@ python3 main.py --tui
 
 Press `Ctrl+C` to exit.
 
-## Reports and deep analytics (CLI)
+## Reports and deep analytics
 
-Beyond the menu bar and TUI, there's an analytics CLI entrypoint `usage_cli.py` for exporting HTML reports or running an interactive terminal dashboard:
+Beyond the menu bar and TUI, the popover's **Analyze** button generates an **all-time HTML report**. If you want a specific range, the `usage_cli.py` analytics entrypoint can export HTML reports or run an interactive terminal dashboard:
 
 <p align="center">
   <img src="docs/report.en.png" alt="HTML report screen: Your AI Usage Recap" width="520">
@@ -241,8 +241,9 @@ python3 usage_cli.py
 python3 usage_cli.py claude
 python3 usage_cli.py codex
 
-# Generate an HTML report and open it in your default browser (default range: last 30 days)
+# Generate an HTML report and open it in your default browser (default range: all data)
 python3 usage_cli.py report
+python3 usage_cli.py report --last30            # last 30 days
 python3 usage_cli.py report --today              # today
 python3 usage_cli.py report --week               # this week
 python3 usage_cli.py report --month              # this month

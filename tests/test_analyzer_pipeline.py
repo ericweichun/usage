@@ -69,6 +69,46 @@ def test_generate_analysis_report_uses_analyzer_pipeline(
     assert calls == {"agents": agents, "period": "last30", "data": report_data}
 
 
+def test_app_analyze_uses_all_time_report(monkeypatch: Any) -> None:
+    calls: list[str] = []
+
+    class InlineThread:
+        def __init__(
+            self,
+            *,
+            target: Any,
+            args: tuple[Any, ...] = (),
+            daemon: bool = False,
+        ) -> None:
+            self.target = target
+            self.args = args
+
+        def start(self) -> None:
+            self.target(*self.args)
+
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    monkeypatch.setattr("menubar.threading.Thread", InlineThread)
+
+    def fake_generate_analysis_report(period: str = "last30") -> str:
+        calls.append(period)
+        return "~/.usage-reports/all.html"
+
+    monkeypatch.setattr(
+        menubar,
+        "_generate_analysis_report",
+        fake_generate_analysis_report,
+    )
+    monkeypatch.setattr(
+        delegate,
+        "performSelectorOnMainThread_withObject_waitUntilDone_",
+        lambda *args: None,
+    )
+
+    delegate.analyzeUsage_(None)
+
+    assert calls == ["all"]
+
+
 def test_last30_report_uses_rolling_720_hours(monkeypatch: Any) -> None:
     from analyzer import reporter
 

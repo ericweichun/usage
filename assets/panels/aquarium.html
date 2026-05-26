@@ -843,7 +843,8 @@
       }
       const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.usage;
       if (bridge && typeof bridge.postMessage === "function") {
-        bridge.postMessage(button.dataset.action);
+        const action = button.dataset.action === "analyze" && projectRange === "all" ? "analyze_all" : button.dataset.action;
+        bridge.postMessage(action);
       }
     });
 

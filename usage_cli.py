@@ -412,12 +412,14 @@ def main():
     rest_args, sort_key, sort_desc = _parse_sort_args(args[1:])
 
     if command == "report":
-        period = "last30"
+        period = "all"
         out_path = None
         i = 1
         while i < len(args):
             arg = args[i]
-            if arg == "--today":
+            if arg == "--last30":
+                period = "last30"
+            elif arg == "--today":
                 period = "today"
             elif arg == "--week":
                 period = "week"

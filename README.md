@@ -8,7 +8,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-`usage` 是一個 macOS menu bar（螢幕右上角的選單列）小工具，把 **Codex** 的用量釘在你的螢幕右上角，並保留 **Claude Code** 作為可選整合。點開可以看到 Session、Weekly、各專案用量（今日 / 7 日 / 月），以及今日 token 用量與成本估算。
+`usage` 是一個 macOS menu bar（螢幕右上角的選單列）小工具，把 **Codex** 的用量釘在你的螢幕右上角，並保留 **Claude Code** 作為可選整合。點開可以看到 Session、Weekly、各專案用量（今日 / 7 日 / 月 / 全部），以及今日 token 用量與成本估算；按「分析」會產生 all-time HTML report。
 
 不呼叫 Anthropic / OpenAI 的 API（接口）、也不讀 Keychain（macOS 內建的密碼保險箱），所以不會發生「自己每分鐘 ping 一次也算用量」這種事。
 
@@ -187,13 +187,13 @@ source .venv/bin/activate
 python3 main.py
 ```
 
-- **選單列那行字長這樣**：`🐾 37%`；如果同時有 Codex 用量，會變成 `🐾 37% · 📜 10%`：
+- **選單列那行字長這樣**：只有 Codex 時是 `📜 10%`；如果同時有 Claude Code 用量，會變成 `🐾 37% · 📜 10%`：
 
   <img src="docs/menubar.png" alt="menu bar 上方顯示樣式" width="240">
 
 - **點一下會展開 popover**，分四塊：
-  1. 上面兩張卡片分別是 Claude Code 跟 Codex；每張各有 Session 跟 Weekly 兩條進度條
-  2. 專案用量卡：列出近期用量前三名的專案，可點右上角按鈕在「今日 / 7 日 / 月」三段之間切換
+  1. 上面兩張卡片分別是 Claude Code 跟 Codex；Codex 是主要流程，Claude Code 沒裝時會自然維持可選狀態
+  2. 專案用量卡：列出近期用量前三名的專案，可點右上角按鈕在「今日 / 7 日 / 月 / 全部」之間切換
   3. 最下面那張小卡是目前速率、同步狀態、今日 token 用量與成本估算（Claude 若 log 有提供實際金額則直接顯示；Codex 成本為依 token 數估算）
   4. 兩顆按鈕：「立即更新」、「結束」
 - **面板**：點右上角「更換面板」按鈕可切換面板樣式。目前內建九款面板——「預設」（簡潔白色卡片）、「駭客任務」（黑底螢光綠＋數位雨動畫）、「視窗 95」（Windows 95 復古介面）、「復古報紙」（米黃報紙風）、「雲圖觀測」（氣象風玻璃卡片）、「午夜水族箱」（深海動畫）、「稜鏡街機」（彩虹全息動畫）、「黑洞視界」（旋轉吸積盤）、以及全新「世界盃 2026」——FIFA 轉播 HUD 風格，鮮綠球場、棒人球員追球踢球互動動畫、雙向對戰記分條。
@@ -225,9 +225,9 @@ python3 main.py --tui
 
 按 `Ctrl+C` 退出。
 
-## 報告與深度分析（CLI）
+## 報告與深度分析
 
-除了選單列跟 TUI，還有一個分析用的 CLI 進入點 `usage_cli.py`，可以匯出 HTML 報告、或在終端機開互動式 dashboard（儀表板，互動式統計面板）：
+除了選單列跟 TUI，popover 裡的「分析」按鈕會直接產生 **all-time HTML report**。如果你想指定時間範圍，也可以用 CLI 進入點 `usage_cli.py` 匯出 HTML 報告、或在終端機開互動式 dashboard（儀表板，互動式統計面板）：
 
 <p align="center">
   <img src="docs/report.png" alt="HTML 報告畫面：你的 AI 用量回顧" width="520">
@@ -243,8 +243,9 @@ python3 usage_cli.py
 python3 usage_cli.py claude
 python3 usage_cli.py codex
 
-# 產生 HTML 報告並用預設瀏覽器打開（預設範圍：近 30 天）
+# 產生 HTML 報告並用預設瀏覽器打開（預設範圍：全部資料）
 python3 usage_cli.py report
+python3 usage_cli.py report --last30            # 近 30 天
 python3 usage_cli.py report --today              # 今日
 python3 usage_cli.py report --week               # 本週
 python3 usage_cli.py report --month              # 本月

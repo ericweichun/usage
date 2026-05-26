@@ -452,7 +452,19 @@ class AppDelegate(NSObject):
         thread.start()
 
     def analyzeUsage_(self, sender: Any) -> None:
-        thread = threading.Thread(target=self._analyze_usage_in_background, daemon=True)
+        thread = threading.Thread(
+            target=self._analyze_usage_in_background,
+            args=("all",),
+            daemon=True,
+        )
+        thread.start()
+
+    def analyzeAllUsage_(self, sender: Any) -> None:
+        thread = threading.Thread(
+            target=self._analyze_usage_in_background,
+            args=("all",),
+            daemon=True,
+        )
         thread.start()
 
     def quitApp_(self, sender: Any) -> None:
@@ -806,10 +818,10 @@ class AppDelegate(NSObject):
         self.latest_state.statusline = _statusline_payload(self.language)
         self.popover_controller.setState_(self.latest_state)
 
-    def _analyze_usage_in_background(self) -> None:
+    def _analyze_usage_in_background(self, period: str = "last30") -> None:
         result: dict[str, str | bool]
         try:
-            saved = _generate_analysis_report()
+            saved = _generate_analysis_report(period=period)
             result = {"success": True, "message": saved}
         except Exception as exc:
             if os.environ.get("USAGE_DEBUG") == "1":

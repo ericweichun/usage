@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+- **README now frames this fork more clearly as Codex-first**: clarified Codex as the primary path, Claude Code as optional, and documented the Project Usage all-time range.
+- **Reports now default to all-time**: the popover Analyze button and `usage_cli.py report` now generate all-data reports by default; use `--last30` in the CLI for the previous rolling 30-day range.
+
 ## [0.11.4+codex.2] - 2026-05-26
 
 ### Fixed

@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### 變更
+- **README 改成更明確的 Codex-first fork 說明**：補清楚 Codex 是主要流程、Claude Code 是可選整合，並同步 Project Usage 的 all-time range。
+- **Report 預設改為 all-time**：popover 的「分析」與 `usage_cli.py report` 現在預設產生全部資料報告；CLI 需要近 30 天時可使用 `--last30`。
+
 ## [0.11.4+codex.2] - 2026-05-26
 
 ### 修正
