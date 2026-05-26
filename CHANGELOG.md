@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+## [0.11.7] - 2026-05-27
+
+### 變更
+- **pricing 快取改放在 `~/.usage/`**：把 LiteLLM 計費快取從 `~/.claude/pricing_cache.json` 搬到 `~/.usage/pricing_cache.json`，符合「usage 自己的狀態走自己的目錄」原則；舊路徑保留唯讀 fallback，遷移無感。感謝 @ericweichun。
+
+### 修正
+- **`usage report --help` 與未知參數行為明確化**：先前 CLI 子命令對未知參數沉默忽略、`--help` 仍會跑 agent 偵測；現在 `--help` 直接回幫助文字並結束，未知參數明確報錯。感謝 @ericweichun。
+
 ## [0.11.6] - 2026-05-27
 
 ### 新增
