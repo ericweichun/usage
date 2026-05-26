@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import menubar
-from adapters.types import AgentInfo
+from adapters.types import AgentInfo, UsageEntry
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -66,3 +67,49 @@ def test_generate_analysis_report_uses_analyzer_pipeline(
 
     assert menubar._generate_analysis_report() == "~/.usage-reports/usage-report-test.html"
     assert calls == {"agents": agents, "period": "last30", "data": report_data}
+
+
+def test_last30_report_uses_rolling_720_hours(monkeypatch: Any) -> None:
+    from analyzer import reporter
+
+    now = datetime.now(UTC)
+    agent = AgentInfo("codex", "Codex", "~/.codex", True)
+    inside = UsageEntry(
+        timestamp=now - timedelta(hours=719),
+        session_id="inside",
+        message_id="inside-msg",
+        request_id="",
+        model="gpt",
+        input_tokens=100,
+        output_tokens=50,
+        cache_creation_tokens=0,
+        cache_read_tokens=0,
+        cost_usd=None,
+        project="inside",
+        agent_id="codex",
+    )
+    outside = UsageEntry(
+        timestamp=now - timedelta(hours=721),
+        session_id="outside",
+        message_id="outside-msg",
+        request_id="",
+        model="gpt",
+        input_tokens=1_000,
+        output_tokens=500,
+        cache_creation_tokens=0,
+        cache_read_tokens=0,
+        cost_usd=None,
+        project="outside",
+        agent_id="codex",
+    )
+
+    monkeypatch.setattr(
+        reporter,
+        "_load_agent_entries",
+        lambda received_agent, hours_back=0: [inside, outside],
+    )
+
+    data = reporter.build_report_data([agent], "last30")
+
+    assert data["summary"]["total_tokens"] == 150
+    assert data["by_project"][0]["project"] == "inside"

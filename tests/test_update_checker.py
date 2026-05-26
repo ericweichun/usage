@@ -27,6 +27,8 @@ def test_compare_versions_orders_numeric_versions() -> None:
     assert update_checker.compare_versions("0.10.1", "0.10.2") == -1
     assert update_checker.compare_versions("0.10.1", "0.10.1") == 0
     assert update_checker.compare_versions("0.9.10", "0.10.0") == -1
+    assert update_checker.compare_versions("0.10.1+codex.1", "0.10.1") == 0
+    assert update_checker.compare_versions("0.10.1+codex.1", "0.10.2") == -1
 
 
 def test_check_latest_release_parses_newer_release(monkeypatch: pytest.MonkeyPatch) -> None:

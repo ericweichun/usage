@@ -23,7 +23,8 @@ class ReleaseCheckResult:
 
 
 def _parse_version(version: str) -> tuple[int, int, int] | None:
-    parts = version.split(".")
+    public_version = version.split("+", 1)[0]
+    parts = public_version.split(".")
     if len(parts) != 3:
         return None
     parsed: list[int] = []

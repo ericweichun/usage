@@ -6,9 +6,10 @@
 
 ## [Unreleased]
 
-## [0.11.6] - 2026-05-26
+## [0.11.4+codex.2] - 2026-05-26
 
 ### 修正
+- **版本基底對齊 upstream 0.11.4**：fork build 改用 `0.11.4+codex.2`，避免本地 Codex-first 修正看起來比 upstream 的正式版本還新；更新檢查會用 public version `0.11.4` 跟 upstream 比較。
 - **Codex project usage 時間區間不再吃到整個 session 累積值**：Codex JSONL 的 `total_token_usage` 是 session 累積值，舊算法只取最後一筆並用最後更新時間歸類，會把長 session 的歷史用量灌進 Today / 7d / 30d。現在改成逐筆 `token_count` 計算增量，Today、7d、30d、all-time 會按實際事件時間窗累加。
 - **Codex-only 環境即時刷新**：FSEvents 現在也監聽 `~/.codex/sessions`，不只監聽 `~/.claude`，Codex logs 更新後 Project Usage 會更快刷新。
 
