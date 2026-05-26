@@ -471,6 +471,110 @@ def test_toggle_statusline_preserves_forwarder_settings(
     assert settings.read_text(encoding="utf-8") == original_text
 
 
+def test_forwarder_prompt_keep_sets_ack_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import setup_hook
+
+    claude_dir = tmp_path / ".claude"
+    claude_dir.mkdir()
+    settings = claude_dir / "settings.json"
+    settings.write_text(
+        json.dumps({"statusLine": {"type": "command", "command": "python3 ccusage.py"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(setup_hook, "CLAUDE_SETTINGS", settings)
+    calls = {"alerts": 0, "setup": 0}
+
+    class FakeAlert:
+        @classmethod
+        def alloc(cls) -> type[FakeAlert]:
+            return cls
+
+        @classmethod
+        def init(cls) -> FakeAlert:
+            return cls()
+
+        def setMessageText_(self, value: str) -> None:
+            return None
+
+        def setInformativeText_(self, value: str) -> None:
+            return None
+
+        def addButtonWithTitle_(self, value: str) -> None:
+            return None
+
+        def runModal(self) -> int:
+            calls["alerts"] += 1
+            return 1001
+
+    def fake_setup(*, force_forwarder: bool = False) -> int:
+        calls["setup"] += 1
+        return 0
+
+    monkeypatch.setattr(menubar, "NSAlert", FakeAlert)
+    monkeypatch.setattr(setup_hook, "setup", fake_setup)
+
+    menubar.show_forwarder_mode_prompt_if_needed(language="en")
+    menubar.show_forwarder_mode_prompt_if_needed(language="en")
+    data = json.loads(settings.read_text(encoding="utf-8"))
+
+    assert calls == {"alerts": 1, "setup": 0}
+    assert data["usage"]["forwarderModePromptDismissed"] is True
+
+
+def test_forwarder_prompt_enable_calls_forwarder_setup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import setup_hook
+
+    claude_dir = tmp_path / ".claude"
+    claude_dir.mkdir()
+    settings = claude_dir / "settings.json"
+    settings.write_text(
+        json.dumps({"statusLine": {"type": "command", "command": "python3 lord-kali.py"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(setup_hook, "CLAUDE_SETTINGS", settings)
+    calls: list[bool] = []
+
+    class FakeAlert:
+        @classmethod
+        def alloc(cls) -> type[FakeAlert]:
+            return cls
+
+        @classmethod
+        def init(cls) -> FakeAlert:
+            return cls()
+
+        def setMessageText_(self, value: str) -> None:
+            return None
+
+        def setInformativeText_(self, value: str) -> None:
+            return None
+
+        def addButtonWithTitle_(self, value: str) -> None:
+            return None
+
+        def runModal(self) -> int:
+            return 1000
+
+    def fake_setup(*, force_forwarder: bool = False) -> int:
+        calls.append(force_forwarder)
+        return 0
+
+    monkeypatch.setattr(menubar, "NSAlert", FakeAlert)
+    monkeypatch.setattr(setup_hook, "setup", fake_setup)
+
+    menubar.show_forwarder_mode_prompt_if_needed(language="en")
+    data = json.loads(settings.read_text(encoding="utf-8"))
+
+    assert calls == [True]
+    assert data["usage"]["forwarderModePromptDismissed"] is True
+
+
 def test_statusline_action_in_background_returns_failure_output(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

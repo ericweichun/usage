@@ -6,7 +6,12 @@
 
 ## [Unreleased]
 
-## [0.11.11] - 2026-05-27
+## [0.11.12] - 2026-05-27
+
+### 變更
+- **hook 自癒：壞了自己修，使用者無感**：每次 usage 啟動會跑一輪 `setup_hook.self_heal()`，在三種「明確安全」的情境下默默修復：(1) 首次安裝（`is_setup()==False` 且 settings 沒有 `statusLine` 鍵）→ 呼叫 `setup()`；(2) hook script 版本過舊（`needs_update()==True`）→ `update_hook()`；(3) settings 指向的 hook 檔案不存在但 state 為 `us-direct`/`us-forwarder` → 重新 `_copy_hook_script()` + `_copy_forwarder_script()`。state 為 `external`/`legacy-tt` 時三段都跳過（不會默默覆蓋第三方工具）。每筆動作寫入 `settings["usage"]["selfHealLog"]`（FIFO 20 筆）。失敗全 swallow，僅 `USAGE_DEBUG=1` 時印 stderr。
+- **共存模式提示整合**：偵測到外部 statusLine 工具時跳一次 NSAlert 兩按鈕（「啟用共存模式」/「保留現狀」），按任一鍵後寫 `settings["usage"]["forwarderModePromptDismissed"]=True` 永不再跳。取代原本 `main.py:health_check()` 的三按鈕修復對話框；舊的「稍後 24h 冷卻」機制移除。舊使用者若已選過「不要再問」會被視為未 ack，更新後會再跳一次（按一下即解決）。
+- **`--doctor` 隱藏 CLI 指令**：`python3 main.py --doctor` 印純文字診斷報告（全英文，方便 GitHub issue 搜尋），包含 hook state、版本、script 檔案狀態、status file mtime、外部 hook 偵測（識別 `ccusage` / `lord-kali` 關鍵字）、forwarder prompt ack 狀態、最近 5 筆 self-heal log、Codex sessions 掃描數。`argparse.SUPPRESS` 隱藏於 `--help`，預設不打擾一般使用者。新增 `doctor.py` renderer。
 
 ### 變更
 - **本週燒率警告不再被瞬間高使用激動**：之前用最近 10 分鐘樣本線性外推到整週剩餘額度，使用者跑一個大 prompt 就會看到「剩 8 小時用完」之類嚇人數字，但其實休息一下警告就消失。本週警告現在改看 30 分鐘窗口、要求至少 30 分鐘樣本跨距，需要使用者**持續高燒率半小時以上**才會觸發；session 警告維持原本 10 分鐘窗口（session reset 較頻繁，不能太嚴）。`burn_rate.ROLLING_WINDOW_SECONDS` 從 15 分鐘拉到 60 分鐘讓樣本能保留更久。

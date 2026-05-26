@@ -7,7 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
-## [0.11.11] - 2026-05-27
+## [0.11.12] - 2026-05-27
+
+### Changed
+- **Hook self-heal: broken installs fix themselves, silently**: every startup now runs `setup_hook.self_heal()`, which silently repairs three clearly-safe scenarios: (1) first-run (`is_setup()==False` and no `statusLine` key in settings) → invokes `setup()`; (2) hook script version is out of date (`needs_update()==True`) → `update_hook()`; (3) settings points to a missing hook file with state `us-direct`/`us-forwarder` → re-runs `_copy_hook_script()` + `_copy_forwarder_script()`. When state is `external`/`legacy-tt`, all three skip (no silent override of third-party tools). Each action appends to `settings["usage"]["selfHealLog"]` (FIFO, 20 entries). Failures are swallowed; stderr is printed only when `USAGE_DEBUG=1`.
+- **Coexistence prompt consolidated**: when an external statusLine tool is detected, usage shows a single NSAlert with two buttons ("Enable Coexistence Mode" / "Keep Current Setup"). Either button sets `settings["usage"]["forwarderModePromptDismissed"]=True` and the prompt never appears again. Replaces the previous three-button repair dialog in `main.py:health_check()`; the "remind me later (24h cooldown)" path is removed. Users who previously chose "Do Not Ask Again" on the old dialog will be re-prompted once (one click resolves it).
+- **`--doctor` hidden CLI flag**: `python3 main.py --doctor` prints a plain-text diagnostic report (English-only for easier GitHub issue searches) covering hook state, version, script file status, status file mtime, external hook detection (recognizes `ccusage` / `lord-kali` keywords), forwarder prompt ack state, last 5 self-heal log entries, and Codex sessions scan count. Hidden from `--help` via `argparse.SUPPRESS` so it doesn't distract typical users. New `doctor.py` renderer module.
 
 ### Changed
 - **Weekly burn warning no longer over-reacts to short bursts**: previously the weekly warning extrapolated from the most recent 10-minute sample window, so a single large prompt could trigger a scary "8 hours until empty" warning that vanished once the user took a break. The weekly warning now uses a 30-minute sample window with a 30-minute minimum span, requiring sustained high usage for at least half an hour before triggering. Session warnings keep the 10-minute window (session resets are frequent, can't be too strict). `burn_rate.ROLLING_WINDOW_SECONDS` was raised from 15 to 60 minutes so the longer window has enough history.

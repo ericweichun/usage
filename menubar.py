@@ -1269,6 +1269,57 @@ def _statusline_command_target_exists(statusline: object) -> bool:
     return True
 
 
+def _set_forwarder_mode_prompt_dismissed() -> None:
+    import setup_hook
+
+    settings = setup_hook._load_settings()
+    usage_settings = settings.get(setup_hook.BACKUP_KEY)
+    if not isinstance(usage_settings, dict):
+        usage_settings = {}
+        settings[setup_hook.BACKUP_KEY] = usage_settings
+    usage_settings["forwarderModePromptDismissed"] = True
+    setup_hook._save_settings(settings)
+
+
+def show_forwarder_mode_prompt_if_needed(language: str | None = None) -> None:
+    import setup_hook
+
+    try:
+        settings = setup_hook._load_settings()
+        usage_settings = settings.get(setup_hook.BACKUP_KEY)
+        dismissed = (
+            isinstance(usage_settings, dict)
+            and usage_settings.get("forwarderModePromptDismissed") is True
+        )
+        if dismissed or setup_hook._detect_current_state(settings) != "external":
+            return
+    except Exception:
+        if os.environ.get("USAGE_DEBUG") == "1":
+            logger.warning("forwarder prompt check failed", exc_info=True)
+        return
+
+    lang = language or detect_lang()
+    alert = NSAlert.alloc().init()
+    alert.setMessageText_(_t(lang, "alert_forwarder_title"))
+    alert.setInformativeText_(_t(lang, "alert_forwarder_body"))
+    alert.addButtonWithTitle_(_t(lang, "alert_forwarder_enable"))
+    alert.addButtonWithTitle_(_t(lang, "alert_forwarder_keep"))
+    result = int(alert.runModal())
+
+    try:
+        if result == 1000:
+            setup_hook.setup(force_forwarder=True)
+    except Exception:
+        if os.environ.get("USAGE_DEBUG") == "1":
+            logger.warning("forwarder setup failed", exc_info=True)
+    finally:
+        try:
+            _set_forwarder_mode_prompt_dismissed()
+        except Exception:
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("forwarder prompt dismissal failed", exc_info=True)
+
+
 def _disable_statusline_settings() -> int:
     settings = _load_claude_settings()
     if "statusLine" not in settings:
