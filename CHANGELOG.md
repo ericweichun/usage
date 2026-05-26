@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+## [0.11.10] - 2026-05-27
+
+### 修正
+- **「開機啟動」開關立刻生效，不用重開機**：`login_item.enable()` / `disable()` 現在會在寫/刪 `~/Library/LaunchAgents/com.lollapalooza.usage.plist` 之外，呼叫 `launchctl bootstrap gui/<uid> <plist>` / `launchctl bootout gui/<uid>/<label>`，讓 launchd 當下就知道狀態變了。先前只動 plist 檔，launchd 守護程式不會接到通知，使用者點完開關要等下次重開機才會生效，關掉時還會留下 KeepAlive 孤兒程序清不掉。`launchctl` 的「已 bootstrapped」(exit 17) 與「未 bootstrapped」(exit 113) 視為成功；其他失敗只記 warning，plist 操作結果不受影響（簽名維持 `() -> None`）。
+
 ## [0.11.9] - 2026-05-27
 
 ### 修正
