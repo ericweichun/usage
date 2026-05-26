@@ -108,9 +108,11 @@ ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $
 
 ### 首次打開：設定狀態列
 
-第一次打開 usage，如果你已經用 Codex 跑過對話，Codex 區塊會直接顯示。若需要補齊 Codex 狀態列欄位或你也想對接 Claude Code，popover 可能會顯示「設定狀態列」按鈕，按一下就會幫你設定可偵測到的 agent。設定後請重開 Codex；如果有設定 Claude Code，也請完全結束 Claude Code（Cmd+Q）再重新打開一次。
+第一次打開 usage，如果你已經用 Codex 跑過對話，Codex 區塊通常會直接讀取 `~/.codex/sessions` 並顯示，不需要安裝 Claude Code，也不需要先做額外設定。
 
-如果按鈕沒出現（代表 usage 已經抓到資料了，例如你之前裝過第三方工具 [stormzhang/token-tracker](https://github.com/stormzhang/token-tracker)），就什麼都不用做。
+若你是從原始碼執行、想補齊 Codex status line 欄位，可以跑 `python3 main.py --setup`；它會優先設定可偵測到的 Codex，若你的環境也有 Claude Code，才會一併處理 Claude Code 對接。
+
+如果你也想對接 Claude Code，popover 可能會在需要時顯示「設定狀態列」按鈕。按一下後請完全結束 Claude Code（Cmd+Q）再重新打開一次。若按鈕沒出現，代表 usage 已經能讀到資料或目前沒有需要 app 介入的 Claude Code 設定。
 
 > **備援：手動 curl 安裝**
 > 若按鈕按了沒反應、或你想用指令模式裝，打開 Terminal（終端機）執行以下指令（先下載、確認內容後再執行，比較安全）：

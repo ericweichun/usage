@@ -108,9 +108,11 @@ To open it: find `usage.app` in Finder → right-click → Open → confirm Open
 
 ### First launch: set up the status line
 
-The first time you open usage, if you have already used Codex, the Codex card can show data immediately. If usage needs to configure Codex status-line fields, or if you also want Claude Code integration, the popover may show a **"Set Up Status Line"** button at the bottom. Click it once to configure detected agents. Restart Codex afterward; if Claude Code was configured too, fully quit Claude Code (Cmd+Q) and re-open it.
+The first time you open usage, if you have already used Codex, the Codex card usually reads `~/.codex/sessions` and shows data directly. You do not need Claude Code installed, and you do not need extra setup just to read Codex history.
 
-If the button doesn't show, usage is already reading data (e.g. you previously installed the third-party tool [stormzhang/token-tracker](https://github.com/stormzhang/token-tracker) and its status file works as a fallback) — nothing else to do.
+If you run from source and want to add Codex status-line fields, run `python3 main.py --setup`; it prioritizes detected Codex configuration, and only configures Claude Code integration if Claude Code is also present.
+
+If you also want Claude Code integration, the popover may show a **"Set Up Status Line"** button when Claude Code needs app-side setup. Click it once, then fully quit Claude Code (Cmd+Q) and re-open it. If the button does not show, usage can already read data or there is no Claude Code setup action for the app to perform.
 
 > **Fallback: install via curl**
 > If the in-app button doesn't work or you prefer the command line, run the following in Terminal (download first, inspect, then run):

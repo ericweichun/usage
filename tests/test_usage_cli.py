@@ -121,6 +121,46 @@ def test_main_report_defaults_to_all_time(
     assert calls == {"agents": [agent], "period": expected_period}
 
 
+def test_main_report_help_does_not_build_report(monkeypatch: pytest.MonkeyPatch) -> None:
+    from analyzer import reporter
+
+    printed: list[str] = []
+
+    monkeypatch.setattr(sys, "argv", ["usage", "report", "--help"])
+    monkeypatch.setattr(
+        usage_cli,
+        "detect_agents",
+        lambda: pytest.fail("report help should not detect agents"),
+    )
+    monkeypatch.setattr(usage_cli, "is_setup", lambda: True)
+    monkeypatch.setattr(usage_cli.console, "print", lambda value: printed.append(str(value)))
+    monkeypatch.setattr(
+        reporter,
+        "build_report_data",
+        lambda agents, period: pytest.fail("report help should not build a report"),
+    )
+
+    usage_cli.main()
+
+    assert any("Usage: usage report" in line for line in printed)
+
+
+def test_main_report_rejects_unknown_option(monkeypatch: pytest.MonkeyPatch) -> None:
+    agent = AgentInfo("codex", "Codex", "~/.codex", True)
+    printed: list[str] = []
+
+    monkeypatch.setattr(sys, "argv", ["usage", "report", "--bogus"])
+    monkeypatch.setattr(usage_cli, "detect_agents", lambda: [agent])
+    monkeypatch.setattr(usage_cli, "is_setup", lambda: True)
+    monkeypatch.setattr(usage_cli.console, "print", lambda value: printed.append(str(value)))
+
+    with pytest.raises(SystemExit) as exc_info:
+        usage_cli.main()
+
+    assert exc_info.value.code == 1
+    assert any("unknown report option" in line for line in printed)
+
+
 def test_main_exits_when_no_agents_detected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "argv", ["usage", "dashboard"])
     monkeypatch.setattr(usage_cli, "detect_agents", lambda: [])
