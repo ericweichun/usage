@@ -4,6 +4,8 @@ import html
 import json
 import os
 import re
+import subprocess
+import sys
 import webbrowser
 from datetime import date, datetime
 from importlib.metadata import PackageNotFoundError, version
@@ -613,5 +615,8 @@ def save_and_open(
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(generate_html(data, language=language), encoding="utf-8")
     if out_path is None:
-        webbrowser.open(path.resolve().as_uri())
+        if sys.platform == "darwin":
+            subprocess.run(["/usr/bin/open", str(path.resolve())], check=False)
+        else:
+            webbrowser.open(path.resolve().as_uri())
     return display_path
