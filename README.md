@@ -10,7 +10,7 @@
 
 🌐 **介紹頁**：[ericweichun.github.io/usage](https://ericweichun.github.io/usage/)
 
-`usage` 是一個 macOS menu bar（螢幕右上角的選單列）小工具，把 **Codex** 的用量釘在你的螢幕右上角，並保留 **Claude Code** 作為可選整合。點開可以看到 Session、Weekly、各專案用量（今日 / 7 日 / 月 / 全部），以及今日 token 用量與成本估算；按「報告」會產生 all-time HTML report。
+`usage` 是一個 macOS menu bar（螢幕右上角的選單列）小工具，把 **Codex** 的用量釘在你的螢幕右上角，並保留 **Claude Code** 作為可選整合。點開可以看到 Session、Weekly、各專案用量（今日 / 7 日 / 月 / 全部），以及今日 token 用量與成本估算；按「報告」預設會產生近 30 天 HTML report，只有專案用量切到「全部」時才產生 all-time report。
 
 不呼叫 Anthropic / OpenAI 的 API（接口）、也不讀 Keychain（macOS 內建的密碼保險箱），所以不會發生「自己每分鐘 ping 一次也算用量」這種事。
 
@@ -231,7 +231,7 @@ python3 main.py --tui
 
 ## 報告與深度分析
 
-除了選單列跟 TUI，popover 裡的「報告」按鈕會直接產生 **all-time HTML report**。如果你想指定時間範圍，也可以用 CLI 進入點 `usage_cli.py` 匯出 HTML 報告、或在終端機開互動式 dashboard（儀表板，互動式統計面板）：
+除了選單列跟 TUI，popover 裡的「報告」按鈕會產生 HTML report：專案用量切到「全部」時產生 **all-time HTML report**，其他範圍維持近 30 天 report。你也可以用 CLI 進入點 `usage_cli.py` 指定時間範圍、或在終端機開互動式 dashboard（儀表板，互動式統計面板）：
 
 <p align="center">
   <img src="docs/report.png" alt="HTML 報告畫面：你的 AI 用量回顧" width="520">
@@ -247,7 +247,7 @@ python3 usage_cli.py
 python3 usage_cli.py claude
 python3 usage_cli.py codex
 
-# 產生 HTML 報告並用預設瀏覽器打開（預設範圍：全部資料）
+# 產生 HTML 報告並用預設瀏覽器打開（預設範圍：近 30 天）
 python3 usage_cli.py report
 python3 usage_cli.py report --last30            # 近 30 天
 python3 usage_cli.py report --today              # 今日

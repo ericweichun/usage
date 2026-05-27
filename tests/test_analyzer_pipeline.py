@@ -77,7 +77,9 @@ def test_generate_analysis_report_uses_analyzer_pipeline(
     assert calls == {"agents": agents, "period": "last30", "data": report_data}
 
 
-def test_app_analyze_uses_all_time_report(monkeypatch: Any) -> None:
+def test_app_analyze_uses_last30_by_default_and_all_time_when_requested(
+    monkeypatch: Any,
+) -> None:
     calls: list[str] = []
 
     class InlineThread:
@@ -102,7 +104,7 @@ def test_app_analyze_uses_all_time_report(monkeypatch: Any) -> None:
         language: str | None = None,
     ) -> str:
         calls.append(period)
-        return "~/.usage-reports/all.html"
+        return "~/.usage-reports/report.html"
 
     monkeypatch.setattr(
         menubar,
@@ -116,8 +118,9 @@ def test_app_analyze_uses_all_time_report(monkeypatch: Any) -> None:
     )
 
     delegate.analyzeUsage_(None)
+    delegate.analyzeAllUsage_(None)
 
-    assert calls == ["all"]
+    assert calls == ["last30", "all"]
 
 
 def test_last30_report_uses_rolling_720_hours(monkeypatch: Any) -> None:

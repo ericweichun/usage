@@ -91,11 +91,12 @@ def test_main_daily_sort_flag_controls_render_order(monkeypatch: pytest.MonkeyPa
 @pytest.mark.parametrize(
     ("argv", "expected_period"),
     [
-        (["usage", "report"], "all"),
+        (["usage", "report"], "last30"),
         (["usage", "report", "--last30"], "last30"),
+        (["usage", "report", "--all"], "all"),
     ],
 )
-def test_main_report_defaults_to_all_time(
+def test_main_report_parses_period(
     monkeypatch: pytest.MonkeyPatch,
     argv: list[str],
     expected_period: str,

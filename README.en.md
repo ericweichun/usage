@@ -10,7 +10,7 @@
 
 🌐 **Landing page**: [ericweichun.github.io/usage](https://ericweichun.github.io/usage/)
 
-`usage` is a macOS menu bar tool that pins your **Codex** usage to the top-right of your screen, while keeping **Claude Code** as an optional integration. Click the icon for a popover showing Session, Weekly, per-project usage (today / 7-day / monthly / all-time), and today's token usage and cost estimate; click Report to generate an all-time HTML report.
+`usage` is a macOS menu bar tool that pins your **Codex** usage to the top-right of your screen, while keeping **Claude Code** as an optional integration. Click the icon for a popover showing Session, Weekly, per-project usage (today / 7-day / monthly / all-time), and today's token usage and cost estimate; click Report for a last-30-days HTML report, or switch Project Usage to All Time before reporting to generate an all-time report.
 
 It **never calls the Anthropic / OpenAI API** and **never reads the Keychain**, so it avoids the observer effect of "pinging once a minute counts as usage."
 
@@ -229,7 +229,7 @@ Press `Ctrl+C` to exit.
 
 ## Reports and deep analytics
 
-Beyond the menu bar and TUI, the popover's **Report** button generates an **all-time HTML report**. If you want a specific range, the `usage_cli.py` analytics entrypoint can export HTML reports or run an interactive terminal dashboard:
+Beyond the menu bar and TUI, the popover's **Report** button generates an HTML report: All Time project range generates an all-time report, while the other project ranges keep the report on the last 30 days. The `usage_cli.py` analytics entrypoint can also export HTML reports for explicit ranges or run an interactive terminal dashboard:
 
 <p align="center">
   <img src="docs/report.en.png" alt="HTML report screen: Your AI Usage Recap" width="520">
@@ -245,7 +245,7 @@ python3 usage_cli.py
 python3 usage_cli.py claude
 python3 usage_cli.py codex
 
-# Generate an HTML report and open it in your default browser (default range: all data)
+# Generate an HTML report and open it in your default browser (default range: last 30 days)
 python3 usage_cli.py report
 python3 usage_cli.py report --last30            # last 30 days
 python3 usage_cli.py report --today              # today

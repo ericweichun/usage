@@ -427,7 +427,6 @@ class AppDelegate(NSObject):
     def analyzeUsage_(self, sender: Any) -> None:
         thread = threading.Thread(
             target=self._analyze_usage_in_background,
-            args=("all",),
             daemon=True,
         )
         thread.start()

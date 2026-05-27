@@ -26,13 +26,13 @@ SORT_KEYS = {
     "output": ("output_tokens", True),
 }
 
-REPORT_HELP = """Usage: usage report [--all|--last30|--today|--week|--month] [--out PATH]
+REPORT_HELP = """Usage: usage report [--last30|--all|--today|--week|--month] [--out PATH]
 
 Generate an HTML usage report.
 
 Options:
-  --all       Include all usage data (default)
-  --last30    Include the last 30 days
+  --last30    Include the last 30 days (default)
+  --all       Include all usage data
   --today     Include today only
   --week      Include this week
   --month     Include this month
@@ -64,7 +64,7 @@ def _parse_sort_args(args: list[str]) -> tuple[list[str], str | None, bool]:
 
 
 def _parse_report_args(args: list[str]) -> tuple[str, str | None, bool]:
-    period = "all"
+    period = "last30"
     out_path = None
     show_help = False
     i = 0
