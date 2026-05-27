@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+## [0.11.13] - 2026-05-27
+
+### 變更
+- **拿掉 popover footer 的 Codex 模型顯示**：v0.11.6 加進去的「· 模型: gpt-5.5」拼接（`menubar.py:868-870`）會讓使用者誤以為「現在這一秒正在用 gpt-5.5」，但實際語意是「Codex 最近一個有 rate_limits 紀錄的 session 用的模型」——可能是好幾小時前。在沒有時間戳脈絡的情況下，這個資訊「看得到但不知道怎麼用」，純粹噪音。TUI 那邊的 model 顯示（`ui/tables.py:818,857`）脈絡不同（active session 區塊內 / idle panel），保留不動。`model_label` i18n key 與 `CodexRateLimits.model` 欄位皆保留，僅移除 popover footer 的拼接。
+
 ## [0.11.12] - 2026-05-27
 
 ### 變更

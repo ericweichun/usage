@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.11.13] - 2026-05-27
+
+### Changed
+- **Removed Codex model footer from popover**: the "· model: gpt-5.5" suffix added in v0.11.6 (`menubar.py:868-870`) misled users into thinking the model was being used *right now*, when in fact it reflects the model of the most recent Codex session with rate_limits data — possibly hours old. Without a timestamp context, this information is noise that can't be acted on. TUI model displays (`ui/tables.py:818,857`) are kept since they live inside different contexts (active session block / idle panel). The `model_label` i18n key and `CodexRateLimits.model` field are preserved; only the popover footer concatenation is removed.
+
 ## [0.11.12] - 2026-05-27
 
 ### Changed

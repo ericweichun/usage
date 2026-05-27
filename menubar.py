@@ -865,9 +865,6 @@ class AppDelegate(NSObject):
                 "status_text",
                 value=self._status_message_value(outcome, "status_no_data"),
             )
-        status_text = (
-            f"{status_text} · {_t(self.language, 'model_label', model=codex_model or 'unknown')}"
-        )
 
         return PopoverState(
             language=self.language,
