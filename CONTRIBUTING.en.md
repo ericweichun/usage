@@ -2,7 +2,9 @@
 
 [繁體中文](CONTRIBUTING.md) · English
 
-Issues and PRs are welcome. This document only spells out hard requirements; it does not dictate process.
+Issues, PRs, and [Discussions](https://github.com/aqua5230/usage/discussions) are welcome. This document only spells out hard requirements; it does not dictate process.
+
+This project is maintained by a single maintainer ([@aqua5230](https://github.com/aqua5230)) under a benevolent-dictator model: every PR is reviewed and merged at the maintainer's discretion. Discussion is welcome, but the final call rests with the maintainer.
 
 ## Opening an Issue
 

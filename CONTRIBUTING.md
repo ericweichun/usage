@@ -2,7 +2,9 @@
 
 繁體中文 · [English](CONTRIBUTING.en.md)
 
-歡迎開 issue / PR。這份文件只描述硬性要求，不規定流程。
+歡迎開 issue / PR / [Discussions](https://github.com/aqua5230/usage/discussions)。這份文件只描述硬性要求，不規定流程。
+
+本專案目前由 maintainer（[@aqua5230](https://github.com/aqua5230)）維護，採仁慈獨裁模式：所有 PR 由 maintainer 審查後決定是否合併，歡迎討論，最終決定權在 maintainer。
 
 ## 開 Issue
 
