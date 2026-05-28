@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-05-29
+
+### Added
+- **"Your subscription" section in the HTML report**: auto-detects Claude (plan + subscription start date) and Codex (ChatGPT plan + subscription start date) from the local OAuth account files. Only the plan name and start date are read — tokens, emails and other secrets are never touched. When sharing the report, the subscription date is masked together with the "Hide project names" toggle. Adds the `subscription.py` module and its tests.
+- **Project-share donut chart in the HTML report**: pure-SVG (zero external deps) breakdown of token share per project; the top 6 projects get their own colour, the rest fold into "Other", and the centre shows the total.
+- **"Claude vs Codex" comparison section in the HTML report**: surfaces the per-agent usage (tokens / share / cost) that `build_report_data` already computed but never displayed.
+
+### Fixed
+- **Double-counted report cost**: `build_report_data` summed cost once over all entries and then recomputed it per entry inside the loop — effectively doubling the work on large datasets. Now accumulated once inside the loop.
+- **Duplicated clipboard code in the report's "copy command" button**: the tip-copy button now reuses the shared `copyText()` helper instead of re-implementing the legacy-browser fallback.
+- **Hard-coded TWD rate**: the USD→TWD estimate in the report is now a named `_USD_TO_TWD` constant with a note that it is a display estimate, not a live FX rate.
+
 ## [0.11.19] - 2026-05-29
 
 ### Added

@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import codex_loader
+import subscription
 from adapters import claude, codex
 from adapters.types import AgentInfo, UsageEntry
 from pricing import calculate_cost
@@ -165,7 +166,7 @@ def build_report_data(agents, period: str = "month") -> dict:
     ]
 
     total_tokens = sum(entry.total_tokens for entry in entries)
-    total_cost = sum(calculate_cost(entry) for entry in entries)
+    total_cost = 0.0
     session_ids = {entry.session_id for entry in entries}
     active_dates = {_entry_date(entry) for entry in entries}
     total_days = (date_to - date_from).days + 1
@@ -177,6 +178,7 @@ def build_report_data(agents, period: str = "month") -> dict:
 
     for entry in entries:
         cost = calculate_cost(entry)
+        total_cost += cost
         agent = by_agent_totals[entry.agent_id or "unknown"]
         agent["tokens"] += entry.total_tokens
         agent["cost"] += cost
@@ -273,4 +275,5 @@ def build_report_data(agents, period: str = "month") -> dict:
         "by_model": by_model,
         "daily_trend": daily_trend,
         "top_sessions": top_sessions,
+        "subscriptions": subscription.load_subscriptions(),
     }

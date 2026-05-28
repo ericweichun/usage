@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import json
+import math
 import os
 import re
 import subprocess
@@ -17,6 +18,10 @@ from tips_loader import Tip, load_tip
 from usage_lang import detect_lang
 
 
+
+# Rough USD→TWD rate for the zh-TW cost hint only. A display estimate (prefixed
+# with ≈), not a live FX lookup — bump it if it drifts too far from reality.
+_USD_TO_TWD = 32
 
 def _t(lang: str, key: str, **kwargs: object) -> str:
     return _i18n_t(lang, f"report_{key}", **kwargs)
@@ -139,20 +144,6 @@ def _weekly_trend(daily: list[dict]) -> list[dict[str, int | float]]:
     return [weekly[key] for key in sorted(weekly)]
 
 
-def _trend_delta(current: int, previous: int, lang: str) -> tuple[str, str]:
-    if previous == 0:
-        if current == 0:
-            return "flat", "→ 0%"
-        return "up", f"↗ {_t(lang, 'trend_marker_new')}"
-
-    pct = round((current - previous) / previous * 100)
-    if abs(pct) <= 5:
-        return "flat", "→ 0%"
-    if pct > 0:
-        return "up", f"↗ +{pct}%"
-    return "down", f"↘ {pct}%"
-
-
 def _trend_summary(weekly: list[dict[str, int | float]], lang: str) -> str:
     if len(weekly) < 2:
         return f"→ {_t(lang, 'trend_compare_first')}"
@@ -170,6 +161,26 @@ def _trend_summary(weekly: list[dict[str, int | float]], lang: str) -> str:
     if pct > 0:
         return f"→ {_t(lang, 'trend_compare_up', ratio=f'{current / previous:.1f}')}"
     return f"→ {_t(lang, 'trend_compare_down', pct=abs(pct))}"
+
+
+_PALETTE = [
+    "#58a6ff", "#3fb950", "#d29922", "#bc8cff",
+    "#f778ba", "#56d4dd", "#7ee787", "#e3b341",
+]
+
+
+def _trend_delta(current: int, previous: int, lang: str) -> tuple[str, str]:
+    if previous == 0:
+        if current == 0:
+            return "flat", "→ 0%"
+        return "up", f"↗ {_t(lang, 'trend_marker_new')}"
+
+    pct = round((current - previous) / previous * 100)
+    if abs(pct) <= 5:
+        return "flat", "→ 0%"
+    if pct > 0:
+        return "up", f"↗ +{pct}%"
+    return "down", f"↘ {pct}%"
 
 
 def _trend_ascii(daily: list[dict], lang: str) -> str:
@@ -198,6 +209,71 @@ def _trend_ascii(daily: list[dict], lang: str) -> str:
     trend_rows = "".join(rows)
     summary = f'<div class="trend-summary">{_escape(_trend_summary(weekly, lang))}</div>'
     return f'<div class="trend">{trend_rows}{summary}</div>'
+
+
+def _donut_svg(items: list[tuple[str, int]], lang: str) -> str:
+    data = [(name, tok) for name, tok in items if tok > 0]
+    if not data:
+        return ""
+    total = sum(tok for _, tok in data)
+    shown = data[:6]
+    rest = sum(tok for _, tok in data[6:])
+    if rest > 0:
+        shown = [*shown, (_t(lang, "chart_other"), rest)]
+
+    cx = cy = 80.0
+    radius = 60.0
+    circ = 2 * math.pi * radius
+    segs: list[str] = []
+    legend: list[str] = []
+    offset = 0.0
+    for idx, (name, tok) in enumerate(shown):
+        frac = tok / total
+        seg_len = circ * frac
+        color = _PALETTE[idx % len(_PALETTE)]
+        segs.append(
+            f'<circle cx="{cx}" cy="{cy}" r="{radius}" fill="none" stroke="{color}" '
+            f'stroke-width="22" stroke-dasharray="{seg_len:.2f} {circ - seg_len:.2f}" '
+            f'stroke-dashoffset="{-offset:.2f}" transform="rotate(-90 {cx} {cy})"/>'
+        )
+        offset += seg_len
+        legend.append(
+            f'<li><span class="dot" style="background:{color}"></span>'
+            f'<span class="lg-name">{html.escape(name)}</span>'
+            f'<span class="lg-pct">{frac * 100:.1f}%</span></li>'
+        )
+    center = (
+        f'<text x="{cx}" y="{cy - 3}" class="donut-total" text-anchor="middle">{_fmt_tokens(total)}</text>'
+        f'<text x="{cx}" y="{cy + 15}" class="donut-sub" text-anchor="middle">tokens</text>'
+    )
+    return (
+        '<div class="donut-wrap">'
+        f'<svg class="donut" viewBox="0 0 160 160" role="img" '
+        f'aria-label="{_escape(_t(lang, "project_section"))}">{"".join(segs)}{center}</svg>'
+        f'<ul class="donut-legend">{"".join(legend)}</ul>'
+        '</div>'
+    )
+
+
+def _subscription_body(subs: list[dict], lang: str) -> str:
+    if not subs:
+        return _empty_line(_t(lang, "sub_empty"))
+    rows = []
+    for sub in subs:
+        since = sub.get("since")
+        since_html = (
+            f'<span class="sub-since" data-mask>{_escape(_t(lang, "sub_since"))} {_escape(since)}</span>'
+            if since
+            else ""
+        )
+        rows.append(
+            '<div class="sub-row">'
+            f'<span class="sub-agent">{_escape(str(sub.get("agent", "")))}</span>'
+            f'<span class="sub-plan">{_escape(str(sub.get("plan", "")))}</span>'
+            f"{since_html}"
+            "</div>"
+        )
+    return f'<div class="subs">{"".join(rows)}</div>'
 
 
 def _tip_section(tip: Tip, lang: str) -> str:
@@ -242,7 +318,7 @@ def _narrative(data: dict, lang: str) -> str:
 
 def _cost_value(cost_usd: float, lang: str) -> tuple[str, str]:
     main = _fmt_cost(cost_usd)
-    sub = f"≈ NT${cost_usd * 32:,.0f}" if lang == "zh-TW" else ""
+    sub = f"≈ NT${cost_usd * _USD_TO_TWD:,.0f}" if lang == "zh-TW" else ""
     return main, sub
 
 
@@ -272,9 +348,14 @@ def generate_html(data: dict, language: str | None = None) -> str:
         for project in data.get("by_project", [])
     ]
     project_rows_html = "".join(project_rows)
+    project_donut = _donut_svg(
+        [(_display_name(project["project"], lang), int(project["tokens"])) for project in data.get("by_project", [])],
+        lang,
+    )
     project_body = (
-        f'<div class="rank-head"><span></span><span>{_escape(_t(lang, "project"))}</span><span>{_escape(_t(lang, "share"))}</span><span>{_escape(_t(lang, "tokens"))}</span><span>{_escape(_t(lang, "cost"))}</span></div>'
-        f'<div class="rank-list">{project_rows_html}</div>'
+        project_donut
+        + f'<div class="rank-head"><span></span><span>{_escape(_t(lang, "project"))}</span><span>{_escape(_t(lang, "share"))}</span><span>{_escape(_t(lang, "tokens"))}</span><span>{_escape(_t(lang, "cost"))}</span></div>'
+        + f'<div class="rank-list">{project_rows_html}</div>'
         if project_rows
         else _empty_line(_t(lang, "empty_projects"))
     )
@@ -295,6 +376,24 @@ def generate_html(data: dict, language: str | None = None) -> str:
         f'<div class="rank-list">{model_rows_html}</div>'
         if model_rows
         else _empty_line(_t(lang, "empty_models"))
+    )
+
+    agent_rows = [
+        _rank_line(
+            _display_name(agent["name"], lang),
+            float(agent["pct"]),
+            int(agent["tokens"]),
+            float(agent["cost"]),
+            lang,
+        )
+        for agent in data.get("by_agent", [])
+    ]
+    agent_rows_html = "".join(agent_rows)
+    agent_body = (
+        f'<div class="rank-head"><span></span><span>{_escape(_t(lang, "agent"))}</span><span>{_escape(_t(lang, "share"))}</span><span>{_escape(_t(lang, "tokens"))}</span><span>{_escape(_t(lang, "cost"))}</span></div>'
+        f'<div class="rank-list">{agent_rows_html}</div>'
+        if agent_rows
+        else _empty_line(_t(lang, "empty_projects"))
     )
 
     session_rows = []
@@ -327,6 +426,7 @@ def generate_html(data: dict, language: str | None = None) -> str:
         "pathCopied": _t(lang, "share_path_copied"),
     }
     share_config_json = json.dumps(share_config, ensure_ascii=False).replace("</", "<\\/")
+    subscription_body = _subscription_body(data.get("subscriptions", []), lang)
     title = _t(lang, "title")
     return f"""<!doctype html>
 <html lang="{html.escape(lang)}">
@@ -400,6 +500,23 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
 .tip-copy{{background:transparent;border:1px solid #30363d;color:#8b949e;padding:2px 10px;margin-left:8px;border-radius:4px;cursor:pointer;font-size:12px;font-family:inherit;transition:color 0.15s,border-color 0.15s}}
 .tip-copy:hover{{color:#e6edf3;border-color:#58a6ff}}
 .tip-copy.copied{{color:#56d364;border-color:#56d364}}
+.trend{{display:grid;gap:6px}}
+.trend-row{{display:grid;grid-template-columns:58px minmax(0,1fr) 72px 82px;gap:12px;align-items:center}}
+.trend-row .week{{color:var(--muted)}}.trend-row b{{color:var(--token);font-weight:400;white-space:nowrap;overflow:hidden}}.trend-row em{{font-style:normal;text-align:right;color:#dce2ea}}.delta{{color:var(--muted);white-space:nowrap}}.delta.up{{color:var(--cost)}}.delta.down{{color:var(--warn)}}.delta.flat{{color:var(--muted)}}.trend-summary{{color:#dce2ea;margin-top:8px}}
+.donut-wrap{{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:18px}}
+.donut{{width:150px;height:150px;flex:0 0 auto}}
+.donut-total{{fill:var(--text);font-size:20px;font-weight:700}}
+.donut-sub{{fill:var(--muted);font-size:11px;text-transform:uppercase}}
+.donut-legend{{list-style:none;margin:0;padding:0;display:grid;gap:8px;flex:1 1 200px;min-width:200px}}
+.donut-legend li{{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:10px;align-items:center;font-size:.86rem;color:#dce2ea}}
+.donut-legend .dot{{width:10px;height:10px;border-radius:2px}}
+.donut-legend .lg-name{{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+.donut-legend .lg-pct{{color:var(--muted);text-align:right}}
+.subs{{display:grid;gap:10px}}
+.sub-row{{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 14px;border:1px solid #30363d;border-radius:7px;background:#090b0e}}
+.sub-agent{{font-weight:700;color:#f0f6fc;min-width:96px}}
+.sub-plan{{color:var(--token);background:rgba(56,139,253,0.12);padding:3px 11px;border-radius:999px;font-size:.86rem}}
+.sub-since{{margin-left:auto;color:var(--muted);font-size:.84rem}}
 @media (max-width:780px){{.wrap{{padding:28px 14px}}header{{display:block}}.meta{{text-align:left;margin-top:16px}}.header-actions{{align-items:flex-start;margin-top:16px}}.cards{{grid-template-columns:repeat(2,1fr)}}.rank-head{{display:none}}.rank-list{{display:grid;gap:10px}}.rank-line{{display:grid;grid-template-columns:1fr;gap:8px;padding:12px;border:1px solid #30363d;border-radius:6px;background:#090b0e}}.rank-line .arrow{{display:none}}.rank-line .name{{white-space:normal;font-weight:700;color:#f0f6fc}}.rank-line .pct,.rank-line .tokens,.rank-line .cost{{display:flex;justify-content:space-between;gap:14px;text-align:left}}.rank-line .pct::before,.rank-line .tokens::before,.rank-line .cost::before{{content:attr(data-label);color:var(--muted)}}}}
 @media (max-width:480px){{.wrap{{padding:22px 12px 28px}}h1{{white-space:normal}}.cards{{grid-template-columns:repeat(2,1fr);gap:8px}}.card{{min-height:96px;padding:13px 11px}}.share-dialog{{width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;border:0;border-radius:0}}.share-modal{{min-height:100dvh;padding:16px 12px 18px}}.share-section{{padding:12px}}.share-action{{min-height:42px;font-size:.72rem;gap:4px;white-space:normal}}.share-file-actions{{grid-template-columns:1fr}}.section{{padding:16px 12px}}}}
 </style>
@@ -434,6 +551,8 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
     </div>
   </dialog>
   <section class="cards">{''.join(f'<div class="card"><span>{html.escape(label)}</span><b>{html.escape(value)}</b>' + (f'<i>{html.escape(sub)}</i>' if sub else '') + '</div>' for label, value, sub in cards)}</section>
+  {_section(_t(lang, "sub_section"), subscription_body, "sub-section")}
+  {_section(_t(lang, "agent_section"), agent_body)}
   {_section(_t(lang, "project_section"), project_body, "project-section")}
   {_section(_t(lang, "model_section"), model_body)}
   {_section(_t(lang, "trend_section"), _trend_ascii(data.get("daily_trend", []), lang))}
@@ -515,6 +634,10 @@ function downloadHtml(maskProjects) {{
       restores.push({{el, original: el.textContent}});
       el.textContent = `Project ${{i + 1}}`;
     }});
+    document.querySelectorAll('[data-mask]').forEach((el) => {{
+      restores.push({{el, original: el.textContent}});
+      el.textContent = '—';
+    }});
   }}
   document.querySelectorAll('[data-share-dialog], [data-share-open]').forEach((el) => {{
     detached.push({{el, parent: el.parentNode, next: el.nextSibling}});
@@ -570,20 +693,7 @@ document.addEventListener('click', async (e) => {{
   const cmd = btn.dataset.cmd;
   const ok = btn.dataset.copied;
   const label = btn.dataset.label;
-  let success = false;
-  try {{
-    await navigator.clipboard.writeText(cmd);
-    success = true;
-  }} catch (_) {{
-    const ta = document.createElement('textarea');
-    ta.value = cmd;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    try {{ success = document.execCommand('copy'); }} catch (_e) {{}}
-    document.body.removeChild(ta);
-  }}
+  const success = await copyText(cmd);
   if (success) {{
     btn.classList.add('copied');
     btn.textContent = '✓ ' + ok;
@@ -593,6 +703,7 @@ document.addEventListener('click', async (e) => {{
     }}, 2000);
   }}
 }});
+
 </script>
 </body>
 </html>
