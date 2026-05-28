@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.11.18] - 2026-05-28
+
+### Changed
+- **Statusline progress bar visual refresh**: progress bar characters switched from `█░` to `■□` (filled / hollow squares), and the color palette moved from standard ANSI green/yellow/red (32/33/31) to 256-color teal/orange/dark-red (42/214/160) for stronger contrast around the 50% threshold — safe / warning / danger states are now distinguishable at a glance. Changes confined to `usage_statusline.py` (`progress_bar()` and `color_by_pct()`); HTML reports and the TUI progress bars are unaffected.
+
+### Docs
+- **Traditional Chinese default panel screenshot refreshed**: `docs/繁體中文面板.png` updated to reflect the latest UI (new "Report / Terminal" toggle, per-project cost display, footer attribution).
+
 ## [0.11.16] - 2026-05-27
 
 ### Fixed

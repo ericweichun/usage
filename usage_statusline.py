@@ -254,10 +254,10 @@ def get_width() -> int:
 
 def color_by_pct(pct: float) -> str:
     if pct < 50:
-        return C["green"]
+        return "\033[38;5;42m"
     if pct < 80:
-        return C["yellow"]
-    return C["red"]
+        return "\033[38;5;214m"
+    return "\033[38;5;160m"
 
 
 def fmt_tokens(n: Any) -> str:
@@ -273,8 +273,8 @@ def fmt_tokens(n: Any) -> str:
 
 
 def progress_bar(value: Any, bar_width: int = 8) -> str:
-    filled_char = "█"
-    empty_char = "░"
+    filled_char = "■"
+    empty_char = "□"
     if value is None:
         return empty_char * bar_width + " n/a"
     pct = max(0.0, min(100.0, float(value)))

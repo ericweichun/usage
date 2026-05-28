@@ -256,7 +256,7 @@ def test_render_outputs_multiline_colored_statusline(
 
     assert "\n" in output
     assert "\033[" in output
-    assert "█" in output
+    assert "■" in output
     assert "5h" in output
     assert "7d" in output
     assert "Context" in output
