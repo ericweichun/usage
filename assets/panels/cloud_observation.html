@@ -793,11 +793,12 @@
       if (!list) return;
       const rows = (projects || []).slice(0, 3);
       list.innerHTML = rows.map((project, index) => {
+        const safeName = String(project.name ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
         return `
         <div class="proj-row">
           <div class="proj-topline">
             <span class="proj-rank">${index + 1}</span>
-            <span class="proj-name">${project.name}</span>
+            <span class="proj-name">${safeName}</span>
           </div>
           <span class="proj-tokens">${project.tokensText}</span>
           <span class="proj-cost">${project.costText}</span>
