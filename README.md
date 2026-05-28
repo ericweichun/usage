@@ -14,6 +14,8 @@
 
 🌐 **官方介紹頁**：[aqua5230.github.io/usage](https://aqua5230.github.io/usage/)
 
+🟢 **開發狀態**：穩定版，持續維護中 —— 歡迎回報問題與貢獻。
+
 `usage` 是一個 macOS menu bar（螢幕右上角的選單列）小工具，把 **Claude Code 跟 Codex** 的用量釘在你的螢幕右上角。點開可以看到 Session、Weekly、各專案用量（今日 / 7 日 / 月），以及今日 token 用量與成本估算。
 
 不呼叫 Anthropic / OpenAI 的 API（接口）、也不讀 Keychain（macOS 內建的密碼保險箱），所以不會發生「自己每分鐘 ping 一次也算用量」這種事。
