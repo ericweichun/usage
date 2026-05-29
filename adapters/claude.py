@@ -1,5 +1,7 @@
 import json
 import os
+import sys
+from collections import OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -9,6 +11,8 @@ CLAUDE_DIRS = [
     os.path.expanduser("~/.claude/projects"),
     os.path.expanduser("~/.config/claude/projects"),
 ]
+_FILE_CACHE_MAXSIZE = 512
+_file_cache: OrderedDict[Path, tuple[float, int, list[UsageEntry]]] = OrderedDict()
 
 
 def detect() -> AgentInfo | None:
@@ -83,33 +87,52 @@ def _parse_jsonl(
     cutoff: datetime | None,
 ) -> None:
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
+        st = path.stat()
+    except (OSError, PermissionError) as exc:
+        _debug_file_error("failed to stat Claude log", path, exc)
+        return
 
-                if data.get("type") != "assistant":
-                    continue
+    cached = _file_cache.get(path)
+    if cached is not None and cached[0] == st.st_mtime and cached[1] == st.st_size:
+        _file_cache.move_to_end(path)
+        parsed_entries = cached[2]
+    else:
+        parsed_entries: list[UsageEntry] = []
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
 
-                entry = _parse_assistant_entry(data, project)
-                if entry is None:
-                    continue
+                    if data.get("type") != "assistant":
+                        continue
 
-                if cutoff and entry.timestamp < cutoff:
-                    continue
+                    entry = _parse_assistant_entry(data, project)
+                    if entry is None:
+                        continue
+                    parsed_entries.append(entry)
+        except (OSError, PermissionError) as exc:
+            _debug_file_error("failed to read Claude log", path, exc)
+            return
 
-                if entry.dedup_key in seen:
-                    continue
-                seen.add(entry.dedup_key)
+        if path not in _file_cache and len(_file_cache) >= _FILE_CACHE_MAXSIZE:
+            _file_cache.popitem(last=False)
+        _file_cache[path] = (st.st_mtime, st.st_size, parsed_entries)
 
-                entries.append(entry)
-    except (OSError, PermissionError):
-        pass
+    for entry in parsed_entries:
+        if cutoff and entry.timestamp < cutoff:
+            continue
+
+        if entry.dedup_key in seen:
+            continue
+        seen.add(entry.dedup_key)
+
+        entries.append(entry)
 
 
 def _parse_assistant_entry(data: dict, project: str) -> UsageEntry | None:
@@ -159,3 +182,8 @@ def _parse_assistant_entry(data: dict, project: str) -> UsageEntry | None:
         project=project,
         agent_id="claude-code",
     )
+
+
+def _debug_file_error(action: str, path: Path, exc: Exception) -> None:
+    if os.environ.get("USAGE_DEBUG") == "1":
+        print(f"{action} {path}: {exc}", file=sys.stderr)

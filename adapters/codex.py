@@ -1,15 +1,20 @@
 import json
 import os
 import sqlite3
+import sys
+from collections import OrderedDict
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 from .types import AgentInfo, RateLimits, UsageEntry
 
 CODEX_DIR = os.path.expanduser("~/.codex")
 SESSIONS_DIR = os.path.join(CODEX_DIR, "sessions")
 STATE_DB = os.path.join(CODEX_DIR, "state_5.sqlite")
+_FILE_CACHE_MAXSIZE = 512
+_file_cache: OrderedDict[Path, tuple[float, int, list[dict[str, Any]]]] = OrderedDict()
 
 
 def detect() -> AgentInfo | None:
@@ -50,7 +55,8 @@ def _load_thread_models() -> dict[str, str]:
         with closing(sqlite3.connect(f"file:{STATE_DB}?mode=ro", uri=True)) as conn:
             rows = conn.execute("SELECT id, model FROM threads WHERE model IS NOT NULL").fetchall()
         return {row[0]: row[1] for row in rows}
-    except (sqlite3.Error, OSError):
+    except (sqlite3.Error, OSError) as exc:
+        _debug_file_error("failed to load Codex thread models from", Path(STATE_DB), exc)
         return {}
 
 
@@ -73,29 +79,22 @@ def _extract_rate_limits(path: Path, models: dict[str, str]) -> RateLimits | Non
     session_id = ""
     last_rl = None
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if not isinstance(data, dict):
-                    continue
-                if data.get("type") == "session_meta":
-                    session_id = data.get("payload", {}).get("id", "")
-                if data.get("type") != "event_msg":
-                    continue
-                payload = data.get("payload", {})
-                if payload.get("type") != "token_count":
-                    continue
-                rl = payload.get("rate_limits")
-                if rl:
-                    last_rl = (rl, data.get("timestamp", ""), session_id)
-    except (OSError, PermissionError):
+        rows = _load_jsonl_rows(path)
+    except (OSError, PermissionError) as exc:
+        _debug_file_error("failed to read Codex session log", path, exc)
         return None
+
+    for data in rows:
+        if data.get("type") == "session_meta":
+            session_id = data.get("payload", {}).get("id", "")
+        if data.get("type") != "event_msg":
+            continue
+        payload = data.get("payload", {})
+        if payload.get("type") != "token_count":
+            continue
+        rl = payload.get("rate_limits")
+        if rl:
+            last_rl = (rl, data.get("timestamp", ""), session_id)
 
     if not last_rl:
         return None
@@ -157,41 +156,33 @@ def _parse_jsonl(
     msg_count = 0
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if not isinstance(data, dict):
-                    continue
-
-                row_type = data.get("type")
-
-                if row_type == "session_meta":
-                    payload = data.get("payload", {})
-                    session_id = payload.get("id", "")
-                    session_ts = payload.get("timestamp", "")
-                    cwd = payload.get("cwd", "")
-                    if cwd:
-                        project = _project_from_cwd(cwd)
-                    model = models.get(session_id, "unknown")
-                    continue
-
-                if row_type != "event_msg":
-                    continue
-
-                payload = data.get("payload", {})
-                if payload.get("type") == "token_count":
-                    info = payload.get("info")
-                    if info and info.get("total_token_usage"):
-                        last_usage = info["total_token_usage"]
-                        msg_count += 1
-    except (OSError, PermissionError):
+        rows = _load_jsonl_rows(path)
+    except (OSError, PermissionError) as exc:
+        _debug_file_error("failed to read Codex session log", path, exc)
         return
+
+    for data in rows:
+        row_type = data.get("type")
+
+        if row_type == "session_meta":
+            payload = data.get("payload", {})
+            session_id = payload.get("id", "")
+            session_ts = payload.get("timestamp", "")
+            cwd = payload.get("cwd", "")
+            if cwd:
+                project = _project_from_cwd(cwd)
+            model = models.get(session_id, "unknown")
+            continue
+
+        if row_type != "event_msg":
+            continue
+
+        payload = data.get("payload", {})
+        if payload.get("type") == "token_count":
+            info = payload.get("info")
+            if info and info.get("total_token_usage"):
+                last_usage = info["total_token_usage"]
+                msg_count += 1
 
     if not last_usage or not session_id:
         return
@@ -230,3 +221,34 @@ def _parse_jsonl(
         agent_id="codex",
         message_count=msg_count,
     ))
+
+
+def _load_jsonl_rows(path: Path) -> list[dict[str, Any]]:
+    st = path.stat()
+    cached = _file_cache.get(path)
+    if cached is not None and cached[0] == st.st_mtime and cached[1] == st.st_size:
+        _file_cache.move_to_end(path)
+        return cached[2]
+
+    rows: list[dict[str, Any]] = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(data, dict):
+                rows.append(data)
+
+    if path not in _file_cache and len(_file_cache) >= _FILE_CACHE_MAXSIZE:
+        _file_cache.popitem(last=False)
+    _file_cache[path] = (st.st_mtime, st.st_size, rows)
+    return rows
+
+
+def _debug_file_error(action: str, path: Path, exc: Exception) -> None:
+    if os.environ.get("USAGE_DEBUG") == "1":
+        print(f"{action} {path}: {exc}", file=sys.stderr)
