@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-05-29
+
 ### 變更
 - **HTML 報告載入器加上檔案快取**：`adapters/claude.py` 與 `adapters/codex.py` 補上以 `mtime`+`size` 為鍵的 LRU 快取（與 `history_loader` 一致），產生報告時不再每次重新解析整批 JSONL；Codex 端的 `load_entries` 與 `load_rate_limits` 共用同一份快取。整檔級的 `OSError` / `PermissionError` / `sqlite3.Error` 現在會在 `USAGE_DEBUG=1` 時輸出到 stderr（逐行的 `JSONDecodeError` 維持靜默）。
 - **mypy `--strict` 全面覆蓋**：移除 `adapters/`、`analyzer/`、`ui/`、`usage_cli.py` 的 mypy 排除設定（約 35% 程式碼的型別盲區），補齊泛型參數與函式型別標註，`_group_by_agent` 改用 PEP 695 型別參數。`mypy --strict` 現涵蓋全部 70 個原始檔。
