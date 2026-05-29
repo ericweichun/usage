@@ -286,6 +286,21 @@ def test_apply_sort_uses_known_sort_key(descending: bool, expected_costs: list[f
     assert [stat.cost_usd for stat in stats] == expected_costs
 
 
+def test_apply_sort_time_key_sorts_default_attr_by_descending() -> None:
+    # "time" maps to None in SORT_KEYS (handled per-command): falls back to
+    # default_attr but honours the caller's `descending`, not default_reverse.
+    assert usage_cli.SORT_KEYS["time"] is None
+    stats = [
+        SimpleNamespace(start_time=1, total_tokens=0, cost_usd=0.0, message_count=0),
+        SimpleNamespace(start_time=3, total_tokens=0, cost_usd=0.0, message_count=0),
+        SimpleNamespace(start_time=2, total_tokens=0, cost_usd=0.0, message_count=0),
+    ]
+
+    usage_cli._apply_sort(stats, "time", True, "start_time", default_reverse=False)
+
+    assert [stat.start_time for stat in stats] == [3, 2, 1]
+
+
 def test_apply_sort_unknown_key_falls_back_to_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
