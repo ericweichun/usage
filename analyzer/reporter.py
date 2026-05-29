@@ -4,6 +4,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 import codex_loader
 import subscription
@@ -53,7 +54,7 @@ def _load_agent_entries(
     loader = AGENT_LOADERS.get(agent.id)
     if loader is None:
         return []
-    entries = loader.load_entries(hours_back=hours_back)
+    entries: list[UsageEntry] = loader.load_entries(hours_back=hours_back)
     for entry in entries:
         entry.agent_id = agent.id
     return entries
@@ -129,7 +130,7 @@ def _round_cost(value: float) -> float:
     return round(value, 4)
 
 
-def build_report_data(agents, period: str = "month") -> dict:
+def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[str, Any]:
     """
     period: "today" | "week" | "month" | "all"
     回傳 dict，包含：
@@ -171,19 +172,19 @@ def build_report_data(agents, period: str = "month") -> dict:
     active_dates = {_entry_date(entry) for entry in entries}
     total_days = (date_to - date_from).days + 1
 
-    by_agent_totals: dict[str, dict] = defaultdict(lambda: {"tokens": 0, "cost": 0.0, "sessions": set(), "messages": 0})
-    by_project_totals: dict[str, dict] = defaultdict(lambda: {"tokens": 0, "cost": 0.0, "sessions": set()})
-    by_model_totals: dict[str, dict] = defaultdict(lambda: {"tokens": 0, "cost": 0.0})
-    daily_totals: dict[date, dict] = defaultdict(lambda: {"tokens": 0, "cost": 0.0})
+    by_agent_totals: dict[str, dict[str, Any]] = defaultdict(lambda: {"tokens": 0, "cost": 0.0, "sessions": set(), "messages": 0})
+    by_project_totals: dict[str, dict[str, Any]] = defaultdict(lambda: {"tokens": 0, "cost": 0.0, "sessions": set()})
+    by_model_totals: dict[str, dict[str, Any]] = defaultdict(lambda: {"tokens": 0, "cost": 0.0})
+    daily_totals: dict[date, dict[str, Any]] = defaultdict(lambda: {"tokens": 0, "cost": 0.0})
 
     for entry in entries:
         cost = calculate_cost(entry)
         total_cost += cost
-        agent = by_agent_totals[entry.agent_id or "unknown"]
-        agent["tokens"] += entry.total_tokens
-        agent["cost"] += cost
-        agent["sessions"].add(entry.session_id)
-        agent["messages"] += entry.message_count
+        agent_totals = by_agent_totals[entry.agent_id or "unknown"]
+        agent_totals["tokens"] += entry.total_tokens
+        agent_totals["cost"] += cost
+        agent_totals["sessions"].add(entry.session_id)
+        agent_totals["messages"] += entry.message_count
 
         project = by_project_totals[entry.project or "unknown"]
         project["tokens"] += entry.total_tokens

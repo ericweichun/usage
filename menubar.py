@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from importlib import metadata
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import objc
 from AppKit import (
@@ -1176,7 +1176,7 @@ def _generate_analysis_report(period: str = "month", language: str | None = None
 
     agents = detect_agents()
     data = build_report_data(agents, period)
-    return cast(str, save_and_open(data, language=language))
+    return save_and_open(data, language=language)
 
 
 def _analysis_period_from_project_range(project_range: str) -> str:

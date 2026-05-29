@@ -1,8 +1,11 @@
 import sys
+from collections.abc import Callable
+from typing import Any
 
 from adapters import claude, codex
 from adapters.rate_limits import load_rate_limits as load_claude_rate_limits
 from adapters.registry import detect_agents
+from adapters.types import AgentInfo
 from analyzer.aggregator import aggregate_daily, aggregate_monthly, aggregate_sessions, aggregate_weekly
 from analyzer.blocks import analyze_blocks, calculate_p90
 from setup_hook import is_setup, setup, unsetup
@@ -100,7 +103,7 @@ def _parse_report_args(args: list[str]) -> tuple[str, str | None, bool]:
     return period, out_path, show_help
 
 
-def _apply_sort(stats, sort_key: str | None, descending: bool, default_attr: str, default_reverse: bool):
+def _apply_sort(stats: list[Any], sort_key: str | None, descending: bool, default_attr: str, default_reverse: bool) -> None:
     if sort_key is None:
         stats.sort(key=lambda s: getattr(s, default_attr), reverse=default_reverse)
         return
@@ -117,13 +120,16 @@ def _apply_sort(stats, sort_key: str | None, descending: bool, default_attr: str
         stats.sort(key=lambda s: getattr(s, attr), reverse=descending)
 
 
-def _load_entries(agent_id: str, hours_back: int = 0):
+def _load_entries(agent_id: str, hours_back: int = 0) -> list[Any]:
     loader = AGENT_LOADERS.get(agent_id)
-    return loader.load_entries(hours_back=hours_back) if loader else []
+    if loader is None:
+        return []
+    entries: list[Any] = loader.load_entries(hours_back=hours_back)
+    return entries
 
 
-def _aggregate_per_agent(agents, agg_fn):
-    stats = []
+def _aggregate_per_agent(agents: list[AgentInfo], agg_fn: Callable[[list[Any]], list[Any]]) -> list[Any]:
+    stats: list[Any] = []
     for a in agents:
         entries = _load_entries(a.id)
         for s in agg_fn(entries):
@@ -132,7 +138,7 @@ def _aggregate_per_agent(agents, agg_fn):
     return stats
 
 
-def _show_agent_dashboard(agent_id: str):
+def _show_agent_dashboard(agent_id: str) -> None:
     agent_name = AGENT_LABEL.get(agent_id, agent_id)
     data = _build_agent_data(agent_id, agent_name)
     if not data:
@@ -141,7 +147,7 @@ def _show_agent_dashboard(agent_id: str):
     render_dashboard(**data)
 
 
-def _build_agent_data(agent_id: str, agent_name: str) -> dict | None:
+def _build_agent_data(agent_id: str, agent_name: str) -> dict[str, Any] | None:
     entries = _load_entries(agent_id)
     if not entries:
         return None
@@ -165,7 +171,7 @@ def _build_agent_data(agent_id: str, agent_name: str) -> dict | None:
     )
 
 
-def _initial_agent_index(agents) -> int:
+def _initial_agent_index(agents: list[AgentInfo]) -> int:
     import os
 
     preferred = None
@@ -192,7 +198,7 @@ def _fit_screen(text: str, height: int, scroll_offset: int) -> tuple[str, int]:
     return "\n".join(visible), max_scroll
 
 
-def _dashboard_sort_cycle():
+def _dashboard_sort_cycle() -> list[tuple[str, str, str]]:
     return [
         ("time", "start_time", t("sort_time")),
         ("tokens", "total_tokens", t("sort_token")),
@@ -201,7 +207,7 @@ def _dashboard_sort_cycle():
     ]
 
 
-def _show_interactive_dashboard(agents):
+def _show_interactive_dashboard(agents: list[AgentInfo]) -> None:
     import shutil
     from io import StringIO
     from rich.console import Console as RichConsole
@@ -305,7 +311,7 @@ def _show_interactive_dashboard(agents):
         _tables.console = orig
 
 
-def _read_key_unix():
+def _read_key_unix() -> str:
     import os as _os
     import select
     import tty
@@ -363,11 +369,11 @@ def _read_key_unix():
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
-def _read_key_win():
+def _read_key_win() -> str:
     import msvcrt
-    ch = msvcrt.getch()
+    ch = msvcrt.getch()  # type: ignore[attr-defined]
     if ch in (b"\xe0", b"\x00"):
-        ch2 = msvcrt.getch()
+        ch2 = msvcrt.getch()  # type: ignore[attr-defined]
         if ch2 == b"K":
             return "left"
         if ch2 == b"M":
@@ -408,7 +414,7 @@ def _get_version() -> str:
     return version("usage")
 
 
-def main():
+def main() -> None:
     args = sys.argv[1:]
     command = args[0] if args else "dashboard"
 

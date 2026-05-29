@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import subprocess
+import sys
+import webbrowser
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -105,10 +108,10 @@ def test_save_and_open_uses_macos_open(
         assert check is False
 
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setattr(html_report.sys, "platform", "darwin")
-    monkeypatch.setattr(html_report.subprocess, "run", fake_run)
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(subprocess, "run", fake_run)
     monkeypatch.setattr(
-        html_report.webbrowser,
+        webbrowser,
         "open",
         lambda url: pytest.fail(f"unexpected webbrowser.open({url})"),
     )

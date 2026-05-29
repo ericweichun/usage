@@ -77,11 +77,7 @@ python_version = "3.13"
 strict = true
 warn_unused_configs = true
 pretty = true
-exclude = "^(build|dist|adapters|analyzer|ui)/|^usage_cli\\.py$"
-
-[[tool.mypy.overrides]]
-module = ["adapters.*", "analyzer.*", "ui.*"]
-follow_imports = "skip"
+exclude = "^(build|dist)/"
 
 [[tool.mypy.overrides]]
 module = "rich.*"

@@ -4,6 +4,7 @@ import sys
 from collections import OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from .types import AgentInfo, UsageEntry
 
@@ -93,11 +94,12 @@ def parse_jsonl(
         return
 
     cached = _file_cache.get(path)
+    parsed_entries: list[UsageEntry]
     if cached is not None and cached[0] == st.st_mtime and cached[1] == st.st_size:
         _file_cache.move_to_end(path)
         parsed_entries = cached[2]
     else:
-        parsed_entries: list[UsageEntry] = []
+        parsed_entries = []
         try:
             with open(path, "r", encoding="utf-8") as f:
                 for line in f:
@@ -135,7 +137,7 @@ def parse_jsonl(
         entries.append(entry)
 
 
-def _parse_assistant_entry(data: dict, project: str) -> UsageEntry | None:
+def _parse_assistant_entry(data: dict[str, Any], project: str) -> UsageEntry | None:
     message = data.get("message")
     if not message or not isinstance(message, dict):
         return None

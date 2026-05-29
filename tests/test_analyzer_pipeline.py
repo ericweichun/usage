@@ -8,7 +8,7 @@ from typing import Any
 import codex_loader
 import history_loader
 import menubar
-from adapters.types import AgentInfo
+from adapters.types import AgentInfo, UsageEntry
 from analyzer import reporter
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -203,7 +203,7 @@ def test_report_codex_entries_use_shared_loader(monkeypatch: Any) -> None:
 def test_report_short_periods_use_recent_codex_loader(monkeypatch: Any) -> None:
     today = datetime.now(tz=UTC)
     agent = AgentInfo("codex", "Codex", "~/.codex", True)
-    recent_entry = reporter.UsageEntry(
+    recent_entry = history_loader.UsageEntry(
         timestamp=today,
         session_id="recent",
         message_id="recent",
@@ -215,7 +215,6 @@ def test_report_short_periods_use_recent_codex_loader(monkeypatch: Any) -> None:
         cache_read_tokens=0,
         cost_usd=0.01,
         project="usage",
-        agent_id="codex",
     )
     calls: dict[str, int] = {}
 
@@ -295,7 +294,7 @@ def test_report_last30_keeps_full_codex_loader(monkeypatch: Any) -> None:
     agent = AgentInfo("codex", "Codex", "~/.codex", True)
     calls: dict[str, int] = {}
 
-    def fake_recent(hours_back: int) -> list[reporter.UsageEntry]:
+    def fake_recent(hours_back: int) -> list[UsageEntry]:
         calls["recent_hours_back"] = hours_back
         return []
 

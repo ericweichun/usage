@@ -1,6 +1,8 @@
 import os
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import datetime, timezone
+from typing import Any, Protocol
 
 from rich import box
 from rich.console import Console
@@ -69,12 +71,16 @@ AGENT_SHORT = {"claude-code": "CC", "codex": "Codex"}
 AGENT_LABEL = {"claude-code": "Claude Code", "codex": "Codex"}
 
 
-def _is_multi_agent(stats) -> bool:
+class _HasAgentId(Protocol):
+    agent_id: str
+
+
+def _is_multi_agent(stats: Iterable[_HasAgentId]) -> bool:
     return len(set(s.agent_id for s in stats if s.agent_id)) > 1
 
 
-def _group_by_agent(stats) -> dict[str, list]:
-    by_agent: dict[str, list] = defaultdict(list)
+def _group_by_agent[StatT: _HasAgentId](stats: Iterable[StatT]) -> dict[str, list[StatT]]:
+    by_agent: dict[str, list[StatT]] = defaultdict(list)
     for s in stats:
         by_agent[s.agent_id].append(s)
     return by_agent
@@ -244,10 +250,10 @@ def _render_header(agents: list[str], total_tokens: int, total_cost: float,
     console.print(lines)
 
 
-def _render_agent_summaries(stats_list, multi_agent: bool) -> None:
+def _render_agent_summaries(stats_list: list[DailyStats], multi_agent: bool) -> None:
     if not multi_agent:
         return
-    by_agent: dict[str, dict] = defaultdict(lambda: {"tokens": 0, "cost": 0.0, "sessions": 0, "messages": 0})
+    by_agent: dict[str, dict[str, Any]] = defaultdict(lambda: {"tokens": 0, "cost": 0.0, "sessions": 0, "messages": 0})
     for s in stats_list:
         if not s.agent_id:
             continue
@@ -386,7 +392,7 @@ def _render_recent_sessions(stats: list[SessionStats], title: str | None = None)
     table.add_column(t("col_messages"), justify="right", style=_S.dim)
 
     for s in stats:
-        row: list = [s.start_time.strftime("%m-%d %H:%M")]
+        row: list[Any] = [s.start_time.strftime("%m-%d %H:%M")]
         if multi_agent:
             row.append(AGENT_SHORT.get(s.agent_id, s.agent_id))
         row.append(_project_short(s.project))
@@ -438,7 +444,7 @@ def render_daily(stats: list[DailyStats], agents: list[str] | None = None) -> No
 
     for s in stats:
         cache_total = s.cache_creation_tokens + s.cache_read_tokens
-        row: list = [s.date]
+        row: list[Any] = [s.date]
         if multi_agent:
             row.append(AGENT_SHORT.get(s.agent_id, s.agent_id))
         if mode != "compact":
@@ -479,7 +485,7 @@ def _render_weekly_table(stats: list[WeeklyStats], title: str | None = None) -> 
     for s in stats:
         cache_total = s.cache_creation_tokens + s.cache_read_tokens
         week_label = f"{s.week_start} ~ {s.week_end}"
-        row: list = [week_label]
+        row: list[Any] = [week_label]
         if mode != "compact":
             row += [_fmt_tokens(s.input_tokens), _fmt_tokens(s.output_tokens)]
         if mode == "wide":
@@ -493,7 +499,7 @@ def _render_weekly_table(stats: list[WeeklyStats], title: str | None = None) -> 
         table.add_row(*row)
 
     table.add_section()
-    total_row: list = [f"[bold]{t('total_row')}[/bold]"]
+    total_row: list[Any] = [f"[bold]{t('total_row')}[/bold]"]
     if mode != "compact":
         total_row += [
             _fmt_tokens(sum(s.input_tokens for s in stats)),
@@ -554,7 +560,7 @@ def _render_monthly_table(stats: list[MonthlyStats], title: str | None = None) -
     table.add_column(t("col_messages"), justify="right", style=_S.dim)
 
     for s in stats:
-        row: list = [s.month]
+        row: list[Any] = [s.month]
         if mode != "compact":
             row += [_fmt_tokens(s.input_tokens), _fmt_tokens(s.output_tokens)]
         if mode == "wide":
@@ -568,7 +574,7 @@ def _render_monthly_table(stats: list[MonthlyStats], title: str | None = None) -
         table.add_row(*row)
 
     table.add_section()
-    total_row: list = [f"[bold]{t('total_row')}[/bold]"]
+    total_row: list[Any] = [f"[bold]{t('total_row')}[/bold]"]
     if mode != "compact":
         total_row += [
             _fmt_tokens(sum(s.input_tokens for s in stats)),
@@ -702,7 +708,7 @@ def render_sessions(stats: list[SessionStats], limit: int = 20) -> None:
     max_tokens = max(s.total_tokens for s in shown) if shown else 1
 
     for s in shown:
-        row: list = [s.start_time.strftime("%m-%d %H:%M")]
+        row: list[Any] = [s.start_time.strftime("%m-%d %H:%M")]
         if multi_agent:
             row.append(AGENT_SHORT.get(s.agent_id, s.agent_id))
         row.append(_project_short(s.project))

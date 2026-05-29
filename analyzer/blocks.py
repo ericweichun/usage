@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 
 from adapters.types import DailyStats, P90Limits, SessionBlock, UsageEntry
@@ -62,7 +63,7 @@ def calculate_p90(daily_stats: list[DailyStats]) -> P90Limits:
     cost_values = sorted(d.cost_usd for d in daily_stats)
     msg_values = sorted(d.message_count for d in daily_stats)
 
-    def p90(values: list) -> float:
+    def p90(values: Sequence[float]) -> float:
         idx = int(len(values) * 0.9)
         return values[min(idx, len(values) - 1)]
 

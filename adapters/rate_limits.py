@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime, timezone
+from typing import Any
 
 from .types import RateLimits
 
@@ -9,13 +10,14 @@ LEGACY_STATUS_FILE = os.path.expanduser("~/.claude/usag-status.json")
 TT_STATUS_FILE = os.path.expanduser("~/.claude/tt-status.json")
 
 
-def _read_status() -> dict | None:
+def _read_status() -> dict[str, Any] | None:
     for path in (STATUS_FILE, LEGACY_STATUS_FILE, TT_STATUS_FILE):
         if not os.path.exists(path):
             continue
         try:
             with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data: dict[str, Any] = json.load(f)
+                return data
         except (json.JSONDecodeError, OSError):
             continue
     return None

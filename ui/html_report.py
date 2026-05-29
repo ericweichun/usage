@@ -11,7 +11,7 @@ import webbrowser
 from datetime import date, datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Mapping
+from typing import Any, Mapping
 
 from i18n import _t as _i18n_t
 from tips_loader import Tip, load_tip
@@ -132,7 +132,7 @@ def _parse_daily_date(value: object) -> date:
     return date.fromisoformat(str(value)[:10])
 
 
-def _weekly_trend(daily: list[dict]) -> list[dict[str, int | float]]:
+def _weekly_trend(daily: list[dict[str, Any]]) -> list[dict[str, int | float]]:
     weekly: dict[tuple[int, int], dict[str, int | float]] = {}
     for day in daily:
         parsed = _parse_daily_date(day["date"])
@@ -183,7 +183,7 @@ def _trend_delta(current: int, previous: int, lang: str) -> tuple[str, str]:
     return "down", f"↘ {pct}%"
 
 
-def _trend_ascii(daily: list[dict], lang: str) -> str:
+def _trend_ascii(daily: list[dict[str, Any]], lang: str) -> str:
     weekly = _weekly_trend(daily)
     max_tokens = max((int(week["tokens"]) for week in weekly), default=0)
     rows = []
@@ -255,7 +255,7 @@ def _donut_svg(items: list[tuple[str, int]], lang: str) -> str:
     )
 
 
-def _subscription_body(subs: list[dict], lang: str) -> str:
+def _subscription_body(subs: list[dict[str, Any]], lang: str) -> str:
     if not subs:
         return _empty_line(_t(lang, "sub_empty"))
     rows = []
@@ -300,7 +300,7 @@ def _tip_section(tip: Tip, lang: str) -> str:
     return _section(_t(lang, "tip_section_title"), f'<div class="prompt">{heading_html}</div>{body}')
 
 
-def _narrative(data: dict, lang: str) -> str:
+def _narrative(data: dict[str, Any], lang: str) -> str:
     summary = data["summary"]
     daily = data.get("daily_trend", [])
     peak = max(daily, key=lambda day: int(day["tokens"]), default={"date": data.get("date_to", "---- -- --"), "tokens": 0})
@@ -322,7 +322,7 @@ def _cost_value(cost_usd: float, lang: str) -> tuple[str, str]:
     return main, sub
 
 
-def generate_html(data: dict, language: str | None = None) -> str:
+def generate_html(data: dict[str, Any], language: str | None = None) -> str:
     lang = language or _detect_lang()
     tip = load_tip(lang)
     generated_at = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
@@ -711,7 +711,7 @@ document.addEventListener('click', async (e) => {{
 
 
 def save_and_open(
-    data: dict,
+    data: dict[str, Any],
     out_path: str | None = None,
     language: str | None = None,
 ) -> str:
