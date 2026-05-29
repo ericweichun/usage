@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+### 新增
+- **「接著上次做」功能（Resume where you left off）**：純本地、零 API，從 `~/.claude/projects` 的對話紀錄讀出每個專案「上次做到哪」（改過的檔 + git commit 標題 + 時間），三層遞進：
+  - **A 層 — HTML 報告區塊**：報告新增「接著上次做」區塊，逐專案列出最近活動；同名專案以父目錄消歧。
+  - **B 層 — 複製接續提示詞**：每個項目一顆按鈕，組好可直接貼給 Claude 的接續提示詞（專案、時間、改過的檔、commit）並複製到剪貼簿。
+  - **C 層 — 自動注入新對話（預設關，opt-in）**：選單新增「新對話自動帶入上次進度」開關，啟用後安裝 Claude Code 的 SessionStart hook（`usage_session_resume.py`，stdlib-only、可於 macOS 內建 Python 3.9 執行），在 `startup` / `/clear` 時把上次進度組成接續提示詞注入新對話開場。提示詞文案沿用 `i18n.json` 的 `rw_prompt`（安裝時寫入 sidecar 供 hook 讀取，維持單一來源）；`setup_hook` 負責安裝/移除/備份與 self-heal，移除整個 hook 時一併清理。
+
 ## [0.12.1] - 2026-05-29
 
 ### 變更

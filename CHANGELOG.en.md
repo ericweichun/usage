@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **"Resume where you left off" feature**: fully local, zero API — reads each project's "what did I do last time" (changed files + git commit titles + timestamp) from `~/.claude/projects` conversation logs, in three progressive ceilings:
+  - **Ceiling A — HTML report section**: a new "Resume where you left off" section lists recent activity per project; same-named projects are disambiguated by parent directory.
+  - **Ceiling B — copy resume prompt**: each item gets a button that assembles a ready-to-paste resume prompt (project, time, changed files, commits) and copies it to the clipboard.
+  - **Ceiling C — auto-inject into new sessions (off by default, opt-in)**: a new menu toggle "Auto-load Last Progress in New Sessions" installs a Claude Code SessionStart hook (`usage_session_resume.py`, stdlib-only so it runs under macOS's bundled Python 3.9) that injects the last progress as a resume prompt at the start of `startup` / `/clear` sessions. The wording reuses `i18n.json`'s `rw_prompt` (written to a sidecar at install time so the hook stays single-sourced); `setup_hook` handles install/remove/backup and self-heal, and a full uninstall cleans it up.
+
 ## [0.12.1] - 2026-05-29
 
 ### Changed

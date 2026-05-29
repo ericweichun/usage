@@ -57,6 +57,15 @@ PREV_SL_KEY = "previousStatusLine"
 HOOK_VERSION = "1.0"
 _SL_REGEX = re.compile(r"status_line\s*=\s*\[.*?\]", re.DOTALL)
 
+# Ceiling C — opt-in SessionStart hook that injects "where you left off" into a new
+# session. Off by default: enabled only via the menu toggle, never by self_heal.
+RESUME_HOOK_TARGET = Path(os.path.expanduser("~/.claude/usage-session-resume.py"))
+RESUME_PROMPT_SIDECAR = Path(os.path.expanduser("~/.claude/usage-resume-prompt.json"))
+RESUME_HOOK_VERSION = "1.0"
+RESUME_MATCHER = "startup|clear"
+RESUME_LANGS = ("zh-TW", "zh-CN", "en", "ja", "ko")
+_RESUME_MARKER = "usage-session-resume"
+
 
 def _resolve_hook_source() -> Path:
     paths = [
@@ -386,6 +395,165 @@ def update_hook() -> None:
     _copy_hook_script()
 
 
+def _resolve_resume_source() -> Path:
+    paths = [
+        Path(__file__).resolve().parent / "usage_session_resume.py",
+        Path(sys.executable).resolve().parent.parent / "Resources" / "usage_session_resume.py",
+    ]
+    for path in paths:
+        if path.exists():
+            return path
+    tried = ", ".join(str(path) for path in paths)
+    raise SystemExit(_t("setup_resume_source_missing", tried=tried))
+
+
+def _resume_command() -> str:
+    python = _find_system_python()
+    return f"{shlex.quote(python)} {shlex.quote(str(RESUME_HOOK_TARGET))}"
+
+
+def _copy_resume_script() -> None:
+    source = _resolve_resume_source()
+    RESUME_HOOK_TARGET.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, RESUME_HOOK_TARGET)
+    RESUME_HOOK_TARGET.chmod(
+        RESUME_HOOK_TARGET.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+    )
+
+
+def _write_resume_sidecar() -> None:
+    """Mirror i18n.json's rw_prompt/rw_none into a sidecar the stdlib hook can read,
+    so the injected wording stays single-sourced and the hook needs no app imports."""
+    from i18n import I18N_PATH
+
+    try:
+        bundle = json.loads(I18N_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    if not isinstance(bundle, dict):
+        return
+    en_raw = bundle.get("en")
+    en: dict[str, Any] = en_raw if isinstance(en_raw, dict) else {}
+    out: dict[str, dict[str, str]] = {}
+    for lang in RESUME_LANGS:
+        table_raw = bundle.get(lang)
+        table: dict[str, Any] = table_raw if isinstance(table_raw, dict) else {}
+        prompt = table.get("report_rw_prompt") or en.get("report_rw_prompt")
+        none_label = table.get("report_rw_none") or en.get("report_rw_none")
+        if isinstance(prompt, str) and isinstance(none_label, str):
+            out[lang] = {"prompt": prompt, "none": none_label}
+    if out:
+        RESUME_PROMPT_SIDECAR.parent.mkdir(parents=True, exist_ok=True)
+        _atomic_write_text(
+            RESUME_PROMPT_SIDECAR, json.dumps(out, ensure_ascii=False, indent=2) + "\n"
+        )
+
+
+def _is_resume_entry(entry: object) -> bool:
+    if not isinstance(entry, dict):
+        return False
+    hooks = entry.get("hooks")
+    if not isinstance(hooks, list):
+        return False
+    return any(
+        isinstance(h, dict) and isinstance(h.get("command"), str) and _RESUME_MARKER in h["command"]
+        for h in hooks
+    )
+
+
+def _session_start_list(settings: dict[str, Any]) -> list[Any] | None:
+    hooks = settings.get("hooks")
+    if not isinstance(hooks, dict):
+        return None
+    session_start = hooks.get("SessionStart")
+    return session_start if isinstance(session_start, list) else None
+
+
+def is_resume_enabled() -> bool:
+    try:
+        settings = _load_settings()
+    except SystemExit:
+        return False
+    entries = _session_start_list(settings)
+    if not entries:
+        return False
+    return any(_is_resume_entry(e) for e in entries)
+
+
+def enable_session_resume() -> int:
+    if not CLAUDE_SETTINGS.parent.exists():
+        print(_t("setup_no_agents"), file=sys.stderr)
+        return 1
+    _copy_resume_script()
+    _write_resume_sidecar()
+    settings = _load_settings()
+    hooks = settings.get("hooks")
+    if not isinstance(hooks, dict):
+        hooks = {}
+        settings["hooks"] = hooks
+    session_start = hooks.get("SessionStart")
+    if not isinstance(session_start, list):
+        session_start = []
+        hooks["SessionStart"] = session_start
+    session_start[:] = [e for e in session_start if not _is_resume_entry(e)]
+    session_start.append(
+        {"matcher": RESUME_MATCHER, "hooks": [{"type": "command", "command": _resume_command()}]}
+    )
+    _save_settings(settings)
+    print(_t("setup_resume_enabled", path=RESUME_HOOK_TARGET))
+    print(_t("setup_claude_restart_required"))
+    return 0
+
+
+def disable_session_resume() -> int:
+    if CLAUDE_SETTINGS.parent.exists():
+        settings = _load_settings()
+        session_start = _session_start_list(settings)
+        if session_start is not None:
+            kept = [e for e in session_start if not _is_resume_entry(e)]
+            if len(kept) != len(session_start):
+                hooks = settings["hooks"]
+                if kept:
+                    hooks["SessionStart"] = kept
+                else:
+                    hooks.pop("SessionStart", None)
+                if not hooks:
+                    settings.pop("hooks", None)
+                _save_settings(settings)
+                print(_t("setup_resume_disabled"))
+    for path in (RESUME_HOOK_TARGET, RESUME_PROMPT_SIDECAR):
+        if path.exists():
+            path.unlink()
+    return 0
+
+
+def _installed_resume_version() -> str | None:
+    try:
+        with RESUME_HOOK_TARGET.open(encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("__version__"):
+                    return line.split("=", 1)[1].strip().strip("\"'")
+    except OSError:
+        pass
+    return None
+
+
+def _self_heal_resume() -> None:
+    """Keep the opt-in resume hook healthy *only if already enabled* — restore a missing
+    script/sidecar and update a stale script. Never enables it on its own."""
+    if not is_resume_enabled():
+        return
+    if not RESUME_HOOK_TARGET.exists() or not RESUME_PROMPT_SIDECAR.exists():
+        _copy_resume_script()
+        _write_resume_sidecar()
+        _append_self_heal_log("restore_resume_hook", "resume script or sidecar missing")
+    elif _installed_resume_version() != RESUME_HOOK_VERSION:
+        old = _installed_resume_version()
+        _copy_resume_script()
+        _write_resume_sidecar()
+        _append_self_heal_log("update_resume_hook", f"{old or 'unknown'} -> {RESUME_HOOK_VERSION}")
+
+
 def _append_self_heal_log(action: str, detail: str) -> None:
     settings = _load_settings()
     usage_settings = settings.get(BACKUP_KEY)
@@ -464,6 +632,13 @@ def self_heal() -> None:
         if isinstance(exc, KeyboardInterrupt):
             raise
         _debug_self_heal_failure("restore_hook_scripts", exc)
+
+    try:
+        _self_heal_resume()
+    except BaseException as exc:
+        if isinstance(exc, KeyboardInterrupt):
+            raise
+        _debug_self_heal_failure("resume_hook", exc)
 
 
 def is_setup() -> bool:
@@ -571,6 +746,8 @@ def unsetup() -> int:
         if STATUS_FILE.exists():
             STATUS_FILE.unlink()
             print(_t("setup_status_file_deleted", path=STATUS_FILE))
+
+        disable_session_resume()
 
     if CODEX_CONFIG.exists():
         _unsetup_codex()

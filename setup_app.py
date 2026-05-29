@@ -53,6 +53,7 @@ if __name__ == "__main__":
             "tips/commands.json",
             "usage_statusline.py",
             "usage_statusline_forwarder.py",
+            "usage_session_resume.py",
         ],
         "includes": [
             "AppKit",

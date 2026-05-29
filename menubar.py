@@ -228,6 +228,16 @@ def _show_recent_work_enabled(prefs: dict[str, Any] | None = None) -> bool:
     return data.get("show_recent_work") is not False
 
 
+def _session_resume_enabled() -> bool:
+    # State lives in ~/.claude/settings.json (a hook), not in usage's prefs file.
+    try:
+        import setup_hook
+
+        return setup_hook.is_resume_enabled()
+    except Exception:
+        return False
+
+
 def _update_dismissed_recently(prefs: dict[str, Any]) -> bool:
     dismissed_at = prefs.get("update_dismissed_at")
     if isinstance(dismissed_at, int | float):
@@ -495,6 +505,14 @@ class AppDelegate(NSObject):
         recent_work_item.setTarget_(self)
         recent_work_item.setState_(1 if _show_recent_work_enabled() else 0)
         menu.addItem_(recent_work_item)
+        session_resume_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            _t(self.language, "session_resume_menu"),
+            "toggleSessionResume:",
+            "",
+        )
+        session_resume_item.setTarget_(self)
+        session_resume_item.setState_(1 if _session_resume_enabled() else 0)
+        menu.addItem_(session_resume_item)
         menu.popUpMenuPositioningItem_atLocation_inView_(None, NSMakePoint(0, 0), sender)
 
     def selectPanel_(self, sender: Any) -> None:
@@ -543,6 +561,48 @@ class AppDelegate(NSObject):
         _save_preferences(prefs)
         if hasattr(sender, "setState_"):
             sender.setState_(1 if enabled else 0)
+
+    def toggleSessionResume_(self, sender: Any) -> None:
+        thread = threading.Thread(target=self._toggle_session_resume_in_background, daemon=True)
+        thread.start()
+
+    def _toggle_session_resume_in_background(self) -> None:
+        import setup_hook
+
+        output = io.StringIO()
+        ok = True
+        enabled = False
+        try:
+            with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
+                if setup_hook.is_resume_enabled():
+                    setup_hook.disable_session_resume()
+                else:
+                    ok = setup_hook.enable_session_resume() == 0
+                    enabled = ok
+        except SystemExit as exc:
+            if exc.code:
+                ok = False
+                print(exc.code, file=output)
+        except Exception as exc:
+            ok = False
+            print(f"{type(exc).__name__}: {exc}", file=output)
+
+        self.performSelectorOnMainThread_withObject_waitUntilDone_(
+            "_finishSessionResume:",
+            {"ok": ok, "enabled": enabled, "output": output.getvalue().strip()},
+            False,
+        )
+
+    def _finishSessionResume_(self, result: dict[str, Any]) -> None:
+        alert = NSAlert.alloc().init()
+        if result.get("ok", True):
+            key = "resume_enabled_restart" if result.get("enabled") else "resume_disabled_msg"
+            alert.setMessageText_(_t(self.language, key))
+        else:
+            alert.setMessageText_(_t(self.language, "resume_action_failed"))
+            alert.setInformativeText_(str(result.get("output") or ""))
+        alert.runModal()
+        self._refresh()
 
     def _maybe_check_update_in_background(self) -> None:
         self._check_update_in_background(
