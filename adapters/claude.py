@@ -16,7 +16,7 @@ _file_cache: OrderedDict[Path, tuple[float, int, list[UsageEntry]]] = OrderedDic
 
 
 def detect() -> AgentInfo | None:
-    for d in _get_claude_dirs():
+    for d in get_claude_dirs():
         if Path(d).is_dir():
             return AgentInfo(
                 id="claude-code",
@@ -35,19 +35,19 @@ def load_entries(hours_back: int = 0) -> list[UsageEntry]:
         from datetime import timedelta
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
 
-    for base_dir in _get_claude_dirs():
+    for base_dir in get_claude_dirs():
         base = Path(base_dir)
         if not base.is_dir():
             continue
         for jsonl_path in base.rglob("*.jsonl"):
-            fallback_project = _extract_project_from_dir(jsonl_path, base)
-            _parse_jsonl(jsonl_path, fallback_project, entries, seen, cutoff)
+            fallback_project = extract_project_from_dir(jsonl_path, base)
+            parse_jsonl(jsonl_path, fallback_project, entries, seen, cutoff)
 
     entries.sort(key=lambda e: e.timestamp)
     return entries
 
 
-def _get_claude_dirs() -> list[str]:
+def get_claude_dirs() -> list[str]:
     dirs = list(CLAUDE_DIRS)
     env = os.environ.get("CLAUDE_CONFIG_DIR")
     if env:
@@ -68,7 +68,7 @@ def _project_from_cwd(cwd: str) -> str:
     return parts[-1] if parts and parts[-1] else rel or "unknown"
 
 
-def _extract_project_from_dir(jsonl_path: Path, base: Path) -> str:
+def extract_project_from_dir(jsonl_path: Path, base: Path) -> str:
     rel = jsonl_path.relative_to(base)
     project_dir = str(rel.parts[0]) if rel.parts else "unknown"
     decoded = project_dir.replace("-", os.sep).strip(os.sep)
@@ -79,7 +79,7 @@ def _extract_project_from_dir(jsonl_path: Path, base: Path) -> str:
     return parts[-1] if parts else "unknown"
 
 
-def _parse_jsonl(
+def parse_jsonl(
     path: Path,
     project: str,
     entries: list[UsageEntry],

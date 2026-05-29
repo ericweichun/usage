@@ -65,7 +65,7 @@ def _load_recent_claude_entries(hours_back: int) -> list[UsageEntry]:
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
     cutoff_ts = cutoff.timestamp()
     jobs: list[tuple[Path, Path]] = []
-    for base_dir in claude._get_claude_dirs():  # type: ignore[attr-defined]
+    for base_dir in claude.get_claude_dirs():
         base = Path(base_dir)
         if not base.is_dir():
             continue
@@ -91,8 +91,8 @@ def _load_recent_claude_entries(hours_back: int) -> list[UsageEntry]:
 def _parse_claude_file(path: Path, base: Path, cutoff: datetime) -> list[UsageEntry]:
     parsed: list[UsageEntry] = []
     local_seen: set[str] = set()
-    fallback_project = claude._extract_project_from_dir(path, base)  # type: ignore[attr-defined]
-    claude._parse_jsonl(path, fallback_project, parsed, local_seen, cutoff)  # type: ignore[attr-defined]
+    fallback_project = claude.extract_project_from_dir(path, base)
+    claude.parse_jsonl(path, fallback_project, parsed, local_seen, cutoff)
     return parsed
 
 
