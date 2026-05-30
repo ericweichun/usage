@@ -135,3 +135,26 @@ def test_html_panel_requires_explicit_codex_card_height() -> None:
 
     with pytest.raises(TypeError):
         constructor("test", "panel_test", "test.html")
+
+
+def test_evaluate_javascript_completion_handler_block_signature() -> None:
+    # Regression: when WebKit is pulled in via objc.loadBundle (no framework
+    # wrapper, e.g. a background/non-app launch), evaluateJavaScript:
+    # completionHandler: used to raise "Argument 3 is a block, but no signature
+    # available" the moment a Python completion handler was passed, crashing the
+    # panel popover. web_panel registers the block metadata to prevent this.
+    import panels.web_panel as web_panel
+
+    WKWebView = getattr(web_panel, "WKWebView", None)
+    WKWebViewConfiguration = getattr(web_panel, "WKWebViewConfiguration", None)
+    if WKWebView is None or WKWebViewConfiguration is None:
+        pytest.skip("WebKit unavailable in this environment")
+
+    from AppKit import NSMakeRect
+
+    config = WKWebViewConfiguration.alloc().init()
+    view = WKWebView.alloc().initWithFrame_configuration_(
+        NSMakeRect(0, 0, 10, 10), config
+    )
+    # Must not raise TypeError about the missing block signature.
+    view.evaluateJavaScript_completionHandler_("1+1", lambda value, error: None)
