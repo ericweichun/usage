@@ -61,7 +61,7 @@ _SL_REGEX = re.compile(r"status_line\s*=\s*\[.*?\]", re.DOTALL)
 # session. Off by default: enabled only via the menu toggle, never by self_heal.
 RESUME_HOOK_TARGET = Path(os.path.expanduser("~/.claude/usage-session-resume.py"))
 RESUME_PROMPT_SIDECAR = Path(os.path.expanduser("~/.claude/usage-resume-prompt.json"))
-RESUME_HOOK_VERSION = "1.0"
+RESUME_HOOK_VERSION = "1.2"
 RESUME_MATCHER = "startup|clear"
 RESUME_LANGS = ("zh-TW", "zh-CN", "en", "ja", "ko")
 _RESUME_MARKER = "usage-session-resume"
@@ -441,8 +441,9 @@ def _write_resume_sidecar() -> None:
         prompt = table.get("report_rw_prompt") or en.get("report_rw_prompt")
         none_label = table.get("report_rw_none") or en.get("report_rw_none")
         lead = table.get("report_rw_inject_lead") or en.get("report_rw_inject_lead") or ""
+        empty = table.get("report_rw_empty") or en.get("report_rw_empty") or ""
         if isinstance(prompt, str) and isinstance(none_label, str):
-            out[lang] = {"prompt": prompt, "none": none_label, "lead": lead}
+            out[lang] = {"prompt": prompt, "none": none_label, "lead": lead, "empty": empty}
     if out:
         RESUME_PROMPT_SIDECAR.parent.mkdir(parents=True, exist_ok=True)
         _atomic_write_text(

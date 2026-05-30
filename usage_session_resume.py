@@ -11,10 +11,15 @@ under macOS's bundled ``/usr/bin/python3`` (3.9), so no third-party imports, no
 ``datetime.UTC``, no runtime ``X | Y`` types. The session-log parse is self-contained here
 (no app imports), so the hook stays loadable under the bundled interpreter.
 
+When there's no fresh progress to hand over (brand-new project, the previous session
+did nothing extractable, or it's older than the cutoff) the butler still checks in with
+a short greeting rather than going silent.
+
 The prompt wording stays single-sourced: ``setup_hook`` writes ``report_rw_prompt`` /
-``report_rw_none`` / ``report_rw_inject_lead`` from ``i18n.json`` to a sidecar that this
-script reads. If the sidecar is missing it falls back to the embedded English default. The
-script never raises into the session — any failure exits 0 with no output.
+``report_rw_none`` / ``report_rw_inject_lead`` / ``report_rw_empty`` from ``i18n.json`` to
+a sidecar that this script reads. If the sidecar is missing it falls back to the embedded
+English default. The script never raises into the session — any failure exits 0 with no
+output.
 """
 
 from __future__ import annotations
@@ -27,11 +32,16 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-__version__ = "1.0"
+__version__ = "1.2"
 
 PROMPT_SIDECAR = Path(os.path.expanduser("~/.claude/usage-resume-prompt.json"))
 
-_COMMIT_HEREDOC = re.compile(r"""cat\s*<<\s*['"]?\w+['"]?\s*\n(.+?)\n""", re.S)
+# Only a heredoc that feeds git's commit message — `-F -` / `--file -` or `-m "$(cat`.
+# Anchoring on these keeps an unrelated heredoc in the same command (e.g. a python
+# `<<PYEOF` script whose first line is `import ...`) from being mistaken for a title.
+_COMMIT_HEREDOC = re.compile(
+    r"""(?:-F\s*-?|--file[=\s]\s*-?|\$\(\s*cat)\s*<<-?\s*['"]?\w+['"]?\s*\n(.+?)\n""", re.S
+)
 _COMMIT_INLINE = re.compile(r"""-m\s+["']([^"'\n]{4,90})""")
 _MAX_AGE_DAYS = 30
 _MAX_COMMITS = 3
@@ -45,6 +55,11 @@ _DEFAULT_PROMPT = (
     "Please reconstruct the context first, then give me the concrete next step to take."
 )
 _DEFAULT_NONE = "(none recorded)"
+_DEFAULT_EMPTY = (
+    "(At the very start of your first reply in this session, say one line: "
+    '"🐾 Your project butler is on duty. No progress to report for this project yet.", '
+    "then respond normally.)"
+)
 
 
 def main() -> int:
@@ -78,7 +93,25 @@ def _build_prompt(payload: dict[str, Any]) -> str:
     project_dir = Path(transcript).parent
     if not project_dir.is_dir():
         return ""
-    latest = _latest_other_jsonl(project_dir, exclude=Path(transcript).name)
+
+    lead, template, none_label, empty = _load_template(_detect_lang())
+    project = _project_from_cwd(cwd) if isinstance(cwd, str) and cwd else project_dir.name
+    report = _build_report(project_dir, Path(transcript).name, project, lead, template, none_label)
+    # The butler always checks in: when there's no fresh progress to hand over, it
+    # greets instead of going silent.
+    return report or empty
+
+
+def _build_report(
+    project_dir: Path,
+    current_name: str,
+    project: str,
+    lead: str,
+    template: str,
+    none_label: str,
+) -> str:
+    """The "I loaded your last progress" prompt, or "" when there's nothing fresh to report."""
+    latest = _latest_other_jsonl(project_dir, exclude=current_name)
     if latest is None:
         return ""
     parsed = _parse_session(latest)
@@ -87,9 +120,6 @@ def _build_prompt(payload: dict[str, Any]) -> str:
     last_active, last_request, commits, todos = parsed
     if last_active < _cutoff():
         return ""
-
-    lead, template, none_label = _load_template(_detect_lang())
-    project = _project_from_cwd(cwd) if isinstance(cwd, str) and cwd else project_dir.name
     request_text = last_request or none_label
     commits_text = " · ".join(commits[:_MAX_COMMITS]) or none_label
     todos_text = " · ".join(todos[:_MAX_TODOS]) or none_label
@@ -298,26 +328,30 @@ def _normalize_lang(code: str) -> str:
     return "en"
 
 
-def _load_template(lang: str) -> tuple[str, str, str]:
-    """Return (lead, prompt, none). ``lead`` is a short instruction prepended to the
-    injected context so Claude's first reply visibly acknowledges it loaded the
-    progress — the only way a SessionStart hook can surface itself to the user."""
+def _load_template(lang: str) -> tuple[str, str, str, str]:
+    """Return (lead, prompt, none, empty). ``lead`` is a short instruction prepended to
+    the injected context so Claude's first reply visibly acknowledges it loaded the
+    progress — the only way a SessionStart hook can surface itself to the user.
+    ``empty`` is the standalone greeting shown when there's no fresh progress to report."""
+    fallback = ("", _DEFAULT_PROMPT, _DEFAULT_NONE, _DEFAULT_EMPTY)
     try:
         bundle = json.loads(PROMPT_SIDECAR.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, ValueError):
-        return "", _DEFAULT_PROMPT, _DEFAULT_NONE
+        return fallback
     if not isinstance(bundle, dict):
-        return "", _DEFAULT_PROMPT, _DEFAULT_NONE
+        return fallback
     entry = bundle.get(lang) or bundle.get("en")
     if not isinstance(entry, dict):
-        return "", _DEFAULT_PROMPT, _DEFAULT_NONE
+        return fallback
     lead = entry.get("lead")
     prompt = entry.get("prompt")
     none_label = entry.get("none")
+    empty = entry.get("empty")
     return (
         lead if isinstance(lead, str) else "",
         prompt if isinstance(prompt, str) and prompt else _DEFAULT_PROMPT,
         none_label if isinstance(none_label, str) and none_label else _DEFAULT_NONE,
+        empty if isinstance(empty, str) and empty else _DEFAULT_EMPTY,
     )
 
 
