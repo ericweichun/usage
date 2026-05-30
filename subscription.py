@@ -41,9 +41,17 @@ def _load_claude_subscription() -> dict[str, str | None] | None:
         data = json.loads(CLAUDE_CONFIG.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    account = data.get("oauthAccount") or {}
+    if not isinstance(data, dict):
+        return None
+    account = data.get("oauthAccount")
+    if not isinstance(account, dict):
+        account = {}
     org_type = account.get("organizationType")
     since = account.get("subscriptionCreatedAt")
+    if not isinstance(org_type, str):
+        org_type = None
+    if not isinstance(since, str):
+        since = None
     if not org_type and not since:
         return None
     plan = _CLAUDE_PLAN_NAMES.get(org_type or "")
@@ -57,12 +65,23 @@ def _load_codex_subscription() -> dict[str, str | None] | None:
         data = json.loads(CODEX_AUTH.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+    if not isinstance(data, dict):
+        return None
     if data.get("auth_mode") != "chatgpt":
         return None
-    claims = _decode_jwt_payload(data.get("tokens", {}).get("id_token", ""))
-    auth = claims.get("https://api.openai.com/auth", {})
+    tokens = data.get("tokens")
+    if not isinstance(tokens, dict):
+        tokens = {}
+    claims = _decode_jwt_payload(tokens.get("id_token", ""))
+    auth = claims.get("https://api.openai.com/auth")
+    if not isinstance(auth, dict):
+        auth = {}
     plan_type = auth.get("chatgpt_plan_type")
     since = auth.get("chatgpt_subscription_active_start")
+    if not isinstance(plan_type, str):
+        plan_type = None
+    if not isinstance(since, str):
+        since = None
     if not plan_type and not since:
         return None
     plan = f"ChatGPT {plan_type.title()}" if plan_type else "ChatGPT"
