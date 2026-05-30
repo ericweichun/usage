@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -396,6 +397,61 @@ def test_main_with_empty_stdin_is_silent(
     monkeypatch.setattr("sys.stdin", _FakeStdin(""))
     assert mod.main() == 0
     assert capsys.readouterr().out == ""
+
+
+def test_build_prompt_skips_corrupt_latest_and_uses_previous(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The freshest log is empty; the butler must fall back to the older valid session
+    # instead of going silent.
+    monkeypatch.setenv("LANG", "en_US.UTF-8")
+    _sidecar(tmp_path, monkeypatch)
+    project = _project_dir(tmp_path)
+    now = datetime.now().astimezone()
+    valid = project / "older_valid.jsonl"
+    _write_session(
+        valid,
+        when=now - timedelta(hours=3),
+        request="resume the real task",
+        commits=["feat: real work"],
+    )
+    empty = project / "newer_empty.jsonl"
+    empty.write_text("", encoding="utf-8")
+    current = project / "current.jsonl"
+    current.write_text("", encoding="utf-8")
+    os.utime(valid, (now.timestamp() - 3600, now.timestamp() - 3600))  # older mtime
+
+    prompt = mod._build_prompt(
+        {"transcript_path": str(current), "cwd": "/Users/me/Developer/myproj"}
+    )
+
+    assert "resume the real task" in prompt
+    assert "feat: real work" in prompt
+
+
+def test_build_prompt_handles_naive_timestamp(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # A transcript whose timestamps carry no UTC offset must not crash the cutoff check.
+    monkeypatch.setenv("LANG", "en_US.UTF-8")
+    _sidecar(tmp_path, monkeypatch)
+    project = _project_dir(tmp_path)
+    naive = (datetime.now() - timedelta(hours=1)).replace(microsecond=0)
+    assert naive.tzinfo is None
+    lines = [
+        {"type": "user", "timestamp": naive.isoformat(), "message": {"content": "fix the clock"}},
+        {"type": "assistant", "timestamp": naive.isoformat(), "message": {"content": []}},
+    ]
+    prev = project / "prev.jsonl"
+    prev.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
+    current = project / "current.jsonl"
+    current.write_text("", encoding="utf-8")
+
+    prompt = mod._build_prompt(
+        {"transcript_path": str(current), "cwd": "/Users/me/Developer/myproj"}
+    )
+
+    assert "fix the clock" in prompt
 
 
 class _FakeStdin:

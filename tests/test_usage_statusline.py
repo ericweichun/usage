@@ -283,6 +283,24 @@ def test_render_skips_bad_rate_limit_percentage_without_fallback(
     assert "5h" not in output
 
 
+def test_render_skips_bad_resets_at_without_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TT_LANG", "en")
+    monkeypatch.setattr(usage_statusline, "get_width", lambda: 116)
+    payload = {
+        "rate_limits": {
+            "five_hour": {"used_percentage": 50, "resets_at": "not-a-number"},
+            "seven_day": {"used_percentage": 33},
+        },
+    }
+
+    output = usage_statusline.render(payload, datetime(2026, 1, 1, tzinfo=UTC))
+
+    assert output != "usage"  # one bad field must not blank the whole line
+    assert "5h" in output  # percentage still shown, just no reset countdown
+
+
 def test_main_prints_fallback_when_render_fails(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

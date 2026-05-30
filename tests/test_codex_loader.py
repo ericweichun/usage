@@ -231,6 +231,15 @@ def test_parse_jsonl_skips_bad_lines_and_missing_fields(tmp_path: Path) -> None:
     assert codex_loader._parse_jsonl(path, {}, None) == []
 
 
+def test_codex_session_with_bad_encoding_is_skipped(tmp_path: Path) -> None:
+    # A non-UTF-8 session log must be skipped, not crash quota/history reads.
+    path = tmp_path / "binary.jsonl"
+    path.write_bytes(b"\xff\xfe not utf-8\n")
+
+    assert codex_loader._parse_jsonl(path, {}, None) == []
+    assert codex_loader._extract_rate_limits(path, {}) is None
+
+
 def test_jsonl_cache_evicts_oldest_entry_when_maxsize_exceeded(tmp_path: Path) -> None:
     timestamp = datetime.now(UTC).isoformat()
     paths = [

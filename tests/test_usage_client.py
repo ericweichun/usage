@@ -48,6 +48,30 @@ def test_read_status_file_skips_bad_json_and_prefers_usage_file(
     assert data["rate_limits"]["five_hour"]["used_percentage"] == 12
 
 
+def test_read_status_file_skips_bad_encoding(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # A half-written or non-UTF-8 status file must be skipped, not crash the poll loop.
+    usage_path = tmp_path / "usage-status.json"
+    tt_path = tmp_path / "tt-status.json"
+    monkeypatch.setattr(usage_client, "STATUS_FILE", str(usage_path))
+    monkeypatch.setattr(usage_client, "LEGACY_STATUS_FILE", str(tmp_path / f"{LEGACY_NAME}.json"))
+    monkeypatch.setattr(usage_client, "TT_STATUS_FILE", str(tt_path))
+
+    usage_path.write_bytes(b"\xff\xfe garbage")
+    tt_path.write_text(
+        json.dumps({"rate_limits": {"five_hour": {"used_percentage": 7}}}),
+        encoding="utf-8",
+    )
+
+    result = usage_client._read_status_file()
+
+    assert result is not None
+    data, path, _mtime = result
+    assert path == str(tt_path)
+    assert data["rate_limits"]["five_hour"]["used_percentage"] == 7
+
+
 def test_read_status_file_prefers_legacy_over_tt_compat(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

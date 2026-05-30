@@ -227,3 +227,24 @@ def test_self_heal_noop_when_disabled(
     _settings, resume_target, _sidecar = _patch(monkeypatch, tmp_path)
     setup_hook._self_heal_resume()
     assert not resume_target.exists()
+
+
+def test_disable_preserves_user_hook_in_shared_entry(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # A user who tucked their own hook into the *same* SessionStart entry as ours must
+    # not lose it when resume is disabled — we strip only our hook item, not the entry.
+    settings, _resume_target, _sidecar = _patch(monkeypatch, tmp_path)
+    setup_hook.enable_session_resume()
+    data = json.loads(settings.read_text(encoding="utf-8"))
+    data["hooks"]["SessionStart"][0]["hooks"].append(
+        {"type": "command", "command": "echo my-own-hook"}
+    )
+    settings.write_text(json.dumps(data), encoding="utf-8")
+
+    assert setup_hook.disable_session_resume() == 0
+
+    data = json.loads(settings.read_text(encoding="utf-8"))
+    commands = [h["command"] for e in data["hooks"]["SessionStart"] for h in e["hooks"]]
+    assert "echo my-own-hook" in commands  # user's hook survived
+    assert not setup_hook.is_resume_enabled()  # ours is gone

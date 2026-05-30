@@ -236,6 +236,31 @@ status_line = ["keep"]
     assert "[tui]\nstatus_line" not in content
 
 
+def test_unsetup_codex_keeps_backup_when_restore_write_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    codex_config = tmp_path / ".codex" / "config.toml"
+    codex_backup = tmp_path / ".codex" / "usage-backup.json"
+    legacy_backup = tmp_path / ".codex" / "tt-backup.json"
+    codex_config.parent.mkdir()
+    codex_config.write_text('[tui]\nstatus_line = ["old"]\n', encoding="utf-8")
+    codex_backup.write_text(json.dumps({"status_line": ["original"]}), encoding="utf-8")
+    monkeypatch.setattr(setup_hook, "CODEX_CONFIG", codex_config)
+    monkeypatch.setattr(setup_hook, "CODEX_BACKUP", codex_backup)
+    monkeypatch.setattr(setup_hook, "LEGACY_CODEX_BACKUP", legacy_backup)
+
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(setup_hook, "_atomic_write_text", _boom)
+
+    with pytest.raises(OSError):
+        setup_hook._unsetup_codex()
+
+    # A failed restore must leave the backup intact so a retry can still recover.
+    assert codex_backup.exists()
+
+
 def test_self_heal_installs_when_no_statusline(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

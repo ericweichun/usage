@@ -90,7 +90,7 @@ def _read_status_file() -> tuple[dict[str, Any], str, float] | None:
         try:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
-        except (OSError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
             if os.environ.get("USAGE_DEBUG") == "1":
                 logger.warning("failed to read status file %s", path, exc_info=True)
             continue

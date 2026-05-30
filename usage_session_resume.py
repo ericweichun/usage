@@ -199,10 +199,11 @@ def _build_report(
     none_label: str,
 ) -> str:
     """The "I loaded your last progress" prompt, or "" when there's nothing fresh to report."""
-    latest = _latest_other_jsonl(project_dir, exclude=current_name)
-    if latest is None:
-        return ""
-    parsed = _parse_session(latest)
+    parsed = None
+    for candidate in _other_jsonls_by_mtime(project_dir, exclude=current_name):
+        parsed = _parse_session(candidate)
+        if parsed is not None:
+            break
     if parsed is None:
         return ""
     last_active, last_request, commits, todos = parsed
@@ -224,9 +225,13 @@ def _cutoff() -> datetime:
     return datetime.now().astimezone() - timedelta(days=_MAX_AGE_DAYS)
 
 
-def _latest_other_jsonl(project_dir: Path, exclude: str) -> Path | None:
-    latest: Path | None = None
-    latest_mtime = -1.0
+def _other_jsonls_by_mtime(project_dir: Path, exclude: str) -> list[Path]:
+    """Other session logs in the project, newest first.
+
+    Newest-first so the caller can skip a freshly-written but empty/corrupt log and
+    still fall back to the previous session that actually has progress to report.
+    """
+    candidates: list[tuple[float, Path]] = []
     for jsonl in project_dir.glob("*.jsonl"):
         if jsonl.name == exclude:
             continue
@@ -234,10 +239,9 @@ def _latest_other_jsonl(project_dir: Path, exclude: str) -> Path | None:
             mtime = jsonl.stat().st_mtime
         except OSError:
             continue
-        if mtime > latest_mtime:
-            latest_mtime = mtime
-            latest = jsonl
-    return latest
+        candidates.append((mtime, jsonl))
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    return [path for _, path in candidates]
 
 
 def _parse_session(path: Path) -> tuple[datetime, str, list[str], list[str]] | None:
@@ -392,9 +396,12 @@ def _parse_timestamp(value: object) -> datetime | None:
     if not isinstance(value, str):
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+    # A naive timestamp (no offset) can't be compared against the aware _cutoff();
+    # assume local time so the comparison stays type-safe.
+    return parsed if parsed.tzinfo is not None else parsed.astimezone()
 
 
 def _format_time(parsed: datetime) -> str:

@@ -379,8 +379,8 @@ def _render_core(data: Dict[str, Any], now: datetime) -> str:
         if pct_float is None:
             continue
         reset_str = ""
-        resets_at = entry.get("resets_at")
-        if resets_at:
+        resets_at = _as_float(entry.get("resets_at"))
+        if resets_at is not None:
             remain = int(resets_at) - int(now.timestamp())
             if remain > 0:
                 if lang in ("zh-TW", "zh-CN"):

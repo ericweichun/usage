@@ -140,7 +140,7 @@ def _extract_rate_limits(path: Path, models: dict[str, str]) -> CodexRateLimits 
                 rate_limits = _as_dict(payload.get("rate_limits"))
                 if rate_limits:
                     last_rate_limits = (rate_limits, _as_str(data.get("timestamp")))
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         logger.warning("failed to read codex session %s: %s", path, exc)
         return None
     if last_rate_limits is None:
@@ -236,7 +236,7 @@ def _parse_jsonl(path: Path, models: dict[str, str], cutoff: datetime | None) ->
                         project=project,
                     )
                 )
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         logger.warning("failed to parse codex session %s: %s", path, exc)
         if path not in _jsonl_cache and len(_jsonl_cache) >= _JSONL_CACHE_MAXSIZE:
             _jsonl_cache.popitem(last=False)

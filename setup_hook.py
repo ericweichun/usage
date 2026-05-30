@@ -386,13 +386,15 @@ def _unsetup_codex() -> None:
         except (OSError, json.JSONDecodeError, AttributeError):
             old_items = []
         content = _replace_tui_status_line(content, _status_line_toml(old_items))
+        # Write the restored config before deleting the backup: if the write fails, the
+        # backup must survive so a later retry can still recover the original status line.
+        _atomic_write_text(CODEX_CONFIG, content)
         backup_path.unlink(missing_ok=True)
         print(_t("setup_codex_restored"))
     else:
         content = _remove_tui_status_line(content)
+        _atomic_write_text(CODEX_CONFIG, content)
         print(_t("setup_codex_removed"))
-
-    _atomic_write_text(CODEX_CONFIG, content)
 
 
 def _installed_hook_version() -> str | None:
@@ -489,6 +491,35 @@ def _is_resume_entry(entry: object) -> bool:
     )
 
 
+def _strip_resume_hooks(entry: object) -> object | None:
+    """Return ``entry`` with usage-owned resume hooks removed.
+
+    Removes only the resume hook *item*, not the whole entry, so a user who put their
+    own hook in the same SessionStart entry doesn't lose it when we disable. Returns
+    ``None`` when nothing but our hook was in the entry, ``entry`` unchanged when it
+    held no resume hook.
+    """
+    if not isinstance(entry, dict):
+        return entry
+    hooks = entry.get("hooks")
+    if not isinstance(hooks, list):
+        return entry
+    kept = [
+        h
+        for h in hooks
+        if not (
+            isinstance(h, dict)
+            and isinstance(h.get("command"), str)
+            and any(marker in h["command"] for marker in _RESUME_MARKERS)
+        )
+    ]
+    if len(kept) == len(hooks):
+        return entry
+    if not kept:
+        return None
+    return {**entry, "hooks": kept}
+
+
 def _session_start_list(settings: dict[str, Any]) -> list[Any] | None:
     hooks = settings.get("hooks")
     if not isinstance(hooks, dict):
@@ -523,7 +554,7 @@ def enable_session_resume() -> int:
     if not isinstance(session_start, list):
         session_start = []
         hooks["SessionStart"] = session_start
-    session_start[:] = [e for e in session_start if not _is_resume_entry(e)]
+    session_start[:] = [e for e in (_strip_resume_hooks(e) for e in session_start) if e is not None]
     session_start.append(
         {"matcher": RESUME_MATCHER, "hooks": [{"type": "command", "command": _resume_command()}]}
     )
@@ -538,8 +569,8 @@ def disable_session_resume() -> int:
         settings = _load_settings()
         session_start = _session_start_list(settings)
         if session_start is not None:
-            kept = [e for e in session_start if not _is_resume_entry(e)]
-            if len(kept) != len(session_start):
+            kept = [e for e in (_strip_resume_hooks(e) for e in session_start) if e is not None]
+            if kept != session_start:
                 hooks = settings["hooks"]
                 if kept:
                     hooks["SessionStart"] = kept
