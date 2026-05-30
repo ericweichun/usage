@@ -224,11 +224,6 @@ def _hide_codex_enabled(prefs: dict[str, Any] | None = None) -> bool:
     return data.get("hide_codex_section") is True
 
 
-def _show_recent_work_enabled(prefs: dict[str, Any] | None = None) -> bool:
-    data = _load_preferences() if prefs is None else prefs
-    return data.get("show_recent_work") is not False
-
-
 def _session_resume_enabled() -> bool:
     # State lives in ~/.claude/settings.json (a hook), not in usage's prefs file.
     try:
@@ -490,6 +485,9 @@ class AppDelegate(NSObject):
 
     def switchPanel_(self, sender: Any) -> None:
         menu = NSMenu.alloc().initWithTitle_(_t(self.language, "switch_panel"))
+        # Panel themes live in a submenu so the menu stays short — one "面板主題 ▸"
+        # row that expands on demand instead of nine inline rows.
+        panel_submenu = NSMenu.alloc().initWithTitle_(_t(self.language, "switch_panel"))
         for panel in panels.all_panels():
             item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                 _panel_title(panel, self.language),
@@ -499,7 +497,12 @@ class AppDelegate(NSObject):
             item.setTarget_(self)
             item.setRepresentedObject_(panel.id)
             item.setState_(1 if panel.id == self.active_panel.id else 0)
-            menu.addItem_(item)
+            panel_submenu.addItem_(item)
+        panel_parent = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            _t(self.language, "switch_panel"), "", ""
+        )
+        panel_parent.setSubmenu_(panel_submenu)
+        menu.addItem_(panel_parent)
         menu.addItem_(NSMenuItem.separatorItem())
         launch_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
             _t(self.language, "launch_at_login"),
@@ -527,32 +530,18 @@ class AppDelegate(NSObject):
         hide_codex_item.setTarget_(self)
         hide_codex_item.setState_(1 if _hide_codex_enabled() else 0)
         menu.addItem_(hide_codex_item)
-        # "Resume where you left off" is one feature with two surfaces (report +
-        # new sessions); group them under a disabled header so the pair reads as one.
+        # Project Butler: one toggle that hands last session's progress to the next
+        # one. Tooltip carries the full explanation so the menu line stays short.
         menu.addItem_(NSMenuItem.separatorItem())
-        resume_header = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            _t(self.language, "recent_work_group"), "", ""
-        )
-        resume_header.setEnabled_(False)
-        menu.addItem_(resume_header)
-        recent_work_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            _t(self.language, "recent_work_in_report"),
-            "toggleRecentWork:",
-            "",
-        )
-        recent_work_item.setTarget_(self)
-        recent_work_item.setState_(1 if _show_recent_work_enabled() else 0)
-        recent_work_item.setIndentationLevel_(1)
-        menu.addItem_(recent_work_item)
-        session_resume_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            _t(self.language, "recent_work_in_new_session"),
+        butler_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            _t(self.language, "project_butler"),
             "toggleSessionResume:",
             "",
         )
-        session_resume_item.setTarget_(self)
-        session_resume_item.setState_(1 if _session_resume_enabled() else 0)
-        session_resume_item.setIndentationLevel_(1)
-        menu.addItem_(session_resume_item)
+        butler_item.setTarget_(self)
+        butler_item.setState_(1 if _session_resume_enabled() else 0)
+        butler_item.setToolTip_(_t(self.language, "project_butler_tooltip"))
+        menu.addItem_(butler_item)
         menu.popUpMenuPositioningItem_atLocation_inView_(None, NSMakePoint(0, 0), sender)
 
     def selectPanel_(self, sender: Any) -> None:
@@ -593,14 +582,6 @@ class AppDelegate(NSObject):
             sender.setState_(1 if enabled else 0)
         self.latest_state.hide_codex = enabled
         self.popover_controller.setState_(self.latest_state)
-
-    def toggleRecentWork_(self, sender: Any) -> None:
-        prefs = _load_preferences()
-        enabled = not _show_recent_work_enabled(prefs)
-        prefs["show_recent_work"] = enabled
-        _save_preferences(prefs)
-        if hasattr(sender, "setState_"):
-            sender.setState_(1 if enabled else 0)
 
     def toggleSessionResume_(self, sender: Any) -> None:
         thread = threading.Thread(target=self._toggle_session_resume_in_background, daemon=True)
@@ -1297,10 +1278,6 @@ def _generate_analysis_report(period: str = "month", language: str | None = None
 
     agents = detect_agents()
     data = build_report_data(agents, period)
-    if _show_recent_work_enabled():
-        import resume_loader
-
-        data["recent_work"] = resume_loader.recent_work_items()
     return save_and_open(data, language=language)
 
 

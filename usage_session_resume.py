@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """usage SessionStart hook — inject "where you left off" into a new Claude Code session.
 
-This is ceiling C of the resume feature. Claude Code runs this on SessionStart (matcher
+This is the "Project Butler" feature. Claude Code runs this on SessionStart (matcher
 ``startup|clear``) and pipes the session JSON on stdin; the script locates the project's
-*previous* session log, pulls the files changed and commits made last time, and emits a
-ready-to-act resume prompt via ``hookSpecificOutput.additionalContext``.
+*previous* session log, pulls the user's last request, the commits made, and any pending
+todos, and emits a ready-to-act resume prompt via ``hookSpecificOutput.additionalContext``.
 
 **Stdlib-only and 3.9-safe** — same constraint as ``usage_statusline.py``: it may run
 under macOS's bundled ``/usr/bin/python3`` (3.9), so no third-party imports, no
-``datetime.UTC``, no runtime ``X | Y`` types. It cannot import ``resume_loader`` (3.10
-slots, package imports), so the one-project parse is reimplemented here.
+``datetime.UTC``, no runtime ``X | Y`` types. The session-log parse is self-contained here
+(no app imports), so the hook stays loadable under the bundled interpreter.
 
-The prompt wording stays single-sourced: ``setup_hook`` writes ``rw_prompt`` / ``rw_none``
-from ``i18n.json`` to a sidecar that this script reads. If the sidecar is missing it falls
-back to the embedded English default. The script never raises into the session — any
-failure exits 0 with no output.
+The prompt wording stays single-sourced: ``setup_hook`` writes ``report_rw_prompt`` /
+``report_rw_none`` / ``report_rw_inject_lead`` from ``i18n.json`` to a sidecar that this
+script reads. If the sidecar is missing it falls back to the embedded English default. The
+script never raises into the session — any failure exits 0 with no output.
 """
 
 from __future__ import annotations
@@ -31,18 +31,18 @@ __version__ = "1.0"
 
 PROMPT_SIDECAR = Path(os.path.expanduser("~/.claude/usage-resume-prompt.json"))
 
-_EDIT_TOOLS = {"Edit", "Write"}
-# Mirror resume_loader's commit-title extraction so report and hook agree.
 _COMMIT_HEREDOC = re.compile(r"""cat\s*<<\s*['"]?\w+['"]?\s*\n(.+?)\n""", re.S)
 _COMMIT_INLINE = re.compile(r"""-m\s+["']([^"'\n]{4,90})""")
 _MAX_AGE_DAYS = 30
-_MAX_FILES = 6
 _MAX_COMMITS = 3
+_MAX_TODOS = 5
+_MAX_REQUEST_CHARS = 280
 
 _DEFAULT_PROMPT = (
     'Last time I was working on the "{project}" project (last active {when}).\n'
-    "Files I changed: {files}\nCommits: {commits}\n\n"
-    "Please help me recall where I left off and suggest concrete next steps."
+    "• What I was trying to do: {last_request}\n"
+    "• Done: {commits}\n• To do: {todos}\n\n"
+    "Please reconstruct the context first, then give me the concrete next step to take."
 )
 _DEFAULT_NONE = "(none recorded)"
 
@@ -84,16 +84,21 @@ def _build_prompt(payload: dict[str, Any]) -> str:
     parsed = _parse_session(latest)
     if parsed is None:
         return ""
-    last_active, changed, commits = parsed
+    last_active, last_request, commits, todos = parsed
     if last_active < _cutoff():
         return ""
 
     lead, template, none_label = _load_template(_detect_lang())
     project = _project_from_cwd(cwd) if isinstance(cwd, str) and cwd else project_dir.name
-    files_text = " · ".join(changed[:_MAX_FILES]) or none_label
+    request_text = last_request or none_label
     commits_text = " · ".join(commits[:_MAX_COMMITS]) or none_label
+    todos_text = " · ".join(todos[:_MAX_TODOS]) or none_label
     return lead + template.format(
-        project=project, when=_format_time(last_active), files=files_text, commits=commits_text
+        project=project,
+        when=_format_time(last_active),
+        last_request=request_text,
+        commits=commits_text,
+        todos=todos_text,
     )
 
 
@@ -117,10 +122,16 @@ def _latest_other_jsonl(project_dir: Path, exclude: str) -> Path | None:
     return latest
 
 
-def _parse_session(path: Path) -> tuple[datetime, list[str], list[str]] | None:
-    changed: list[str] = []
-    seen_files: set[str] = set()
+def _parse_session(path: Path) -> tuple[datetime, str, list[str], list[str]] | None:
+    """Return (last_active, last_request, commits, todos) for the previous session.
+
+    ``last_request`` is the most recent thing the user actually typed (their task in
+    their own words) — far higher signal than a list of changed filenames. ``todos``
+    are the pending items from the latest TodoWrite, if the session used one.
+    """
+    last_request = ""
     commits: list[str] = []
+    todos: list[str] = []
     last_ts: datetime | None = None
 
     try:
@@ -140,7 +151,18 @@ def _parse_session(path: Path) -> tuple[datetime, list[str], list[str]] | None:
                 if timestamp is not None and (last_ts is None or timestamp > last_ts):
                     last_ts = timestamp
 
-                if data.get("type") != "assistant":
+                entry_type = data.get("type")
+                if entry_type == "last-prompt":
+                    text = _clean_request(data.get("lastPrompt"))
+                    if text:
+                        last_request = text
+                    continue
+                if entry_type == "user":
+                    text = _user_request_text(data.get("message"))
+                    if text:
+                        last_request = text
+                    continue
+                if entry_type != "assistant":
                     continue
                 message = data.get("message")
                 if not isinstance(message, dict):
@@ -148,18 +170,58 @@ def _parse_session(path: Path) -> tuple[datetime, list[str], list[str]] | None:
                 content = message.get("content")
                 if not isinstance(content, list):
                     continue
-                _collect_tools(content, changed, seen_files, commits)
+                _collect_tools(content, commits, todos)
     except OSError:
         return None
 
-    if last_ts is None or (not changed and not commits):
+    if last_ts is None or not (last_request or commits or todos):
         return None
-    return last_ts, changed, commits
+    return last_ts, last_request, commits, todos
 
 
-def _collect_tools(
-    content: list[Any], changed: list[str], seen_files: set[str], commits: list[str]
-) -> None:
+def _user_request_text(message: object) -> str:
+    if not isinstance(message, dict):
+        return ""
+    content = message.get("content")
+    if isinstance(content, str):
+        return _clean_request(content)
+    if isinstance(content, list):
+        parts = [
+            part.get("text")
+            for part in content
+            if isinstance(part, dict) and part.get("type") == "text"
+        ]
+        return _clean_request(" ".join(p for p in parts if isinstance(p, str) and p.strip()))
+    return ""
+
+
+def _clean_request(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    text = " ".join(value.split())
+    # Skip the interruption marker Claude Code writes as a user turn — it is noise,
+    # not a request.
+    if not text or text.startswith("[Request interrupted"):
+        return ""
+    if len(text) > _MAX_REQUEST_CHARS:
+        text = text[: _MAX_REQUEST_CHARS - 1].rstrip() + "…"
+    return text
+
+
+def _pending_todos(items: list[Any]) -> list[str]:
+    result: list[str] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if item.get("status") not in ("pending", "in_progress"):
+            continue
+        text = item.get("content")
+        if isinstance(text, str) and text.strip():
+            result.append(_clean_request(text))
+    return [t for t in result if t]
+
+
+def _collect_tools(content: list[Any], commits: list[str], todos: list[str]) -> None:
     for part in content:
         if not isinstance(part, dict) or part.get("type") != "tool_use":
             continue
@@ -167,13 +229,12 @@ def _collect_tools(
         raw_input = part.get("input")
         if not isinstance(raw_input, dict):
             continue
-        if name in _EDIT_TOOLS:
-            file_path = raw_input.get("file_path")
-            if isinstance(file_path, str) and file_path:
-                base_name = file_path.rsplit("/", 1)[-1]
-                if base_name not in seen_files:
-                    seen_files.add(base_name)
-                    changed.append(base_name)
+        if name == "TodoWrite":
+            items = raw_input.get("todos")
+            if isinstance(items, list):
+                pending = _pending_todos(items)
+                if pending:
+                    todos[:] = pending  # latest TodoWrite wins — it is the current state
         elif name == "Bash":
             command = raw_input.get("command")
             if isinstance(command, str) and "git commit" in command:

@@ -9,22 +9,35 @@ import pytest
 import usage_session_resume as mod
 
 
-def _write_session(path: Path, *, when: datetime, files: list[str], commits: list[str]) -> None:
+def _write_session(
+    path: Path,
+    *,
+    when: datetime,
+    request: str = "",
+    commits: list[str] | None = None,
+    todos: list[str] | None = None,
+) -> None:
     lines: list[dict[str, object]] = []
-    content: list[dict[str, object]] = []
-    for file_path in files:
-        content.append(
-            {"type": "tool_use", "name": "Edit", "input": {"file_path": file_path}}
+    if request:
+        lines.append(
+            {"type": "user", "timestamp": when.isoformat(), "message": {"content": request}}
         )
-    for title in commits:
-        command = f"git commit -m \"{title}\""
+    content: list[dict[str, object]] = []
+    for title in commits or []:
+        command = f'git commit -m "{title}"'
         content.append({"type": "tool_use", "name": "Bash", "input": {"command": command}})
+    if todos:
+        content.append(
+            {
+                "type": "tool_use",
+                "name": "TodoWrite",
+                "input": {"todos": [{"content": t, "status": "pending"} for t in todos]},
+            }
+        )
     lines.append(
         {"type": "assistant", "timestamp": when.isoformat(), "message": {"content": content}}
     )
-    path.write_text(
-        "\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8"
-    )
+    path.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
 
 
 def _project_dir(tmp_path: Path) -> Path:
@@ -38,10 +51,17 @@ def _sidecar(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     sidecar.write_text(
         json.dumps(
             {
-                "en": {"prompt": "proj={project} when={when} files={files} commits={commits}",
-                       "none": "(none)", "lead": "LEAD:: "},
-                "zh-TW": {"prompt": "專案={project} 檔案={files}", "none": "（無）",
-                          "lead": "前情:: "},
+                "en": {
+                    "prompt": "proj={project} when={when} req={last_request} "
+                    "commits={commits} todos={todos}",
+                    "none": "(none)",
+                    "lead": "LEAD:: ",
+                },
+                "zh-TW": {
+                    "prompt": "專案={project} 請求={last_request}",
+                    "none": "（無）",
+                    "lead": "前情:: ",
+                },
             }
         ),
         encoding="utf-8",
@@ -61,7 +81,7 @@ def test_build_prompt_reads_previous_session(
     _write_session(
         project / "prev.jsonl",
         when=now - timedelta(hours=2),
-        files=["/Users/me/Developer/myproj/foo.py", "/Users/me/Developer/myproj/bar.py"],
+        request="add a dark mode toggle to the settings panel",
         commits=["fix: the thing"],
     )
     current = project / "current.jsonl"
@@ -73,8 +93,63 @@ def test_build_prompt_reads_previous_session(
 
     assert prompt.startswith("LEAD:: ")  # injected lead so Claude visibly acknowledges
     assert "proj=myproj" in prompt
-    assert "foo.py" in prompt and "bar.py" in prompt
+    assert "add a dark mode toggle to the settings panel" in prompt  # the last request
     assert "fix: the thing" in prompt
+
+
+def test_build_prompt_includes_pending_todos(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("LANG", "en_US.UTF-8")
+    _sidecar(tmp_path, monkeypatch)
+    project = _project_dir(tmp_path)
+    _write_session(
+        project / "prev.jsonl",
+        when=datetime.now().astimezone() - timedelta(hours=1),
+        request="ship the release",
+        todos=["write changelog", "tag the version"],
+    )
+    current = project / "current.jsonl"
+    current.write_text("", encoding="utf-8")
+
+    prompt = mod._build_prompt(
+        {"transcript_path": str(current), "cwd": "/Users/me/Developer/myproj"}
+    )
+
+    assert "write changelog" in prompt and "tag the version" in prompt
+
+
+def test_build_prompt_reads_last_prompt_entry(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("LANG", "en_US.UTF-8")
+    _sidecar(tmp_path, monkeypatch)
+    project = _project_dir(tmp_path)
+    when = datetime.now().astimezone() - timedelta(hours=1)
+    # A `last-prompt` entry is the cleanest record of what the user asked.
+    (project / "prev.jsonl").write_text(
+        "\n".join(
+            json.dumps(line)
+            for line in [
+                {
+                    "type": "last-prompt",
+                    "timestamp": when.isoformat(),
+                    "lastPrompt": "refactor the parser",
+                },
+                {"type": "assistant", "timestamp": when.isoformat(), "message": {"content": []}},
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    current = project / "current.jsonl"
+    current.write_text("", encoding="utf-8")
+
+    prompt = mod._build_prompt(
+        {"transcript_path": str(current), "cwd": "/Users/me/Developer/myproj"}
+    )
+
+    assert "refactor the parser" in prompt
 
 
 def test_build_prompt_excludes_current_transcript(
@@ -85,12 +160,7 @@ def test_build_prompt_excludes_current_transcript(
     project = _project_dir(tmp_path)
     current = project / "current.jsonl"
     # Only the current transcript exists → no "previous" session to summarise.
-    _write_session(
-        current,
-        when=datetime.now().astimezone(),
-        files=["/Users/me/Developer/myproj/foo.py"],
-        commits=[],
-    )
+    _write_session(current, when=datetime.now().astimezone(), request="do a thing")
 
     prompt = mod._build_prompt(
         {"transcript_path": str(current), "cwd": "/Users/me/Developer/myproj"}
@@ -108,8 +178,7 @@ def test_build_prompt_skips_sessions_older_than_cutoff(
     _write_session(
         project / "prev.jsonl",
         when=datetime.now().astimezone() - timedelta(days=mod._MAX_AGE_DAYS + 1),
-        files=["/Users/me/Developer/myproj/foo.py"],
-        commits=[],
+        request="something old",
     )
     current = project / "current.jsonl"
     current.write_text("", encoding="utf-8")
@@ -121,17 +190,16 @@ def test_build_prompt_skips_sessions_older_than_cutoff(
     assert prompt == ""
 
 
-def test_build_prompt_skips_sessions_without_edits_or_commits(
+def test_build_prompt_skips_sessions_without_signal(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("LANG", "en_US.UTF-8")
     _sidecar(tmp_path, monkeypatch)
     project = _project_dir(tmp_path)
+    # No user request, no commits, no todos → nothing worth injecting.
     _write_session(
         project / "prev.jsonl",
         when=datetime.now().astimezone() - timedelta(hours=1),
-        files=[],
-        commits=[],
     )
     current = project / "current.jsonl"
     current.write_text("", encoding="utf-8")
@@ -152,7 +220,7 @@ def test_build_prompt_falls_back_to_default_when_sidecar_missing(
     _write_session(
         project / "prev.jsonl",
         when=datetime.now().astimezone() - timedelta(hours=1),
-        files=["/Users/me/Developer/myproj/foo.py"],
+        request="implement feature x",
         commits=["feat: x"],
     )
     current = project / "current.jsonl"
@@ -175,8 +243,7 @@ def test_build_prompt_uses_detected_language(
     _write_session(
         project / "prev.jsonl",
         when=datetime.now().astimezone() - timedelta(hours=1),
-        files=["/Users/me/Developer/myproj/foo.py"],
-        commits=[],
+        request="加一個深色模式",
     )
     current = project / "current.jsonl"
     current.write_text("", encoding="utf-8")
@@ -187,6 +254,7 @@ def test_build_prompt_uses_detected_language(
 
     assert prompt.startswith("前情:: ")
     assert "專案=myproj" in prompt
+    assert "加一個深色模式" in prompt
 
 
 def test_main_emits_additional_context(
@@ -198,7 +266,7 @@ def test_main_emits_additional_context(
     _write_session(
         project / "prev.jsonl",
         when=datetime.now().astimezone() - timedelta(hours=1),
-        files=["/Users/me/Developer/myproj/foo.py"],
+        request="wire up the new endpoint",
         commits=["fix: y"],
     )
     current = project / "current.jsonl"
@@ -209,7 +277,7 @@ def test_main_emits_additional_context(
     assert mod.main() == 0
     out = json.loads(capsys.readouterr().out)
     assert out["hookSpecificOutput"]["hookEventName"] == "SessionStart"
-    assert "foo.py" in out["hookSpecificOutput"]["additionalContext"]
+    assert "wire up the new endpoint" in out["hookSpecificOutput"]["additionalContext"]
 
 
 def test_main_with_empty_stdin_is_silent(

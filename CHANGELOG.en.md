@@ -8,10 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- **"Resume where you left off" feature**: fully local, zero API — reads each project's "what did I do last time" (changed files + git commit titles + timestamp) from `~/.claude/projects` conversation logs, in three progressive ceilings:
-  - **Ceiling A — HTML report section**: a new "Resume where you left off" section lists recent activity per project; same-named projects are disambiguated by parent directory.
-  - **Ceiling B — copy resume prompt**: each item gets a button that assembles a ready-to-paste resume prompt (project, time, changed files, commits) and copies it to the clipboard.
-  - **Ceiling C — auto-inject into new sessions (off by default, opt-in)**: a new menu toggle "Auto-load Last Progress in New Sessions" installs a Claude Code SessionStart hook (`usage_session_resume.py`, stdlib-only so it runs under macOS's bundled Python 3.9) that injects the last progress as a resume prompt at the start of `startup` / `/clear` sessions. The wording reuses `i18n.json`'s `rw_prompt` (written to a sidecar at install time so the hook stays single-sourced); `setup_hook` handles install/remove/backup and self-heal, and a full uninstall cleans it up.
+- **"Project Butler" feature**: fully local, zero API. When you open a new Claude Code session (`startup` / `/clear`), it automatically hands your last progress to the AI — no need to re-explain. A single menu toggle (off by default, opt-in) installs a Claude Code SessionStart hook (`usage_session_resume.py`, stdlib-only so it runs under macOS's bundled Python 3.9) that reads the project's previous session for **your last request + the commits made + any unfinished todos (if TodoWrite was used)**, assembles a resume prompt, injects it at the start of the new session, and asks Claude to open with "📋 Loaded your last progress" so you know it took effect. Wording lives in `i18n.json` (written to a sidecar at install time so the hook stays single-sourced); `setup_hook` handles install/remove/backup/self-heal. The menu item carries a tooltip with the full explanation.
+
+### Changed
+- **Slimmer menu**: the 9 panel themes are collapsed into a "Panel theme" submenu, so the menu is no longer dominated by a long inline list.
 
 ## [0.12.1] - 2026-05-29
 

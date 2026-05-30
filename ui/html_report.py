@@ -322,63 +322,6 @@ def _cost_value(cost_usd: float, lang: str) -> tuple[str, str]:
     return main, sub
 
 
-def _format_recent_time(value: object, lang: str) -> str:
-    if not isinstance(value, str):
-        return _t(lang, "unknown")
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        return value
-    if parsed.tzinfo is not None:
-        parsed = parsed.astimezone()
-    return f"{parsed.month}/{parsed.day} {parsed.hour:02d}:{parsed.minute:02d}"
-
-
-def _recent_work_section(data: dict[str, Any], lang: str) -> str:
-    items = data.get("recent_work")
-    if not isinstance(items, list) or not items:
-        return ""
-    none_label = _t(lang, "rw_none")
-    copy_label = html.escape(_t(lang, "rw_copy"))
-    copied_label = html.escape(_t(lang, "rw_copied"))
-    rows: list[str] = []
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        project = _display_name(item.get("project"), lang)
-        when = _format_recent_time(item.get("last_active"), lang)
-        commit_titles = [str(c) for c in item.get("commit_titles", []) if c]
-        changed_files = [str(f) for f in item.get("changed_files", []) if f]
-        did = (
-            f'<div class="rw-did"><b>{html.escape(_t(lang, "rw_did"))}</b> '
-            f"{html.escape(commit_titles[0])}</div>"
-            if commit_titles
-            else ""
-        )
-        changed = (
-            f'<div class="rw-files"><b>{html.escape(_t(lang, "rw_changed"))}</b> '
-            f'{html.escape(" · ".join(changed_files[:6]))}</div>'
-            if changed_files
-            else ""
-        )
-        files_text = " · ".join(changed_files[:6]) or none_label
-        commits_text = " · ".join(commit_titles[:3]) or none_label
-        prompt = _t(
-            lang, "rw_prompt", project=project, when=when, files=files_text, commits=commits_text
-        )
-        rows.append(
-            '<div class="rw-item">'
-            f'<div class="rw-head"><span class="rw-proj">{html.escape(project)}</span>'
-            f'<span class="rw-when">{html.escape(when)}</span></div>'
-            f"{did}{changed}"
-            f'<button class="rw-copy" type="button" data-copy="{copy_label}"'
-            f' data-copied="{copied_label}">\U0001f4cb {copy_label}</button>'
-            f'<pre class="rw-prompt" hidden>{html.escape(prompt)}</pre>'
-            "</div>"
-        )
-    return _section(_t(lang, "recent_work_section"), f'<div class="rw-list">{"".join(rows)}</div>')
-
-
 def generate_html(data: dict[str, Any], language: str | None = None) -> str:
     lang = language or _detect_lang()
     tip = load_tip(lang)
@@ -574,16 +517,6 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
 .sub-agent{{font-weight:700;color:#f0f6fc;min-width:96px}}
 .sub-plan{{color:var(--token);background:rgba(56,139,253,0.12);padding:3px 11px;border-radius:999px;font-size:.86rem}}
 .sub-since{{margin-left:auto;color:var(--muted);font-size:.84rem}}
-.rw-list{{display:grid;gap:10px}}
-.rw-item{{padding:12px 14px;border:1px solid #30363d;border-radius:7px;background:#090b0e}}
-.rw-head{{display:flex;justify-content:space-between;align-items:baseline;gap:12px}}
-.rw-proj{{font-weight:700;color:#f0f6fc;overflow-wrap:anywhere}}
-.rw-when{{color:var(--muted);font-size:.84rem;white-space:nowrap}}
-.rw-did,.rw-files{{margin-top:6px;font-size:.88rem;color:#dce2ea;overflow-wrap:anywhere}}
-.rw-did b,.rw-files b{{color:var(--muted);font-weight:400}}
-.rw-copy{{margin-top:10px;background:transparent;border:1px solid #30363d;color:#8b949e;padding:3px 11px;border-radius:4px;cursor:pointer;font-size:12px;font-family:inherit;transition:color 0.15s,border-color 0.15s}}
-.rw-copy:hover{{color:#e6edf3;border-color:#58a6ff}}
-.rw-copy.copied{{color:#56d364;border-color:#56d364}}
 @media (max-width:780px){{.wrap{{padding:28px 14px}}header{{display:block}}.meta{{text-align:left;margin-top:16px}}.header-actions{{align-items:flex-start;margin-top:16px}}.cards{{grid-template-columns:repeat(2,1fr)}}.rank-head{{display:none}}.rank-list{{display:grid;gap:10px}}.rank-line{{display:grid;grid-template-columns:1fr;gap:8px;padding:12px;border:1px solid #30363d;border-radius:6px;background:#090b0e}}.rank-line .arrow{{display:none}}.rank-line .name{{white-space:normal;font-weight:700;color:#f0f6fc}}.rank-line .pct,.rank-line .tokens,.rank-line .cost{{display:flex;justify-content:space-between;gap:14px;text-align:left}}.rank-line .pct::before,.rank-line .tokens::before,.rank-line .cost::before{{content:attr(data-label);color:var(--muted)}}}}
 @media (max-width:480px){{.wrap{{padding:22px 12px 28px}}h1{{white-space:normal}}.cards{{grid-template-columns:repeat(2,1fr);gap:8px}}.card{{min-height:96px;padding:13px 11px}}.share-dialog{{width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;border:0;border-radius:0}}.share-modal{{min-height:100dvh;padding:16px 12px 18px}}.share-section{{padding:12px}}.share-action{{min-height:42px;font-size:.72rem;gap:4px;white-space:normal}}.share-file-actions{{grid-template-columns:1fr}}.section{{padding:16px 12px}}}}
 </style>
@@ -618,7 +551,6 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
     </div>
   </dialog>
   <section class="cards">{''.join(f'<div class="card"><span>{html.escape(label)}</span><b>{html.escape(value)}</b>' + (f'<i>{html.escape(sub)}</i>' if sub else '') + '</div>' for label, value, sub in cards)}</section>
-  {_recent_work_section(data, lang)}
   {_section(_t(lang, "sub_section"), subscription_body, "sub-section")}
   {_section(_t(lang, "agent_section"), agent_body)}
   {_section(_t(lang, "project_section"), project_body, "project-section")}
@@ -768,22 +700,6 @@ document.addEventListener('click', async (e) => {{
     setTimeout(() => {{
       btn.classList.remove('copied');
       btn.textContent = '📋 ' + label;
-    }}, 2000);
-  }}
-}});
-
-document.addEventListener('click', async (e) => {{
-  const btn = e.target.closest('.rw-copy');
-  if (!btn) return;
-  const pre = btn.parentElement.querySelector('.rw-prompt');
-  if (!pre) return;
-  const success = await copyText(pre.textContent);
-  if (success) {{
-    btn.classList.add('copied');
-    btn.textContent = '✓ ' + btn.dataset.copied;
-    setTimeout(() => {{
-      btn.classList.remove('copied');
-      btn.textContent = '📋 ' + btn.dataset.copy;
     }}, 2000);
   }}
 }});
