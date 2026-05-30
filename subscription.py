@@ -24,13 +24,17 @@ _CLAUDE_PLAN_NAMES = {
 
 
 def _decode_jwt_payload(token: str) -> dict[str, Any]:
+    if not isinstance(token, str):
+        return {}
     parts = token.split(".")
     if len(parts) < 2:
         return {}
     payload = parts[1]
     payload += "=" * (-len(payload) % 4)
     try:
-        claims: dict[str, Any] = json.loads(base64.urlsafe_b64decode(payload))
+        claims = json.loads(base64.urlsafe_b64decode(payload))
+        if not isinstance(claims, dict):
+            return {}
         return claims
     except (binascii.Error, ValueError):
         return {}

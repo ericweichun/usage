@@ -15,6 +15,12 @@ def _make_id_token(auth_claims: object) -> str:
     return f"header.{body}.signature"
 
 
+def _make_raw_id_token(payload_claims: object) -> str:
+    payload = json.dumps(payload_claims).encode()
+    body = base64.urlsafe_b64encode(payload).rstrip(b"=").decode()
+    return f"header.{body}.signature"
+
+
 def test_claude_subscription(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     cfg = tmp_path / ".claude.json"
     cfg.write_text(json.dumps({
@@ -172,6 +178,33 @@ def test_codex_subscription_ignores_non_dict_auth_claims(
     }))
     monkeypatch.setattr(subscription, "CODEX_AUTH", auth)
     assert subscription._load_codex_subscription() is None
+
+
+@pytest.mark.parametrize("id_token", [None, 123, []])
+def test_load_subscriptions_ignores_non_string_id_token(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, id_token: object
+) -> None:
+    auth = tmp_path / "auth.json"
+    auth.write_text(json.dumps({
+        "auth_mode": "chatgpt",
+        "tokens": {"id_token": id_token},
+    }))
+    monkeypatch.setattr(subscription, "CODEX_AUTH", auth)
+    monkeypatch.setattr(subscription, "CLAUDE_CONFIG", tmp_path / "nope.json")
+    assert subscription.load_subscriptions() == []
+
+
+def test_load_subscriptions_ignores_non_dict_jwt_payload(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    auth = tmp_path / "auth.json"
+    auth.write_text(json.dumps({
+        "auth_mode": "chatgpt",
+        "tokens": {"id_token": _make_raw_id_token(123)},
+    }))
+    monkeypatch.setattr(subscription, "CODEX_AUTH", auth)
+    monkeypatch.setattr(subscription, "CLAUDE_CONFIG", tmp_path / "nope.json")
+    assert subscription.load_subscriptions() == []
 
 
 def test_codex_subscription_non_string_plan_type_keeps_default_plan(
