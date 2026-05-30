@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-__version__ = "1.2"
+__version__ = "1.3"
 
 PROMPT_SIDECAR = Path(os.path.expanduser("~/.claude/usage-resume-prompt.json"))
 
@@ -47,6 +47,7 @@ _COMMIT_INLINE = re.compile(r"""-m\s+["']([^"'\n]{4,90})""")
 _MAX_AGE_DAYS = 30
 _MAX_COMMITS = 3
 _MAX_TODOS = 5
+_MAX_FILES = 5
 _MAX_REQUEST_CHARS = 280
 _MIN_SUBSTANTIVE_CHARS = 7
 _IMAGE_MARKER = re.compile(r"\[Image(?:\s+#[0-9]+)?\]", re.I)
@@ -206,11 +207,12 @@ def _build_report(
             break
     if parsed is None:
         return ""
-    last_active, last_request, commits, todos = parsed
+    last_active, last_request, commits, todos, edited_files = parsed
     if last_active < _cutoff():
         return ""
     request_text = last_request or none_label
-    commits_text = " · ".join(commits[:_MAX_COMMITS]) or none_label
+    done_items = commits[:_MAX_COMMITS] or edited_files[:_MAX_FILES]
+    commits_text = " · ".join(done_items) or none_label
     todos_text = " · ".join(todos[:_MAX_TODOS]) or none_label
     return lead + template.format(
         project=project,
@@ -244,17 +246,19 @@ def _other_jsonls_by_mtime(project_dir: Path, exclude: str) -> list[Path]:
     return [path for _, path in candidates]
 
 
-def _parse_session(path: Path) -> tuple[datetime, str, list[str], list[str]] | None:
-    """Return (last_active, last_request, commits, todos) for the previous session.
+def _parse_session(path: Path) -> tuple[datetime, str, list[str], list[str], list[str]] | None:
+    """Return (last_active, last_request, commits, todos, edited_files) for the previous session.
 
     ``last_request`` is the first substantive user request in the session: the task that
     started the work is more useful than a trailing reaction, screenshot marker, or
     interruption note. ``todos`` are the pending items from the latest TodoWrite, if the
-    session used one.
+    session used one. ``edited_files`` are the basenames of files touched by Edit / Write /
+    NotebookEdit, deduplicated and in first-seen order.
     """
     last_request = ""
     commits: list[str] = []
     todos: list[str] = []
+    edited_files: list[str] = []
     last_ts: datetime | None = None
 
     try:
@@ -293,13 +297,13 @@ def _parse_session(path: Path) -> tuple[datetime, str, list[str], list[str]] | N
                 content = message.get("content")
                 if not isinstance(content, list):
                     continue
-                _collect_tools(content, commits, todos)
+                _collect_tools(content, commits, todos, edited_files)
     except OSError:
         return None
 
-    if last_ts is None or not (last_request or commits or todos):
+    if last_ts is None or not (last_request or commits or todos or edited_files):
         return None
-    return last_ts, last_request, commits, todos
+    return last_ts, last_request, commits, todos, edited_files
 
 
 def _user_request_text(message: object) -> str:
@@ -360,7 +364,12 @@ def _pending_todos(items: list[Any]) -> list[str]:
     return [t for t in result if t]
 
 
-def _collect_tools(content: list[Any], commits: list[str], todos: list[str]) -> None:
+def _collect_tools(
+    content: list[Any],
+    commits: list[str],
+    todos: list[str],
+    edited_files: list[str],
+) -> None:
     for part in content:
         if not isinstance(part, dict) or part.get("type") != "tool_use":
             continue
@@ -380,6 +389,12 @@ def _collect_tools(content: list[Any], commits: list[str], todos: list[str]) -> 
                 title = _extract_commit_title(command)
                 if title and title not in commits:
                     commits.append(title)
+        elif name in {"Edit", "Write", "NotebookEdit"}:
+            fp = raw_input.get("file_path")
+            if isinstance(fp, str):
+                base = os.path.basename(fp)
+                if base and base not in edited_files:
+                    edited_files.append(base)
 
 
 def _extract_commit_title(command: str) -> str:

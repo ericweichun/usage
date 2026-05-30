@@ -17,6 +17,7 @@ def _write_session(
     request: str = "",
     commits: list[str] | None = None,
     todos: list[str] | None = None,
+    edited_files: list[str] | None = None,
 ) -> None:
     lines: list[dict[str, object]] = []
     if request:
@@ -35,6 +36,8 @@ def _write_session(
                 "input": {"todos": [{"content": t, "status": "pending"} for t in todos]},
             }
         )
+    for fp in edited_files or []:
+        content.append({"type": "tool_use", "name": "Edit", "input": {"file_path": fp}})
     lines.append(
         {"type": "assistant", "timestamp": when.isoformat(), "message": {"content": content}}
     )
@@ -460,3 +463,60 @@ class _FakeStdin:
 
     def read(self) -> str:
         return self._data
+
+
+def test_done_falls_back_to_edited_files_when_no_commits(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """When a session has Edit/Write but no git commit, the done field shows basenames."""
+    monkeypatch.setenv("LANG", "en_US.UTF-8")
+    _sidecar(tmp_path, monkeypatch)
+    project = _project_dir(tmp_path)
+    _write_session(
+        project / "prev.jsonl",
+        when=datetime.now().astimezone() - timedelta(hours=1),
+        request="refactor the parser",
+        edited_files=[
+            "/Users/me/Developer/myproj/src/parser.py",
+            "/Users/me/Developer/myproj/tests/test_parser.py",
+            "/Users/me/Developer/myproj/src/parser.py",  # duplicate — should be deduped
+        ],
+    )
+    current = project / "current.jsonl"
+    current.write_text("", encoding="utf-8")
+
+    prompt = mod._build_prompt(
+        {"transcript_path": str(current), "cwd": "/Users/me/Developer/myproj"}
+    )
+
+    assert "parser.py" in prompt
+    assert "test_parser.py" in prompt
+    # basename dedup: "parser.py" should appear only once
+    commits_field = prompt.split("commits=")[1].split(" todos=")[0]
+    done_items = [s.strip() for s in commits_field.split(" · ")]
+    assert done_items.count("parser.py") == 1
+
+
+def test_done_prefers_commits_over_edited_files(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """When a session has both git commits and Edit/Write, only commits appear in done."""
+    monkeypatch.setenv("LANG", "en_US.UTF-8")
+    _sidecar(tmp_path, monkeypatch)
+    project = _project_dir(tmp_path)
+    _write_session(
+        project / "prev.jsonl",
+        when=datetime.now().astimezone() - timedelta(hours=1),
+        request="add dark mode",
+        commits=["feat: add dark mode toggle"],
+        edited_files=["/Users/me/Developer/myproj/src/theme.py"],
+    )
+    current = project / "current.jsonl"
+    current.write_text("", encoding="utf-8")
+
+    prompt = mod._build_prompt(
+        {"transcript_path": str(current), "cwd": "/Users/me/Developer/myproj"}
+    )
+
+    assert "feat: add dark mode toggle" in prompt
+    assert "theme.py" not in prompt
