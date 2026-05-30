@@ -109,6 +109,38 @@ def test_parse_line_rejects_zero_tokens() -> None:
     )
 
 
+def test_parse_line_accepts_digit_string_tokens() -> None:
+    entry = history_loader._parse_line(
+        _line(
+            input_tokens="1",  # type: ignore[arg-type]
+            output_tokens="2",  # type: ignore[arg-type]
+            cache_creation_tokens="3",  # type: ignore[arg-type]
+            cache_read_tokens="4",  # type: ignore[arg-type]
+        ),
+        "project",
+    )
+
+    assert entry is not None
+    assert entry.total_tokens == 10
+
+
+def test_parse_line_treats_non_ascii_digit_tokens_as_zero() -> None:
+    # "²" is str.isdigit() True but int("²") raises; must not crash, must be 0.
+    entry = history_loader._parse_line(
+        _line(
+            input_tokens="²",  # type: ignore[arg-type]
+            output_tokens=7,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+        ),
+        "project",
+    )
+
+    assert entry is not None
+    assert entry.input_tokens == 0
+    assert entry.output_tokens == 7
+
+
 def test_parse_line_parses_valid_entry_and_cwd_project() -> None:
     entry = history_loader._parse_line(_line(cwd="/tmp/work/my-project"), "fallback")
 
@@ -246,6 +278,23 @@ def test_load_entries_deduplicates_sorts_and_filters_hours_back(
         ("newer", "same"),
     ]
     assert [entry.project for entry in entries] == ["alpha", "alpha"]
+
+
+def test_load_entries_skips_bad_utf8_bytes_without_crashing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    projects_dir = tmp_path / "projects"
+    project_dir = projects_dir / "plain-project"
+    project_dir.mkdir(parents=True)
+    log_path = project_dir / "session.jsonl"
+    valid_line = _line(message_id="valid", request_id="valid")
+    log_path.write_bytes(valid_line.encode("utf-8") + b"\n\xff\n")
+    monkeypatch.setattr(history_loader, "CLAUDE_PROJECTS_DIR", projects_dir)
+
+    entries = history_loader.load_entries()
+
+    assert [(entry.message_id, entry.request_id) for entry in entries] == [("valid", "valid")]
 
 
 def test_file_cache_evicts_oldest_entry_when_maxsize_exceeded(tmp_path: Path) -> None:

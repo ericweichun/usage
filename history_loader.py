@@ -95,7 +95,7 @@ def _load_file(
 
     parsed: list[UsageEntry] = []
     try:
-        with path.open(encoding="utf-8") as file:
+        with path.open(encoding="utf-8", errors="replace") as file:
             for line in file:
                 parsed_entry = _parse_line(line, project)
                 if parsed_entry is not None:
@@ -230,9 +230,18 @@ def _dedup_key(entry: UsageEntry) -> str:
 
 
 def _as_int(value: Any) -> int:
-    if isinstance(value, bool) or not isinstance(value, int):
+    if isinstance(value, bool):
         return 0
-    return max(0, int(value))
+    if isinstance(value, int):
+        return max(0, int(value))
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized.isascii() and (
+            normalized.isdigit()
+            or (normalized.startswith("+") and normalized[1:].isdigit())
+        ):
+            return int(normalized)
+    return 0
 
 
 def _as_str(value: Any) -> str:
