@@ -30,6 +30,7 @@ def _line(
     cache_creation_tokens: int = 3,
     cache_read_tokens: int = 4,
     cwd: str | None = None,
+    cost_usd: Any = 0.01,
 ) -> str:
     data: dict[str, Any] = {
         "type": "assistant",
@@ -45,7 +46,7 @@ def _line(
                 "cache_read_input_tokens": cache_read_tokens,
             },
         },
-        "costUSD": 0.01,
+        "costUSD": cost_usd,
     }
     if timestamp is not None:
         data["timestamp"] = timestamp
@@ -153,6 +154,19 @@ def test_parse_line_parses_valid_entry_and_cwd_project() -> None:
     assert entry.total_tokens == 10
     assert entry.cost_usd == 0.01
     assert entry.project == "my-project"
+
+
+def test_as_optional_float_accepts_finite_numeric_strings() -> None:
+    assert history_loader._as_optional_float("0.05") == 0.05
+    assert history_loader._as_optional_float("nan") is None
+    assert history_loader._as_optional_float("inf") is None
+
+
+def test_parse_line_accepts_numeric_string_cost_usd() -> None:
+    entry = history_loader._parse_line(_line(cost_usd="0.05"), "project")
+
+    assert entry is not None
+    assert entry.cost_usd == 0.05
 
 
 def test_parse_line_uses_main_worktree_project_for_cwd(

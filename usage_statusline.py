@@ -171,7 +171,7 @@ def _read_update_hint(now_ts: float) -> Optional[str]:
     try:
         with open(PREFERENCES_FILE, encoding="utf-8") as f:
             prefs = json.load(f)
-    except (OSError, json.JSONDecodeError):
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return None
     if not isinstance(prefs, dict):
         return None
