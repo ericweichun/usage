@@ -17,9 +17,9 @@ a short greeting rather than going silent.
 
 The prompt wording stays single-sourced: ``setup_hook`` writes ``report_rw_prompt`` /
 ``report_rw_none`` / ``report_rw_inject_lead`` / ``report_rw_empty`` from ``i18n.json`` to
-a sidecar that this script reads. If the sidecar is missing it falls back to the embedded
-English default. The script never raises into the session — any failure exits 0 with no
-output.
+a sidecar that this script reads. If the sidecar is missing it falls back to embedded
+templates for the detected language. The script never raises into the session — any
+failure exits 0 with no output.
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ import json
 import os
 import re
 import sys
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -47,6 +48,8 @@ _MAX_AGE_DAYS = 30
 _MAX_COMMITS = 3
 _MAX_TODOS = 5
 _MAX_REQUEST_CHARS = 280
+_MIN_SUBSTANTIVE_CHARS = 7
+_IMAGE_MARKER = re.compile(r"\[Image(?:\s+#[0-9]+)?\]", re.I)
 
 _DEFAULT_PROMPT = (
     'Last time I was working on the "{project}" project (last active {when}).\n'
@@ -60,6 +63,91 @@ _DEFAULT_EMPTY = (
     '"🐾 Your project butler is on duty. No progress to report for this project yet.", '
     "then respond normally.)"
 )
+_DEFAULT_TEMPLATES = {
+    "en": {
+        "prompt": _DEFAULT_PROMPT,
+        "none": _DEFAULT_NONE,
+        "lead": (
+            '(At the very start of your first reply in this session, lead with one line: '
+            '"🐾 Your project butler is on duty and has loaded your last progress:", then '
+            "surface the points below — what you were doing / done / to-do — as a short "
+            "bullet list, then respond normally.)\n\n"
+        ),
+        "empty": _DEFAULT_EMPTY,
+    },
+    "zh-TW": {
+        "prompt": (
+            "我上次在「{project}」專案工作（最後活動 {when}）。\n"
+            "• 上次想做的：{last_request}\n"
+            "• 已完成：{commits}\n• 待辦：{todos}\n\n"
+            "請先重建上次的脈絡，再直接給我接下來該做的具體下一步。"
+        ),
+        "none": "（未記錄）",
+        "lead": (
+            "（請在你這次對話的第一則回覆最前面，先說一行"
+            "「🐾 專屬專案管家已上線，並已帶入上次進度：」，接著用簡短條列把下面的"
+            "上次想做的／已完成／待辦攤給我看，再正常回應。）\n\n"
+        ),
+        "empty": (
+            "（請在你這次對話的第一則回覆最前面，說一行「🐾 專屬專案管家已上線。"
+            "此專案目前沒有需要報告的進度。」，再正常回應。）"
+        ),
+    },
+    "zh-CN": {
+        "prompt": (
+            "我上次在「{project}」项目工作（最后活动 {when}）。\n"
+            "• 上次想做的：{last_request}\n"
+            "• 已完成：{commits}\n• 待办：{todos}\n\n"
+            "请先重建上次的脉络，再直接给我接下来该做的具体下一步。"
+        ),
+        "none": "（未记录）",
+        "lead": (
+            "（请在你这次对话的第一则回复最前面，先说一行"
+            "「🐾 专属项目管家已上线，并已带入上次进度：」，接着用简短条列把下面的"
+            "上次想做的／已完成／待办摊给我看，再正常回应。）\n\n"
+        ),
+        "empty": (
+            "（请在你这次对话的第一则回复最前面，说一行「🐾 专属项目管家已上线。"
+            "此项目目前没有需要报告的进度。」，再正常回应。）"
+        ),
+    },
+    "ja": {
+        "prompt": (
+            "前回は「{project}」プロジェクトで作業していました（最終アクティブ: {when}）。\n"
+            "• やろうとしていたこと: {last_request}\n"
+            "• 完了: {commits}\n• 未完了: {todos}\n\n"
+            "まず前回の文脈を再構築し、次に取り組むべき具体的なステップを教えてください。"
+        ),
+        "none": "（記録なし）",
+        "lead": (
+            "（このセッションの最初の返信の冒頭に、まず一行「🐾 専属プロジェクト執事が待機中です。"
+            "前回の進捗を引き継ぎました：」と述べ、続けて下記のやろうとしていたこと／完了／未完了を"
+            "短い箇条書きで提示してから、通常どおり応答してください。）\n\n"
+        ),
+        "empty": (
+            "（このセッションの最初の返信の冒頭に、一行「🐾 専属プロジェクト執事が待機中です。"
+            "このプロジェクトに報告すべき進捗はまだありません。」と述べてから、通常どおり応答してください。）"
+        ),
+    },
+    "ko": {
+        "prompt": (
+            '지난번에 "{project}" 프로젝트에서 작업했습니다 (마지막 활동: {when}).\n'
+            "• 하려던 일: {last_request}\n"
+            "• 완료: {commits}\n• 할 일: {todos}\n\n"
+            "먼저 지난 맥락을 재구성한 뒤, 이어서 해야 할 구체적인 다음 단계를 알려주세요."
+        ),
+        "none": "(기록 없음)",
+        "lead": (
+            '(이 세션의 첫 답변 맨 앞에 먼저 한 줄 "🐾 전담 프로젝트 집사가 대기 '
+            '중이며 지난 진행 상황을 불러왔습니다:"라고 말한 뒤, 아래의 하려던 일／완료／할 일을 '
+            "짧은 목록으로 보여주고 평소대로 응답하세요.)\n\n"
+        ),
+        "empty": (
+            '(이 세션의 첫 답변 맨 앞에 한 줄 "🐾 전담 프로젝트 집사가 대기 중입니다. '
+            '이 프로젝트에 보고할 진행 상황이 아직 없습니다."라고 말한 뒤 평소대로 응답하세요.)'
+        ),
+    },
+}
 
 
 def main() -> int:
@@ -155,9 +243,10 @@ def _latest_other_jsonl(project_dir: Path, exclude: str) -> Path | None:
 def _parse_session(path: Path) -> tuple[datetime, str, list[str], list[str]] | None:
     """Return (last_active, last_request, commits, todos) for the previous session.
 
-    ``last_request`` is the most recent thing the user actually typed (their task in
-    their own words) — far higher signal than a list of changed filenames. ``todos``
-    are the pending items from the latest TodoWrite, if the session used one.
+    ``last_request`` is the first substantive user request in the session: the task that
+    started the work is more useful than a trailing reaction, screenshot marker, or
+    interruption note. ``todos`` are the pending items from the latest TodoWrite, if the
+    session used one.
     """
     last_request = ""
     commits: list[str] = []
@@ -184,12 +273,12 @@ def _parse_session(path: Path) -> tuple[datetime, str, list[str], list[str]] | N
                 entry_type = data.get("type")
                 if entry_type == "last-prompt":
                     text = _clean_request(data.get("lastPrompt"))
-                    if text:
+                    if text and not last_request:
                         last_request = text
                     continue
                 if entry_type == "user":
                     text = _user_request_text(data.get("message"))
-                    if text:
+                    if text and not last_request:
                         last_request = text
                     continue
                 if entry_type != "assistant":
@@ -233,9 +322,25 @@ def _clean_request(value: object) -> str:
     # not a request.
     if not text or text.startswith("[Request interrupted"):
         return ""
+    starts_with_image = text.startswith("[Image")
+    text = _IMAGE_MARKER.sub("", text).strip()
+    if not text:
+        return ""
+    if starts_with_image and _substantive_len(text) < _MIN_SUBSTANTIVE_CHARS:
+        return ""
+    if _substantive_len(text) < _MIN_SUBSTANTIVE_CHARS and not _has_structural_signal(text):
+        return ""
     if len(text) > _MAX_REQUEST_CHARS:
         text = text[: _MAX_REQUEST_CHARS - 1].rstrip() + "…"
     return text
+
+
+def _substantive_len(text: str) -> int:
+    return sum(1 for char in text if char.isalnum())
+
+
+def _has_structural_signal(text: str) -> bool:
+    return any(marker in text for marker in ("/", "\\", ".", "_", "-", "#", ":", "`", "(", ")"))
 
 
 def _pending_todos(items: list[Any]) -> list[str]:
@@ -333,7 +438,7 @@ def _load_template(lang: str) -> tuple[str, str, str, str]:
     the injected context so Claude's first reply visibly acknowledges it loaded the
     progress — the only way a SessionStart hook can surface itself to the user.
     ``empty`` is the standalone greeting shown when there's no fresh progress to report."""
-    fallback = ("", _DEFAULT_PROMPT, _DEFAULT_NONE, _DEFAULT_EMPTY)
+    fallback = _template_from_entry(_DEFAULT_TEMPLATES.get(lang) or _DEFAULT_TEMPLATES["en"])
     try:
         bundle = json.loads(PROMPT_SIDECAR.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, ValueError):
@@ -343,15 +448,24 @@ def _load_template(lang: str) -> tuple[str, str, str, str]:
     entry = bundle.get(lang) or bundle.get("en")
     if not isinstance(entry, dict):
         return fallback
+    return _template_from_entry(entry, fallback)
+
+
+def _template_from_entry(
+    entry: Mapping[str, object],
+    fallback: tuple[str, str, str, str] | None = None,
+) -> tuple[str, str, str, str]:
+    if fallback is None:
+        fallback = ("", _DEFAULT_PROMPT, _DEFAULT_NONE, _DEFAULT_EMPTY)
     lead = entry.get("lead")
     prompt = entry.get("prompt")
     none_label = entry.get("none")
     empty = entry.get("empty")
     return (
-        lead if isinstance(lead, str) else "",
-        prompt if isinstance(prompt, str) and prompt else _DEFAULT_PROMPT,
-        none_label if isinstance(none_label, str) and none_label else _DEFAULT_NONE,
-        empty if isinstance(empty, str) and empty else _DEFAULT_EMPTY,
+        lead if isinstance(lead, str) else fallback[0],
+        prompt if isinstance(prompt, str) and prompt else fallback[1],
+        none_label if isinstance(none_label, str) and none_label else fallback[2],
+        empty if isinstance(empty, str) and empty else fallback[3],
     )
 
 

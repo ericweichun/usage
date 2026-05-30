@@ -154,6 +154,50 @@ def test_build_prompt_reads_last_prompt_entry(
     assert "refactor the parser" in prompt
 
 
+def test_build_prompt_uses_first_substantive_task_not_trailing_reaction(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("LANG", "en_US.UTF-8")
+    _sidecar(tmp_path, monkeypatch)
+    project = _project_dir(tmp_path)
+    when = datetime.now().astimezone() - timedelta(hours=1)
+    (project / "prev.jsonl").write_text(
+        "\n".join(
+            json.dumps(line)
+            for line in [
+                {
+                    "type": "user",
+                    "timestamp": when.isoformat(),
+                    "message": {"content": "Fix the SessionStart hook reliability regression"},
+                },
+                {
+                    "type": "user",
+                    "timestamp": when.isoformat(),
+                    "message": {"content": "[Image #2]"},
+                },
+                {
+                    "type": "last-prompt",
+                    "timestamp": when.isoformat(),
+                    "lastPrompt": "[Image #2] huh",
+                },
+                {"type": "assistant", "timestamp": when.isoformat(), "message": {"content": []}},
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    current = project / "current.jsonl"
+    current.write_text("", encoding="utf-8")
+
+    prompt = mod._build_prompt(
+        {"transcript_path": str(current), "cwd": "/Users/me/Developer/myproj"}
+    )
+
+    assert "Fix the SessionStart hook reliability regression" in prompt
+    assert "[Image" not in prompt
+    assert "huh" not in prompt
+
+
 def test_build_prompt_greets_when_only_current_transcript(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -234,6 +278,28 @@ def test_build_prompt_falls_back_to_default_when_sidecar_missing(
 
     assert "Last time I was working" in prompt
     assert "myproj" in prompt
+
+
+def test_build_prompt_falls_back_to_detected_language_when_sidecar_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("USAGE_LANG", "zh-TW")
+    monkeypatch.setattr(mod, "PROMPT_SIDECAR", tmp_path / "does-not-exist.json")
+    project = _project_dir(tmp_path)
+    _write_session(
+        project / "prev.jsonl",
+        when=datetime.now().astimezone() - timedelta(hours=1),
+        request="修好專案管家 SessionStart 缺檔問題",
+    )
+    current = project / "current.jsonl"
+    current.write_text("", encoding="utf-8")
+
+    prompt = mod._build_prompt(
+        {"transcript_path": str(current), "cwd": "/Users/me/Developer/myproj"}
+    )
+
+    assert "專屬專案管家已上線" in prompt
+    assert "修好專案管家 SessionStart 缺檔問題" in prompt
 
 
 def test_build_prompt_uses_detected_language(

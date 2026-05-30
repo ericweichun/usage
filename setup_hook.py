@@ -65,6 +65,7 @@ RESUME_HOOK_VERSION = "1.2"
 RESUME_MATCHER = "startup|clear"
 RESUME_LANGS = ("zh-TW", "zh-CN", "en", "ja", "ko")
 _RESUME_MARKER = "usage-session-resume"
+_RESUME_MARKERS = (_RESUME_MARKER, "usage_session_resume")
 
 
 def _resolve_hook_source() -> Path:
@@ -431,7 +432,8 @@ def _resolve_resume_source() -> Path:
 
 def _resume_command() -> str:
     python = _find_system_python()
-    return f"{shlex.quote(python)} {shlex.quote(str(RESUME_HOOK_TARGET))}"
+    source = _resolve_resume_source()
+    return f"{shlex.quote(python)} {shlex.quote(str(source))}"
 
 
 def _copy_resume_script() -> None:
@@ -480,7 +482,9 @@ def _is_resume_entry(entry: object) -> bool:
     if not isinstance(hooks, list):
         return False
     return any(
-        isinstance(h, dict) and isinstance(h.get("command"), str) and _RESUME_MARKER in h["command"]
+        isinstance(h, dict)
+        and isinstance(h.get("command"), str)
+        and any(marker in h["command"] for marker in _RESUME_MARKERS)
         for h in hooks
     )
 
@@ -524,7 +528,7 @@ def enable_session_resume() -> int:
         {"matcher": RESUME_MATCHER, "hooks": [{"type": "command", "command": _resume_command()}]}
     )
     _save_settings(settings)
-    print(_t("setup_resume_enabled", path=RESUME_HOOK_TARGET))
+    print(_t("setup_resume_enabled", path=_resolve_resume_source()))
     print(_t("setup_claude_restart_required"))
     return 0
 
@@ -567,15 +571,150 @@ def _self_heal_resume() -> None:
     script/sidecar and update a stale script. Never enables it on its own."""
     if not is_resume_enabled():
         return
-    if not RESUME_HOOK_TARGET.exists() or not RESUME_PROMPT_SIDECAR.exists():
+    _migrate_resume_command_if_needed()
+    missing = _missing_resume_artifacts()
+    if missing:
+        detail = _resume_restore_context(missing)
         _copy_resume_script()
         _write_resume_sidecar()
-        _append_self_heal_log("restore_resume_hook", "resume script or sidecar missing")
+        _append_self_heal_log("restore_resume_hook", detail)
     elif _installed_resume_version() != RESUME_HOOK_VERSION:
         old = _installed_resume_version()
         _copy_resume_script()
         _write_resume_sidecar()
         _append_self_heal_log("update_resume_hook", f"{old or 'unknown'} -> {RESUME_HOOK_VERSION}")
+
+
+def _migrate_resume_command_if_needed() -> None:
+    settings = _load_settings()
+    entries = _session_start_list(settings)
+    if not entries:
+        return
+    old_target = str(RESUME_HOOK_TARGET)
+    new_command = _resume_command()
+    changed = False
+    for entry in entries:
+        if not isinstance(entry, dict) or not _is_resume_entry(entry):
+            continue
+        hooks = entry.get("hooks")
+        if not isinstance(hooks, list):
+            continue
+        for hook in hooks:
+            if not isinstance(hook, dict):
+                continue
+            command = hook.get("command")
+            if not isinstance(command, str) or old_target not in command:
+                continue
+            hook["command"] = new_command
+            changed = True
+    if not changed:
+        return
+    _save_settings(settings)
+    _append_self_heal_log(
+        "migrate_resume_command",
+        f"{RESUME_HOOK_TARGET} -> {_resolve_resume_source()}",
+    )
+
+
+def _missing_resume_artifacts() -> list[str]:
+    missing: list[str] = []
+    if not RESUME_HOOK_TARGET.exists():
+        missing.append("script")
+    if not RESUME_PROMPT_SIDECAR.exists():
+        missing.append("sidecar")
+    return missing
+
+
+def _resume_restore_context(missing: list[str]) -> str:
+    parts = [f"missing={','.join(missing)}"]
+    elapsed = _seconds_since_last_self_heal("restore_resume_hook")
+    if elapsed is not None:
+        parts.append(f"seconds_since_previous_restore={elapsed}")
+    command = _installed_resume_command()
+    if command:
+        source = str(_resolve_resume_source())
+        target = str(RESUME_HOOK_TARGET)
+        if source in command:
+            parts.append("registered=source")
+        elif target in command:
+            parts.append("registered=target")
+        else:
+            parts.append("registered=other")
+    recent = _recent_claude_dir_changes()
+    if recent:
+        parts.append(f"recent_claude_entries={recent}")
+    return "; ".join(parts)
+
+
+def _seconds_since_last_self_heal(action: str) -> int | None:
+    try:
+        settings = _load_settings()
+    except SystemExit:
+        return None
+    usage_settings = settings.get(BACKUP_KEY)
+    if not isinstance(usage_settings, dict):
+        return None
+    log = usage_settings.get("selfHealLog")
+    if not isinstance(log, list):
+        return None
+    for entry in reversed(log):
+        if not isinstance(entry, dict) or entry.get("action") != action:
+            continue
+        timestamp = entry.get("timestamp")
+        if not isinstance(timestamp, str):
+            continue
+        try:
+            parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        return max(0, int((datetime.now(UTC) - parsed).total_seconds()))
+    return None
+
+
+def _installed_resume_command() -> str:
+    try:
+        settings = _load_settings()
+    except SystemExit:
+        return ""
+    entries = _session_start_list(settings)
+    if not entries:
+        return ""
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        hooks = entry.get("hooks")
+        if not isinstance(hooks, list):
+            continue
+        for hook in hooks:
+            if not isinstance(hook, dict):
+                continue
+            command = hook.get("command")
+            if isinstance(command, str) and any(marker in command for marker in _RESUME_MARKERS):
+                return command
+    return ""
+
+
+def _recent_claude_dir_changes(limit: int = 6) -> str:
+    root = CLAUDE_SETTINGS.parent
+    try:
+        entries = sorted(
+            (entry for entry in root.iterdir()),
+            key=lambda entry: entry.stat().st_mtime,
+            reverse=True,
+        )
+    except OSError:
+        return ""
+    result: list[str] = []
+    now = datetime.now(UTC).timestamp()
+    for entry in entries[:limit]:
+        try:
+            stat_result = entry.stat()
+        except OSError:
+            continue
+        age = max(0, int(now - stat_result.st_mtime))
+        kind = "dir" if entry.is_dir() else "file"
+        result.append(f"{entry.name}:{kind}:{age}s")
+    return ",".join(result)
 
 
 def _append_self_heal_log(action: str, detail: str) -> None:
