@@ -186,8 +186,13 @@ def test_self_heal_migrates_existing_target_command(
     assert str(source) in migrated_hook["command"]
     assert session_entry["hooks"][1]["command"] == "other"
     assert data["hooks"]["PreToolUse"][0]["hooks"][0]["command"] == "guard"
-    log_entry = data["usage"]["selfHealLog"][-1]
-    assert log_entry["action"] == "migrate_resume_command"
+    # The stale "1.2" target also triggers a version update in the same pass, so the
+    # migrate entry is no longer necessarily last — find it by action.
+    migrate_entries = [
+        e for e in data["usage"]["selfHealLog"] if e["action"] == "migrate_resume_command"
+    ]
+    assert migrate_entries
+    log_entry = migrate_entries[-1]
     assert str(resume_target) in log_entry["detail"]
     assert str(source) in log_entry["detail"]
 

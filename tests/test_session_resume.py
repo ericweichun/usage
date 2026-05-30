@@ -280,7 +280,8 @@ def test_build_prompt_falls_back_to_default_when_sidecar_missing(
         {"transcript_path": str(current), "cwd": "/Users/me/Developer/myproj"}
     )
 
-    assert "Last time I was working" in prompt
+    assert "Recently working on" in prompt  # embedded default wording
+    assert "implement feature x" in prompt
     assert "myproj" in prompt
 
 
@@ -520,3 +521,42 @@ def test_done_prefers_commits_over_edited_files(
 
     assert "feat: add dark mode toggle" in prompt
     assert "theme.py" not in prompt
+
+
+def test_build_prompt_surfaces_recent_requests_newest_first(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A session that drifts topics: the most recent request leads, the opening one trails."""
+    monkeypatch.setenv("LANG", "en_US.UTF-8")
+    _sidecar(tmp_path, monkeypatch)
+    project = _project_dir(tmp_path)
+    when = datetime.now().astimezone() - timedelta(hours=1)
+    lines = [
+        {
+            "type": "user",
+            "timestamp": when.isoformat(),
+            "message": {"content": "fix the codex parser bug"},
+        },
+        {
+            "type": "user",
+            "timestamp": when.isoformat(),
+            "message": {"content": "now redesign the project butler handoff"},
+        },
+        {"type": "assistant", "timestamp": when.isoformat(), "message": {"content": []}},
+    ]
+    (project / "prev.jsonl").write_text(
+        "\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8"
+    )
+    current = project / "current.jsonl"
+    current.write_text("", encoding="utf-8")
+
+    prompt = mod._build_prompt(
+        {"transcript_path": str(current), "cwd": "/Users/me/Developer/myproj"}
+    )
+
+    # Both surface, but the latest thread leads so Claude resumes where work actually ended.
+    assert "now redesign the project butler handoff" in prompt
+    assert "fix the codex parser bug" in prompt
+    assert prompt.index("redesign the project butler handoff") < prompt.index(
+        "fix the codex parser bug"
+    )

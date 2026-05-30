@@ -3,8 +3,12 @@
 
 This is the "Project Butler" feature. Claude Code runs this on SessionStart (matcher
 ``startup|clear``) and pipes the session JSON on stdin; the script locates the project's
-*previous* session log, pulls the user's last request, the commits made, and any pending
-todos, and emits a ready-to-act resume prompt via ``hookSpecificOutput.additionalContext``.
+*previous* session log, gathers the *evidence* of that session — the most recent user
+requests (newest first, so a session that drifted topics is still read correctly), the
+commits made, the files edited, and any pending todos — and hands it to Claude via
+``hookSpecificOutput.additionalContext`` with an instruction to *reason over* it rather
+than transcribe it. The model that reads this is Claude itself, so the intelligence of
+the handoff lives in Claude's reply, not in this script's string-formatting.
 
 **Stdlib-only and 3.9-safe** — same constraint as ``usage_statusline.py``: it may run
 under macOS's bundled ``/usr/bin/python3`` (3.9), so no third-party imports, no
@@ -33,7 +37,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-__version__ = "1.3"
+__version__ = "1.4"
 
 PROMPT_SIDECAR = Path(os.path.expanduser("~/.claude/usage-resume-prompt.json"))
 
@@ -48,15 +52,16 @@ _MAX_AGE_DAYS = 30
 _MAX_COMMITS = 3
 _MAX_TODOS = 5
 _MAX_FILES = 5
+_MAX_REQUESTS = 3
 _MAX_REQUEST_CHARS = 280
 _MIN_SUBSTANTIVE_CHARS = 7
 _IMAGE_MARKER = re.compile(r"\[Image(?:\s+#[0-9]+)?\]", re.I)
 
 _DEFAULT_PROMPT = (
-    'Last time I was working on the "{project}" project (last active {when}).\n'
-    "• What I was trying to do: {last_request}\n"
-    "• Done: {commits}\n• To do: {todos}\n\n"
-    "Please reconstruct the context first, then give me the concrete next step to take."
+    "Project: {project} (last active {when})\n"
+    "Recently working on (newest first): {last_request}\n"
+    "Progress made: {commits}\n"
+    "Open to-dos: {todos}"
 )
 _DEFAULT_NONE = "(none recorded)"
 _DEFAULT_EMPTY = (
@@ -69,25 +74,36 @@ _DEFAULT_TEMPLATES = {
         "prompt": _DEFAULT_PROMPT,
         "none": _DEFAULT_NONE,
         "lead": (
-            '(At the very start of your first reply in this session, lead with one line: '
-            '"🐾 Your project butler is on duty and has loaded your last progress:", then '
-            "surface the points below — what you were doing / done / to-do — as a short "
-            "bullet list, then respond normally.)\n\n"
+            "(This is a project-butler handoff. At the very start of your first reply, lead "
+            'with one line: "🐾 Your project butler is on duty — here\'s where we left off:", '
+            "then, instead of reading the traces below aloud, digest them like a sharp, "
+            "thoughtful partner: first work out what the user was actually in the middle of "
+            '("Recently working on" is newest-first, so trust the topmost item and don\'t get '
+            "pulled back to older ones); in a sentence or two, warmly and concretely recap "
+            "where they left off and what got done; then give the single concrete next step "
+            'you would take — be specific, don\'t ask "what should I do". Use only what is '
+            "below; invent nothing. If the traces are too thin to tell, say so plainly and "
+            "list the threads you can see for them to pick. Then respond normally.)\n\n"
         ),
         "empty": _DEFAULT_EMPTY,
     },
     "zh-TW": {
         "prompt": (
-            "我上次在「{project}」專案工作（最後活動 {when}）。\n"
-            "• 上次想做的：{last_request}\n"
-            "• 已完成：{commits}\n• 待辦：{todos}\n\n"
-            "請先重建上次的脈絡，再直接給我接下來該做的具體下一步。"
+            "專案：{project}（最後活動 {when}）\n"
+            "最近在忙的（新→舊）：{last_request}\n"
+            "完成的進度：{commits}\n"
+            "未完成待辦：{todos}"
         ),
         "none": "（未記錄）",
         "lead": (
-            "（請在你這次對話的第一則回覆最前面，先說一行"
-            "「🐾 專屬專案管家已上線，並已帶入上次進度：」，接著用簡短條列把下面的"
-            "上次想做的／已完成／待辦攤給我看，再正常回應。）\n\n"
+            "（這是專案管家交接。請在這次對話第一則回覆的最前面，先說一行"
+            "「🐾 專屬專案管家已上線，幫你接回上次的進度：」，然後別照唸下面的線索，"
+            "而是像聰明又貼心的搭檔那樣消化它：先判斷使用者最後真正在忙的是什麼"
+            "（「最近在忙的」是新到舊排列，以最前面那筆為準，別被較舊的帶偏），"
+            "用一兩句溫暖具體地說他上次做到哪、完成了什麼，再直接給出你判斷最該"
+            "接著做的下一步——要具體，別反問「要做什麼」。只能根據下面線索講，"
+            "沒有的別編；若線索太少看不出方向，就坦白說、並列出你看到的幾條線讓他挑。"
+            "接著正常回應。）\n\n"
         ),
         "empty": (
             "（請在你這次對話的第一則回覆最前面，說一行「🐾 專屬專案管家已上線。"
@@ -96,16 +112,21 @@ _DEFAULT_TEMPLATES = {
     },
     "zh-CN": {
         "prompt": (
-            "我上次在「{project}」项目工作（最后活动 {when}）。\n"
-            "• 上次想做的：{last_request}\n"
-            "• 已完成：{commits}\n• 待办：{todos}\n\n"
-            "请先重建上次的脉络，再直接给我接下来该做的具体下一步。"
+            "项目：{project}（最后活动 {when}）\n"
+            "最近在忙的（新→旧）：{last_request}\n"
+            "完成的进度：{commits}\n"
+            "未完成待办：{todos}"
         ),
         "none": "（未记录）",
         "lead": (
-            "（请在你这次对话的第一则回复最前面，先说一行"
-            "「🐾 专属项目管家已上线，并已带入上次进度：」，接着用简短条列把下面的"
-            "上次想做的／已完成／待办摊给我看，再正常回应。）\n\n"
+            "（这是项目管家交接。请在这次对话第一则回复的最前面，先说一行"
+            "「🐾 专属项目管家已上线，帮你接回上次的进度：」，然后别照念下面的线索，"
+            "而是像聪明又贴心的搭档那样消化它：先判断用户最后真正在忙的是什么"
+            "（「最近在忙的」是新到旧排列，以最前面那笔为准，别被较旧的带偏），"
+            "用一两句温暖具体地说他上次做到哪、完成了什么，再直接给出你判断最该"
+            "接着做的下一步——要具体，别反问「要做什么」。只能根据下面线索讲，"
+            "没有的别编；若线索太少看不出方向，就坦白说、并列出你看到的几条线让他挑。"
+            "接着正常回应。）\n\n"
         ),
         "empty": (
             "（请在你这次对话的第一则回复最前面，说一行「🐾 专属项目管家已上线。"
@@ -114,16 +135,23 @@ _DEFAULT_TEMPLATES = {
     },
     "ja": {
         "prompt": (
-            "前回は「{project}」プロジェクトで作業していました（最終アクティブ: {when}）。\n"
-            "• やろうとしていたこと: {last_request}\n"
-            "• 完了: {commits}\n• 未完了: {todos}\n\n"
-            "まず前回の文脈を再構築し、次に取り組むべき具体的なステップを教えてください。"
+            "プロジェクト：{project}（最終アクティブ {when}）\n"
+            "最近の作業（新しい順）：{last_request}\n"
+            "完了した進捗：{commits}\n"
+            "未完了のToDo：{todos}"
         ),
         "none": "（記録なし）",
         "lead": (
-            "（このセッションの最初の返信の冒頭に、まず一行「🐾 専属プロジェクト執事が待機中です。"
-            "前回の進捗を引き継ぎました：」と述べ、続けて下記のやろうとしていたこと／完了／未完了を"
-            "短い箇条書きで提示してから、通常どおり応答してください。）\n\n"
+            "（これはプロジェクト執事の引き継ぎです。最初の返信の冒頭で、まず一行"
+            "「🐾 専属プロジェクト執事が待機中です。前回の続きはこちらです：」と述べ、"
+            "下記の手がかりをそのまま読み上げるのではなく、賢く気の利いた相棒のように"
+            "消化してください：まずユーザーが最後に実際に取り組んでいたことを見極め"
+            "（「最近の作業」は新しい順なので、先頭の項目を信頼し、古いものに引きずられない"
+            "こと）、前回どこまで進んだか・何が完了したかを一、二文で温かく具体的に振り返り、"
+            "次に取るべき具体的な一歩を提示してください——具体的に述べ、「何をしますか」と"
+            "聞き返さないこと。下記にある情報だけを使い、無いことは創作しないこと。手がかりが"
+            "乏しくて判断できない場合は正直にそう述べ、見えるスレッドを挙げて選んでもらうこと。"
+            "その後、通常どおり応答してください。）\n\n"
         ),
         "empty": (
             "（このセッションの最初の返信の冒頭に、一行「🐾 専属プロジェクト執事が待機中です。"
@@ -132,16 +160,23 @@ _DEFAULT_TEMPLATES = {
     },
     "ko": {
         "prompt": (
-            '지난번에 "{project}" 프로젝트에서 작업했습니다 (마지막 활동: {when}).\n'
-            "• 하려던 일: {last_request}\n"
-            "• 완료: {commits}\n• 할 일: {todos}\n\n"
-            "먼저 지난 맥락을 재구성한 뒤, 이어서 해야 할 구체적인 다음 단계를 알려주세요."
+            "프로젝트: {project} (마지막 활동 {when})\n"
+            "최근 작업한 내용 (최신순): {last_request}\n"
+            "완료한 진행: {commits}\n"
+            "미완료 할 일: {todos}"
         ),
         "none": "(기록 없음)",
         "lead": (
-            '(이 세션의 첫 답변 맨 앞에 먼저 한 줄 "🐾 전담 프로젝트 집사가 대기 '
-            '중이며 지난 진행 상황을 불러왔습니다:"라고 말한 뒤, 아래의 하려던 일／완료／할 일을 '
-            "짧은 목록으로 보여주고 평소대로 응답하세요.)\n\n"
+            "(이것은 프로젝트 집사 인수인계입니다. 첫 답변 맨 앞에 먼저 한 줄 "
+            '"🐾 전담 프로젝트 집사가 대기 중입니다 — 지난 작업을 이어서 불러왔습니다:"라고 '
+            "말한 뒤, 아래 단서를 그대로 읽지 말고 똑똑하고 사려 깊은 동료처럼 소화하세요: "
+            "먼저 사용자가 마지막에 실제로 무엇을 하고 있었는지 파악하고(\"최근 작업한 내용\"은 "
+            "최신순이므로 맨 위 항목을 신뢰하고 오래된 것에 끌려가지 마세요), 지난번에 어디까지 "
+            "했고 무엇을 완료했는지 한두 문장으로 따뜻하고 구체적으로 짚어 준 뒤, 이어서 취해야 "
+            '할 구체적인 다음 단계 하나를 제시하세요 — 구체적으로 말하고 "무엇을 할까요"라고 '
+            "되묻지 마세요. 아래 있는 내용만 사용하고 없는 것은 지어내지 마세요. 단서가 너무 "
+            "적어 판단하기 어려우면 솔직히 그렇게 말하고 보이는 갈래들을 나열해 고르게 하세요. "
+            "그런 다음 평소대로 응답하세요.)\n\n"
         ),
         "empty": (
             '(이 세션의 첫 답변 맨 앞에 한 줄 "🐾 전담 프로젝트 집사가 대기 중입니다. '
@@ -247,15 +282,17 @@ def _other_jsonls_by_mtime(project_dir: Path, exclude: str) -> list[Path]:
 
 
 def _parse_session(path: Path) -> tuple[datetime, str, list[str], list[str], list[str]] | None:
-    """Return (last_active, last_request, commits, todos, edited_files) for the previous session.
+    """Return (last_active, recent_requests, commits, todos, edited_files) for the previous session.
 
-    ``last_request`` is the first substantive user request in the session: the task that
-    started the work is more useful than a trailing reaction, screenshot marker, or
-    interruption note. ``todos`` are the pending items from the latest TodoWrite, if the
-    session used one. ``edited_files`` are the basenames of files touched by Edit / Write /
-    NotebookEdit, deduplicated and in first-seen order.
+    ``recent_requests`` is the last few substantive user requests joined newest-first: a
+    session often drifts (you start on task A and end deep in task B), so what you were
+    *last* working on — not the opening request — is where you want to resume. Trailing
+    reactions, screenshot markers, and interruption notes are filtered out by
+    ``_clean_request``, so "most recent" stays meaningful. ``todos`` are the pending items
+    from the latest TodoWrite, if the session used one. ``edited_files`` are the basenames
+    of files touched by Edit / Write / NotebookEdit, deduplicated and in first-seen order.
     """
-    last_request = ""
+    requests: list[str] = []
     commits: list[str] = []
     todos: list[str] = []
     edited_files: list[str] = []
@@ -281,13 +318,13 @@ def _parse_session(path: Path) -> tuple[datetime, str, list[str], list[str], lis
                 entry_type = data.get("type")
                 if entry_type == "last-prompt":
                     text = _clean_request(data.get("lastPrompt"))
-                    if text and not last_request:
-                        last_request = text
+                    if text and (not requests or requests[-1] != text):
+                        requests.append(text)
                     continue
                 if entry_type == "user":
                     text = _user_request_text(data.get("message"))
-                    if text and not last_request:
-                        last_request = text
+                    if text and (not requests or requests[-1] != text):
+                        requests.append(text)
                     continue
                 if entry_type != "assistant":
                     continue
@@ -301,8 +338,11 @@ def _parse_session(path: Path) -> tuple[datetime, str, list[str], list[str], lis
     except OSError:
         return None
 
-    if last_ts is None or not (last_request or commits or todos or edited_files):
+    if last_ts is None or not (requests or commits or todos or edited_files):
         return None
+    # Newest-first, capped: the most recent request leads so Claude resumes the latest
+    # thread, with a little prior context to spot a topic drift.
+    last_request = " · ".join(reversed(requests[-_MAX_REQUESTS:]))
     return last_ts, last_request, commits, todos, edited_files
 
 
