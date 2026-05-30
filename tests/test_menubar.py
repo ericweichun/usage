@@ -514,6 +514,9 @@ def test_forwarder_prompt_keep_sets_ack_once(
         def addButtonWithTitle_(self, value: str) -> None:
             return None
 
+        def setIcon_(self, value: object) -> None:
+            return None
+
         def runModal(self) -> int:
             calls["alerts"] += 1
             return 1001
@@ -565,6 +568,9 @@ def test_forwarder_prompt_enable_calls_forwarder_setup(
             return None
 
         def addButtonWithTitle_(self, value: str) -> None:
+            return None
+
+        def setIcon_(self, value: object) -> None:
             return None
 
         def runModal(self) -> int:

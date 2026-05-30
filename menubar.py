@@ -239,18 +239,33 @@ def _session_resume_enabled() -> bool:
         return False
 
 
-def _set_app_icon() -> None:
-    # Give NSAlert dialogs and the Dock the branded icon instead of py2app's
-    # default rocket. In the bundle py2app's iconfile already sets the Dock
-    # icon, but running from source there is no bundle icon, so the dialogs
-    # would borrow the Python interpreter's icon — set it explicitly here too.
-    try:
-        image = NSImage.alloc().initWithContentsOfFile_(resolve_resource("usage.icns"))
-        if image is not None:
-            NSApp.setApplicationIconImage_(image)
-    except Exception:
-        if os.environ.get("USAGE_DEBUG") == "1":
-            logger.warning("set app icon failed", exc_info=True)
+_ALERT_ICON: Any = None
+_ALERT_ICON_LOADED = False
+
+
+def _alert_icon() -> Any:
+    # NSAlert defaults to the application icon, which from source (and for an
+    # accessory app with no Dock presence) is py2app's / Python's rocket. Setting
+    # NSApp.applicationIconImage does not propagate to NSAlert, so each alert must
+    # set the branded icon explicitly. Loaded once and cached.
+    global _ALERT_ICON, _ALERT_ICON_LOADED
+    if not _ALERT_ICON_LOADED:
+        _ALERT_ICON_LOADED = True
+        try:
+            _ALERT_ICON = NSImage.alloc().initWithContentsOfFile_(resolve_resource("usage.icns"))
+        except Exception:
+            _ALERT_ICON = None
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("load alert icon failed", exc_info=True)
+    return _ALERT_ICON
+
+
+def _make_alert() -> Any:
+    alert = NSAlert.alloc().init()
+    icon = _alert_icon()
+    if icon is not None:
+        alert.setIcon_(icon)
+    return alert
 
 
 def _update_dismissed_recently(prefs: dict[str, Any]) -> bool:
@@ -395,7 +410,6 @@ class AppDelegate(NSObject):
 
     def applicationDidFinishLaunching_(self, notification: Any) -> None:
         NSApp.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
-        _set_app_icon()
         self.status_item = NSStatusBar.systemStatusBar().statusItemWithLength_(
             NSVariableStatusItemLength,
         )
@@ -620,7 +634,7 @@ class AppDelegate(NSObject):
         )
 
     def _finishSessionResume_(self, result: dict[str, Any]) -> None:
-        alert = NSAlert.alloc().init()
+        alert = _make_alert()
         if result.get("ok", True):
             key = "resume_enabled_restart" if result.get("enabled") else "resume_disabled_msg"
             alert.setMessageText_(_t(self.language, key))
@@ -721,7 +735,7 @@ class AppDelegate(NSObject):
         )
 
     def _showUpdateAlert_(self, release: update_checker.ReleaseInfo) -> None:
-        alert = NSAlert.alloc().init()
+        alert = _make_alert()
         alert.setMessageText_(_t(self.language, "update_alert_title", version=release.version))
         alert.setInformativeText_(release.body[:UPDATE_ALERT_BODY_LIMIT])
         alert.addButtonWithTitle_(_t(self.language, "update_btn_download"))
@@ -740,12 +754,12 @@ class AppDelegate(NSObject):
         _save_preferences(prefs)
 
     def _showNoUpdateAvailable_(self, result: Any) -> None:
-        alert = NSAlert.alloc().init()
+        alert = _make_alert()
         alert.setMessageText_(_t(self.language, "update_no_new_version"))
         alert.runModal()
 
     def _showUpdateCheckFailed_(self, result: Any) -> None:
-        alert = NSAlert.alloc().init()
+        alert = _make_alert()
         alert.setMessageText_(_t(self.language, "update_check_failed"))
         alert.runModal()
 
@@ -874,7 +888,7 @@ class AppDelegate(NSObject):
         )
 
     def _finishHookInstall_(self, result: dict[str, Any]) -> None:
-        alert = NSAlert.alloc().init()
+        alert = _make_alert()
         if result["success"]:
             alert.setMessageText_(_t(self.language, "hook_installed_restart"))
         else:
@@ -918,7 +932,7 @@ class AppDelegate(NSObject):
         self._refresh_statusline_state()
         if result.get("ok", True):
             return
-        alert = NSAlert.alloc().init()
+        alert = _make_alert()
         alert.setMessageText_(_t(self.language, "statusline_action_failed"))
         alert.setInformativeText_(str(result.get("output") or result.get("action") or ""))
         alert.runModal()
@@ -945,7 +959,7 @@ class AppDelegate(NSObject):
     def _finishAnalyzeUsage_(self, result: dict[str, Any]) -> None:
         if result["success"]:
             return
-        alert = NSAlert.alloc().init()
+        alert = _make_alert()
         alert.setMessageText_(_t(self.language, "analysis_failed"))
         alert.setInformativeText_(str(result["message"]))
         alert.runModal()
@@ -1491,7 +1505,7 @@ def show_forwarder_mode_prompt_if_needed(language: str | None = None) -> None:
         return
 
     lang = language or detect_lang()
-    alert = NSAlert.alloc().init()
+    alert = _make_alert()
     alert.setMessageText_(_t(lang, "alert_forwarder_title"))
     alert.setInformativeText_(_t(lang, "alert_forwarder_body"))
     alert.addButtonWithTitle_(_t(lang, "alert_forwarder_enable"))
