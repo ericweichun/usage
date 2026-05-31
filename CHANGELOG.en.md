@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-06-01
+
+### Added
+- **"Usage Habits" section in the HTML report**: fully local, zero API. The analysis report now shows a full-width 24-hour activity histogram of when you work, highlighting your peak hour with a plain-language summary ("You most often work with AI around HH:00 and HH:00"). Data comes from the message timestamps in your local Claude Code logs (user / assistant messages only) — **never the conversation content**. Parsing lives in a standalone `persona_loader.py` with a 300s TTL cache.
+- **"Stale data" hint on the Codex card**: when the local Codex usage snapshot is older than 15 minutes, the classic panel's Codex card shows an "about N minutes ago" tag plus an info (ⓘ) tooltip. Unlike Claude Code, Codex has no live status-line hook, so its usage numbers come from session logs it writes only intermittently and can lag your real account; the tooltip also explains that staying offline is a deliberate choice so it never burns your tokens. Built from the existing `rate_limits.updated_at` — **no network, no API**.
+
 ## [0.13.0] - 2026-05-31
 
 ### Added

@@ -69,6 +69,8 @@ Read priority:
 
 Codex CLI doesn't expose a statusLine hook, so usage takes a different route: it scans the conversation logs Codex CLI leaves on disk (`~/.codex/sessions/*.jsonl`). Codex writes `rate_limits` data directly into each log entry — usage reads those fields to get the 5-hour and 7-day quota percentages directly. Today's token count and cost are summed from the token usage recorded in the same files.
 
+Note that Codex only writes `rate_limits` into its logs **intermittently** — unlike Claude Code, it has no live status-line reporting — so this number can **lag your real usage** (and anything you do on the web never reaches the local files at all). When the local snapshot is older than 15 minutes, the Codex card shows an "about N minutes ago" tag to flag that it's stale. Staying offline is deliberate: it means usage never burns your tokens.
+
 If Codex isn't installed or the directory doesn't exist, that part of the UI hides itself and Claude Code stats continue to work normally.
 
 ## Comparison

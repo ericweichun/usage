@@ -69,6 +69,8 @@ flowchart LR
 
 Codex CLI 沒有 statusLine hook 這種機制，所以 usage 採另一條路：掃 Codex CLI 在 `~/.codex/sessions/` 底下留下的 `*.jsonl` 對話紀錄檔。Codex 每次對話會在紀錄裡寫入 `rate_limits`（配額資訊），usage 直接讀裡面的 5 小時跟 7 天用量百分比，不需要自己計算。今日的 token 用量跟成本則從同一份紀錄的 token 統計加總。
 
+要注意的是：Codex 只是**偶爾**才把 `rate_limits` 寫進紀錄，不像 Claude Code 會即時回報，所以這個數字可能**落後你的實際用量**（在網頁上用的更不會進到本機檔）。當本機快照超過 15 分鐘，Codex 卡會標出「約 N 分鐘前」提醒你這是舊資料。維持離線是刻意的——這樣 usage 不會多耗你的 token。
+
 沒裝 Codex 或沒這個資料夾的話，這部分會自動隱藏，不會影響 Claude Code 那邊的顯示。
 
 ## 跟其他工具比較
