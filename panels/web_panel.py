@@ -271,6 +271,7 @@ def _state_payload(state: PopoverState) -> dict[str, object]:
         "codex": {
             "session": _row_payload(state.codex_session),
             "weekly": _row_payload(state.codex_weekly),
+            "stale": state.codex_stale,
         },
         "projects": [
             {

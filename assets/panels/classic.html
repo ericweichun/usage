@@ -95,6 +95,11 @@
       padding: 13px 15px 12px;
     }
 
+    .card[data-card="codex"] {
+      overflow: visible;
+      z-index: 2;
+    }
+
     .card::before {
       content: "";
       position: absolute;
@@ -146,6 +151,58 @@
       font-size: 21px;
       line-height: 1;
       font-weight: 780;
+    }
+
+    .codex-stale {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      flex: none;
+      min-width: 0;
+      color: var(--warn);
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 680;
+      white-space: nowrap;
+    }
+
+    .codex-stale[hidden] {
+      display: none;
+    }
+
+    .codex-stale-info {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .codex-stale-tooltip {
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 8px);
+      right: 0;
+      display: none;
+      width: max-content;
+      max-width: 260px;
+      padding: 8px 10px;
+      border-radius: 7px;
+      background: rgba(10, 14, 20, 0.96);
+      color: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+      font-size: 11px;
+      line-height: 1.45;
+      font-weight: 500;
+      white-space: normal;
+    }
+
+    .codex-stale-info:hover .codex-stale-tooltip {
+      display: block;
     }
 
     .card[data-card="projects"] .brand {
@@ -478,6 +535,13 @@
       <header class="brand">
         <img src="{{CODEX_ICON}}" alt="">
         <h1 data-i18n="codex_name">Codex</h1>
+        <div class="codex-stale" data-codex-stale hidden>
+          <span aria-hidden="true">⚠</span>
+          <span data-codex-stale-age></span>
+          <span class="codex-stale-info" aria-hidden="true">ⓘ
+            <span class="codex-stale-tooltip" data-codex-stale-tooltip></span>
+          </span>
+        </div>
       </header>
       <div class="row" data-row="session"></div>
       <div class="row" data-row="weekly"></div>
@@ -614,6 +678,22 @@
       renderRow(name, "weekly", rows && rows.weekly);
     }
 
+    function renderCodexStale(stale) {
+      const staleEl = document.querySelector("[data-codex-stale]");
+      const ageEl = document.querySelector("[data-codex-stale-age]");
+      const tooltipEl = document.querySelector("[data-codex-stale-tooltip]");
+      if (!staleEl || !ageEl || !tooltipEl) return;
+      if (stale && stale.ageText) {
+        ageEl.textContent = stale.ageText;
+        tooltipEl.textContent = t("codex_stale_tooltip");
+        staleEl.hidden = false;
+        return;
+      }
+      ageEl.textContent = "";
+      tooltipEl.textContent = "";
+      staleEl.hidden = true;
+    }
+
     function renderProjects(projects) {
       const list = document.querySelector('[data-project-list]');
       if (!list) return;
@@ -676,6 +756,7 @@
       applyStaticText();
       applyCard("claude", state.claude);
       applyCard("codex", state.codex);
+      renderCodexStale(state.codex && state.codex.stale);
       latestState = state;
       renderProjects(
         projectRange === "1d" ? state.projects

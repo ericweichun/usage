@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from importlib import metadata
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import objc
 from AppKit import (
@@ -298,6 +298,10 @@ class QuotaRowState:
     available: bool = True
 
 
+class CodexStaleState(TypedDict):
+    ageText: str
+
+
 @dataclass(slots=True)
 class PopoverState:
     language: str
@@ -315,6 +319,7 @@ class PopoverState:
     statusline: dict[str, object]
     show_install_button: bool = False
     hide_codex: bool = False
+    codex_stale: CodexStaleState | None = None
 
 
 def format_human_time(seconds: float, language: str = "en") -> str:
@@ -783,7 +788,7 @@ class AppDelegate(NSObject):
     def _refresh_in_background(self) -> None:
         try:
             outcome = asyncio.run(self._fetch())
-            codex_rows, codex_5h_pct, codex_model = self._codex_rows()
+            codex_rows, codex_5h_pct, codex_model, codex_stale = self._codex_rows()
             all_entries = self._load_history_entries()
             project_rows = self._project_rows(hours_back=24, entries=all_entries)
             project_rows_7d = self._project_rows(hours_back=168, entries=all_entries)
@@ -798,6 +803,7 @@ class AppDelegate(NSObject):
                 project_rows_all,
                 history_entries=all_entries,
                 codex_model=codex_model,
+                codex_stale=codex_stale,
             )
         except Exception as exc:
             if os.environ.get("USAGE_DEBUG") == "1":
@@ -975,6 +981,7 @@ class AppDelegate(NSObject):
         project_rows_all: list[tuple[str, int, float | None]],
         history_entries: list[UsageEntry] | None = None,
         codex_model: str = "unknown",
+        codex_stale: CodexStaleState | None = None,
     ) -> PopoverState:
         now = time.time()
         today_text = _today_title(self.mock, self.language, entries=history_entries)
@@ -1054,9 +1061,12 @@ class AppDelegate(NSObject):
                 outcome.state == PollState.TOKEN_ERROR and self._statusline_setup_available()
             ),
             hide_codex=_hide_codex_enabled(),
+            codex_stale=codex_stale,
         )
 
-    def _codex_rows(self) -> tuple[tuple[QuotaRowState, QuotaRowState], int | None, str]:
+    def _codex_rows(
+        self,
+    ) -> tuple[tuple[QuotaRowState, QuotaRowState], int | None, str, CodexStaleState | None]:
         if self.mock:
             now = time.time()
             self.burn_rate_trackers["codex_session"].record(now, 12.0)
@@ -1082,7 +1092,7 @@ class AppDelegate(NSObject):
                     warning_max_seconds=24 * 3600,
                 ),
             )
-            return rows, 12, "gpt-5"
+            return rows, 12, "gpt-5", None
 
         try:
             rate_limits = codex_loader.load_rate_limits()
@@ -1096,10 +1106,14 @@ class AppDelegate(NSObject):
                 _missing_row("Session", CODEX_COLOR, self.language),
                 _missing_row("Weekly", CODEX_COLOR, self.language),
             )
-            return rows, None, "unknown"
+            return rows, None, "unknown", None
         model = rate_limits.model or "unknown"
 
         now = time.time()
+        try:
+            codex_stale = self._codex_stale_state(rate_limits.updated_at, now)
+        except Exception:
+            codex_stale = None
         codex_5h_pct = (
             round(rate_limits.five_hour_pct) if rate_limits.five_hour_pct is not None else None
         )
@@ -1131,7 +1145,24 @@ class AppDelegate(NSObject):
                 warning_max_seconds=24 * 3600,
             ),
         )
-        return rows, codex_5h_pct, model
+        return rows, codex_5h_pct, model, codex_stale
+
+    def _codex_stale_state(self, updated_at: str, now: float) -> CodexStaleState | None:
+        if not updated_at:
+            return None
+        timestamp = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=UTC)
+        else:
+            timestamp = timestamp.astimezone(UTC)
+        age_seconds = now - timestamp.timestamp()
+        if age_seconds <= 900:
+            return None
+        if age_seconds < 3600:
+            minutes = max(1, int(age_seconds // 60))
+            return {"ageText": _t(self.language, "codex_stale_minutes", minutes=minutes)}
+        hours = max(1, int(age_seconds // 3600))
+        return {"ageText": _t(self.language, "codex_stale_hours", hours=hours)}
 
     def _history_sources_fingerprint(self) -> tuple[tuple[str, int, float], ...]:
         sources = (

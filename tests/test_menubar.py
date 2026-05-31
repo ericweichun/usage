@@ -1160,6 +1160,51 @@ def test_state_from_outcome_replaces_claude_reset_with_warning(
     assert state.claude_session.reset_text == "⚠ 按目前速度 18分鐘 就會用完(重置還要 51分鐘)"
 
 
+def test_codex_stale_state_uses_minutes_and_hides_fresh_data() -> None:
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    delegate.language = "zh-TW"
+    now = datetime(2026, 1, 1, 1, 0, tzinfo=UTC).timestamp()
+
+    fresh = datetime(2026, 1, 1, 0, 50, tzinfo=UTC).isoformat()
+    stale = datetime(2026, 1, 1, 0, 30, tzinfo=UTC).isoformat()
+
+    assert delegate._codex_stale_state(fresh, now) is None
+    assert delegate._codex_stale_state(stale, now) == {"ageText": "約 30 分鐘前"}
+
+
+def test_codex_stale_state_uses_hours_after_sixty_minutes() -> None:
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    delegate.language = "zh-TW"
+    now = datetime(2026, 1, 1, 3, 0, tzinfo=UTC).timestamp()
+    stale = "2026-01-01T00:30:00Z"
+
+    assert delegate._codex_stale_state(stale, now) == {"ageText": "約 2 小時前"}
+
+
+def test_codex_rows_ignores_invalid_stale_timestamp(monkeypatch: pytest.MonkeyPatch) -> None:
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    monkeypatch.setattr("time.time", lambda: 1_700_000_000.0)
+    monkeypatch.setattr(
+        codex_loader,
+        "load_rate_limits",
+        lambda: codex_loader.CodexRateLimits(
+            five_hour_pct=12.0,
+            five_hour_resets_at=1_700_003_600.0,
+            seven_day_pct=34.0,
+            seven_day_resets_at=1_700_086_400.0,
+            model="gpt-test",
+            updated_at="not-a-timestamp",
+        ),
+    )
+
+    rows, codex_5h_pct, model, stale = delegate._codex_rows()
+
+    assert rows[0].available is True
+    assert codex_5h_pct == 12
+    assert model == "gpt-test"
+    assert stale is None
+
+
 def test_state_from_outcome_keeps_reset_when_burn_rate_is_not_positive(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
