@@ -8,7 +8,7 @@ from adapters.registry import detect_agents
 from adapters.types import AgentInfo
 from analyzer.aggregator import aggregate_daily, aggregate_monthly, aggregate_sessions, aggregate_weekly
 from analyzer.blocks import analyze_blocks, calculate_p90
-from setup_hook import is_setup, setup, unsetup
+from setup_hook import is_claude_setup, is_codex_setup, is_setup, setup, unsetup
 from i18n import t
 from ui.tables import (
     AGENT_LABEL, console, render_daily, render_dashboard,
@@ -441,7 +441,12 @@ def main() -> None:
     if command != "dashboard":
         console.print(f"[dim]{t('detected', agents=', '.join(a.name + ' ✓' for a in agents))}[/dim]")
 
-    if not is_setup():
+    hook_warning_needed = (
+        (command == "claude" and not is_claude_setup())
+        or (command == "codex" and not is_codex_setup())
+        or (command not in AGENT_ALIASES and not is_setup())
+    )
+    if hook_warning_needed:
         console.print(f"[yellow]{t('hook_not_installed')}[/yellow]")
 
     # usage claude / usage codex

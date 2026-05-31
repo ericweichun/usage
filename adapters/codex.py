@@ -69,7 +69,7 @@ def load_rate_limits() -> RateLimits | None:
     jsonl_files = sorted(sessions_path.rglob("*.jsonl"), key=_safe_mtime, reverse=True)
     models = _load_thread_models()
 
-    for path in jsonl_files[:5]:
+    for path in jsonl_files[:30]:
         rl = _extract_rate_limits(path, models)
         if rl:
             return rl

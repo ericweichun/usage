@@ -38,6 +38,10 @@ py-modules = [
     "tips_loader",
     "usage_lang",
     "usage_statusline_forwarder",
+    "usage_session_resume",
+    "project_resolver",
+    "subscription",
+    "doctor",
 ]
 
 [tool.setuptools.packages.find]

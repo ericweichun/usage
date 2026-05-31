@@ -89,6 +89,25 @@ def test_main_daily_sort_flag_controls_render_order(monkeypatch: pytest.MonkeyPa
     assert [stat.total_tokens for stat in rendered["stats"]] == [11, 110]
 
 
+def test_main_codex_warning_checks_only_codex_setup(monkeypatch: pytest.MonkeyPatch) -> None:
+    agent = AgentInfo("codex", "Codex", "~/.codex", True)
+    printed: list[str] = []
+
+    monkeypatch.setattr(sys, "argv", ["usage", "codex"])
+    monkeypatch.setattr(usage_cli, "detect_agents", lambda: [agent])
+    monkeypatch.setattr(usage_cli, "is_claude_setup", lambda: False)
+    monkeypatch.setattr(usage_cli, "is_codex_setup", lambda: True)
+    monkeypatch.setattr(usage_cli, "is_setup", lambda: False)
+    monkeypatch.setattr(usage_cli, "_load_entries", lambda agent_id: [_entry()])
+    monkeypatch.setattr(usage_cli.console, "print", lambda value: printed.append(str(value)))
+    monkeypatch.setattr(usage_cli, "render_dashboard", lambda **kwargs: None)
+
+    usage_cli.main()
+
+    assert not any("hook_not_installed" in line for line in printed)
+    assert not any("Status line not configured" in line for line in printed)
+
+
 @pytest.mark.parametrize(
     ("argv", "expected_period"),
     [

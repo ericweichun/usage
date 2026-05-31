@@ -55,7 +55,9 @@ LEGACY_TT_BACKUP_KEY = "tokenTracker"
 LEGACY_BACKUP_KEY = LEGACY_NAME
 PREV_SL_KEY = "previousStatusLine"
 HOOK_VERSION = "1.0"
-_SL_REGEX = re.compile(r"status_line\s*=\s*\[.*?\]", re.DOTALL)
+_SL_REGEX = re.compile(r"(?m)^[ \t]*status_line\s*=\s*\[.*?\]", re.DOTALL)
+_TUI_TABLE_REGEX = re.compile(r"(?m)^[ \t]*\[tui\][ \t]*(?:#.*)?$")
+_TABLE_REGEX = re.compile(r"(?m)^[ \t]*\[[^\]\n]+\][ \t]*(?:#.*)?$")
 
 # Ceiling C — opt-in SessionStart hook that injects "where you left off" into a new
 # session. Off by default: enabled only via the menu toggle, never by self_heal.
@@ -301,15 +303,28 @@ def _backup_existing_statusline(settings: dict[str, Any]) -> None:
 
 
 def _status_line_toml(items: list[str]) -> str:
-    body = ",\n".join(f'  "{item}"' for item in items)
+    if not items:
+        return "status_line = []"
+    body = ",\n".join(f"  {json.dumps(item, ensure_ascii=False)}" for item in items)
     return f"status_line = [\n{body},\n]"
 
 
-def _replace_tui_status_line(content: str, replacement: str) -> str:
-    table = re.search(r"(?m)^\[tui\]\s*$", content)
+def _find_tui_table(content: str) -> re.Match[str] | None:
+    return _TUI_TABLE_REGEX.search(content)
+
+
+def _insert_tui_status_line(content: str, replacement: str) -> str:
+    table = _find_tui_table(content)
     if table is None:
         return content
-    next_table = re.search(r"(?m)^\[[^\]\n]+\]\s*$", content[table.end() :])
+    return content[: table.end()] + f"\n{replacement}" + content[table.end() :]
+
+
+def _replace_tui_status_line(content: str, replacement: str) -> str:
+    table = _find_tui_table(content)
+    if table is None:
+        return content
+    next_table = _TABLE_REGEX.search(content[table.end() :])
     section_end = len(content) if next_table is None else table.end() + next_table.start()
     section = content[table.end() : section_end]
     updated_section = _SL_REGEX.sub(replacement, section, count=1)
@@ -317,10 +332,10 @@ def _replace_tui_status_line(content: str, replacement: str) -> str:
 
 
 def _remove_tui_status_line(content: str) -> str:
-    table = re.search(r"(?m)^\[tui\]\s*$", content)
+    table = _find_tui_table(content)
     if table is None:
         return content
-    next_table = re.search(r"(?m)^\[[^\]\n]+\]\s*$", content[table.end() :])
+    next_table = _TABLE_REGEX.search(content[table.end() :])
     section_end = len(content) if next_table is None else table.end() + next_table.start()
     section = content[table.end() : section_end]
     updated_section = _SL_REGEX.sub("", section, count=1)
@@ -344,6 +359,8 @@ def _codex_status_line(parsed: dict[str, Any]) -> object:
 def _setup_codex() -> None:
     result = _read_codex_config()
     if not result:
+        if CODEX_CONFIG.exists():
+            print(_t("setup_codex_config_unreadable"))
         return
     content, parsed = result
 
@@ -359,8 +376,8 @@ def _setup_codex() -> None:
             encoding="utf-8",
         )
         content = _replace_tui_status_line(content, _status_line_toml(CODEX_STATUS_LINE))
-    elif "[tui]" in content:
-        content = content.replace("[tui]", f"[tui]\n{_status_line_toml(CODEX_STATUS_LINE)}")
+    elif isinstance(parsed.get("tui"), dict):
+        content = _insert_tui_status_line(content, _status_line_toml(CODEX_STATUS_LINE))
     else:
         content += f"\n[tui]\n{_status_line_toml(CODEX_STATUS_LINE)}\n"
 
@@ -854,6 +871,24 @@ def is_setup() -> bool:
             return False
 
     return True
+
+
+def is_claude_setup() -> bool:
+    """Check only whether the Claude hook is installed."""
+    if not CLAUDE_SETTINGS.parent.exists():
+        return True
+    return _detect_current_state() in {"us-direct", "us-forwarder"}
+
+
+def is_codex_setup() -> bool:
+    """Check only whether the Codex hook is installed."""
+    if not CODEX_CONFIG.exists():
+        return True
+    result = _read_codex_config()
+    if not result:
+        return False
+    _, parsed = result
+    return _codex_status_line(parsed) == CODEX_STATUS_LINE
 
 
 def _install_forwarder(settings: dict[str, Any]) -> None:

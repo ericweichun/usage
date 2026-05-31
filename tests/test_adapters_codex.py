@@ -91,6 +91,40 @@ def test_load_rate_limits_accepts_numeric_string_fields(
     assert result.model == "gpt-test"
 
 
+def test_load_rate_limits_scans_recent_thirty_sessions(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    sessions_dir = tmp_path / "sessions"
+    now = datetime.now(UTC)
+    for idx in range(29):
+        _write_session(
+            sessions_dir / f"empty-{idx}.jsonl",
+            session_id=f"empty-{idx}",
+            timestamp=now.isoformat(),
+            rate_limits=None,
+            mtime=1000 + idx,
+        )
+    _write_session(
+        sessions_dir / "valid-30th.jsonl",
+        session_id="valid-30th",
+        timestamp=now.isoformat(),
+        rate_limits={
+            "primary": {"used_percent": 12, "resets_at": 9999999999},
+            "secondary": {"used_percent": 34, "resets_at": 9999999998},
+        },
+        mtime=999,
+    )
+    monkeypatch.setattr(codex, "SESSIONS_DIR", str(sessions_dir))
+    monkeypatch.setattr(codex, "_load_thread_models", lambda: {})
+
+    result = codex.load_rate_limits()
+
+    assert result is not None
+    assert result.five_hour_pct == 12
+    assert result.seven_day_pct == 34
+
+
 def test_load_entries_accepts_numeric_string_usage_fields(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

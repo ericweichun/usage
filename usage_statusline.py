@@ -400,13 +400,13 @@ def _render_core(data: Dict[str, Any], now: datetime) -> str:
         )
 
     ctx_parts: List[str] = []
-    ctx_pct = ctx.get("used_percentage")
+    ctx_pct = _as_float(ctx.get("used_percentage"))
     if ctx_pct is not None:
         size = ctx.get("context_window_size", 0)
         ctx_parts = [
             f"{C['blue']}{_t('context')}:{C['reset']}"
             f"{progress_bar(ctx_pct, bar_w)} / {fmt_tokens(size)}",
-            f"{C['blue']}{_t('context')}:{C['reset']}{float(ctx_pct):.0f}%",
+            f"{C['blue']}{_t('context')}:{C['reset']}{ctx_pct:.0f}%",
         ]
 
     full = line1 + [p[0] for p in rl_parts] + (ctx_parts[:1] if ctx_parts else [])

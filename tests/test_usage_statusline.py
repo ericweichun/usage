@@ -312,6 +312,23 @@ def test_render_skips_bad_rate_limit_percentage_without_fallback(
     assert "5h" not in output
 
 
+def test_render_skips_bad_context_percentage_without_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TT_LANG", "en")
+    monkeypatch.setattr(usage_statusline, "get_width", lambda: 116)
+    payload = {
+        "rate_limits": {"seven_day": {"used_percentage": 33}},
+        "context_window": {"used_percentage": "bad", "context_window_size": 200000},
+    }
+
+    output = usage_statusline.render(payload, datetime(2026, 1, 1, tzinfo=UTC))
+
+    assert output != "usage"
+    assert "7d" in output
+    assert "Context" not in output
+
+
 def test_render_skips_bad_resets_at_without_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
