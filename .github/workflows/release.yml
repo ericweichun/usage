@@ -15,8 +15,42 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  test:
     runs-on: macos-latest
+    steps:
+      - name: Resolve ref
+        id: ref
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "ref=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+
+      - run: uv python install 3.13
+
+      - run: uv sync --frozen --group dev
+
+      - name: Run ruff
+        run: uv run ruff check .
+
+      - name: Run mypy
+        run: uv run mypy .
+
+      - name: Run pytest
+        run: uv run pytest -v
+
+  build:
+    needs: test
+    runs-on: macos-latest
+    outputs:
+      tag: ${{ steps.ref.outputs.tag }}
 
     steps:
       - name: Resolve ref and tag
@@ -117,3 +151,58 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${{ steps.ref.outputs.tag }}" dist/usage.app.zip dist/usage.app.zip.sha256 --clobber
+
+  bump-homebrew:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure tap token present
+        env:
+          TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [[ -z "$TOKEN" ]]; then
+            echo "::error::HOMEBREW_TAP_TOKEN secret is not set; cannot update Homebrew tap." >&2
+            exit 1
+          fi
+
+      - name: Checkout tap repo
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          repository: aqua5230/homebrew-usage
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Download release checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ needs.build.outputs.tag }}" \
+            --repo aqua5230/usage \
+            --pattern usage.app.zip.sha256 \
+            --output checksum.txt
+
+      - name: Update formula
+        run: |
+          TAG="${{ needs.build.outputs.tag }}"
+          VERSION="${TAG#v}"
+          SHA="$(awk '{print $1}' checksum.txt)"
+          if [[ -z "$SHA" ]]; then
+            echo "::error::Could not read sha256 from release checksum." >&2
+            exit 1
+          fi
+          sed -i \
+            -e "s|url \"https://github.com/aqua5230/usage/releases/download/v[^/]*/usage.app.zip\"|url \"https://github.com/aqua5230/usage/releases/download/${TAG}/usage.app.zip\"|" \
+            -e "s|sha256 \"[0-9a-f]*\"|sha256 \"${SHA}\"|" \
+            -e "s|version \"[^\"]*\"|version \"${VERSION}\"|" \
+            Formula/usage.rb
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- Formula/usage.rb; then
+            echo "Formula already up to date; nothing to commit."
+            exit 0
+          fi
+          git add Formula/usage.rb
+          git commit -m "usage ${{ needs.build.outputs.tag }}"
+          git push
