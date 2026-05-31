@@ -24,6 +24,16 @@ It **never calls the Anthropic / OpenAI API** and **never reads the Keychain**, 
   <img src="docs/popover.en.png" alt="usage popover" width="320">
 </p>
 
+## Progress Concierge: pick up your last session automatically
+
+The web and desktop apps remember your conversations — close them, reopen, it's all still there. The Claude Code CLI doesn't: every new session, you have to re-explain "where we left off." **Progress Concierge** (the menu item reads "Resume Last Session") hands that power to the CLI:
+
+- When you open a new Claude Code session, it automatically hands your last progress (your last request, the commits you made, any unfinished todos) to the AI — no re-explaining
+- **Fully local, zero API**: it only reads Claude Code's own logs on your machine; no network, no API calls
+- A single menu toggle, **off by default** (opt-in); enabling it installs the SessionStart hook
+
+See the [Progress Concierge section on the site](https://aqua5230.github.io/usage/#resume) for details.
+
 ## How it gets the data
 
 Usage numbers come from local files written by Claude Code and Codex — no Anthropic / OpenAI API calls. Network access is limited to two things: (1) to estimate Codex costs, usage needs a token pricing table — if no local cache exists (`~/.claude/pricing_cache.json`), it downloads the public [LiteLLM pricing JSON](https://github.com/BerriAI/litellm) once and caches it for 7 days. If the download fails, a built-in fallback price is used — usage percentage display is unaffected. On first launch without a cache, the fetch is synchronous and may take ~10 seconds on slow networks. (2) Starting in v0.11.0, usage pings the GitHub Releases API at most once per 24h to check for new versions (toggleable from the "Switch Panel" menu).
@@ -71,6 +81,7 @@ If Codex isn't installed or the directory doesn't exist, that part of the UI hid
 | HTML deep reports | ✅ | ✅ | — |
 | 5-language i18n | ✅ | — | — |
 | 9 visual panel themes | ✅ | — | — |
+| Progress Concierge (session resume) | ✅ | — | — |
 | Zero API calls | ✅ | ✅ | ✅ |
 | Open-source license | AGPL-3.0 | MIT | — |
 

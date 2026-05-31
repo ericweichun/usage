@@ -6,11 +6,18 @@
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-05-31
+
 ### 新增
-- **「專案管家」功能（Project Butler）**：純本地、零 API。開新 Claude Code 對話（`startup` / `/clear`）時，自動把上次的進度交給 AI——不用再跟它重講一次。選單一個開關（預設關、opt-in），啟用後安裝 Claude Code 的 SessionStart hook（`usage_session_resume.py`，stdlib-only、可於 macOS 內建 Python 3.9 執行）：讀出該專案上一個 session 的「你上次的請求 + 完成的 commit + 未完成待辦（若有用 TodoWrite）」，組成接續提示詞注入新對話開場，並請 Claude 第一句回「📋 已帶入上次進度」讓你知道已生效。文案走 `i18n.json`（安裝時寫入 sidecar 供 hook 讀，維持單一來源）；`setup_hook` 負責安裝/移除/備份/self-heal。滑鼠停留選單項顯示完整說明。
+- **「進度管家」功能（Progress Concierge）**：純本地、零 API，選單名「接著上次做」。開新 Claude Code 對話（`startup` / `/clear`）時，自動把上次的進度交給 AI——不用再跟它重講一次。選單一個開關（預設關、opt-in），啟用後安裝 Claude Code 的 SessionStart hook（`usage_session_resume.py`，stdlib-only、可於 macOS 內建 Python 3.9 執行）：讀出該專案上一個 session 的「你上次的請求 + 完成的 commit + 未完成待辦（若有用 TodoWrite）」，組成接續提示詞注入新對話開場，並請 Claude 第一句回「🐾 已接回上次進度，繼續吧！」讓你知道已生效。文案走 `i18n.json`（安裝時寫入 sidecar 供 hook 讀，維持單一來源）；`setup_hook` 負責安裝/移除/備份/self-heal。滑鼠停留選單項顯示完整說明。
+- **專屬 App 圖示**：以自製圖示取代 py2app 預設的火箭圖；NSAlert 對話框也改用品牌圖示（透過 `setIcon_`）。
 
 ### 變更
 - **選單瘦身**：9 個面板主題收進「面板主題」子選單，選單不再被長長一排佔滿。
+
+### 修正
+- **大規模健壯性硬化**：系統性強化所有「讀使用者磁碟檔」的入口，對抗壞 UTF-8、壞 JSON、型別漂移（數字字串、非 dict、非 str 欄位）——涵蓋 `setup_hook`、`codex_loader`、Codex / Claude / rate-limit adapter、statusline、history loader、subscription 讀取與 JWT 解碼、tips loader。
+- **WebKit 面板 fallback**：修正 `loadBundle` fallback 路徑未註冊 `evaluateJavaScript` block 簽名的問題。
 
 ## [0.12.1] - 2026-05-29
 
