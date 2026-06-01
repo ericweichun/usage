@@ -28,30 +28,34 @@ All numbers come from local files written by Claude Code and Codex — it **neve
 
 ## 📦 Install
 
-### Homebrew (recommended)
+Two ways to install — pick whichever suits you. Steps for both are below.
 
-One command to install; `brew upgrade` keeps it current:
+### Download the app
+
+Go to the [GitHub Releases page](https://github.com/aqua5230/usage/releases/latest) and download the latest `usage.app.zip`. Unzip it and drag `usage.app` into your Applications folder (or anywhere you like).
+
+⚠️ Because this app is not signed with an Apple Developer certificate, **macOS Gatekeeper (the built-in feature that blocks unfamiliar programs) will block the first launch**. To open it: find `usage.app` in Finder → right-click → Open → confirm Open. After that, double-clicking works normally.
+
+### Homebrew
+
+Installing via Homebrew (the macOS package manager) means a single `brew upgrade` keeps it current. Two commands:
 
 ```bash
 brew tap aqua5230/homebrew-usage
 brew install aqua5230/homebrew-usage/usage
 ```
 
-After install, find `usage.app` under `/opt/homebrew/Cellar/usage/` and right-click → Open once to pass Gatekeeper. Then optionally symlink it to Applications:
+After install, drag `usage.app` (under `/opt/homebrew/Cellar/usage/`) into your Applications folder from Finder; or run this to create the symlink for you:
 
 ```bash
 ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $2}')/usage.app /Applications/usage.app
 ```
 
-### Download the app
-
-Go to the [GitHub Releases page](https://github.com/aqua5230/usage/releases/latest) and download the latest `usage.app.zip`. Unzip it and move `usage.app` wherever you like (e.g. `/Applications`).
-
-⚠️ Because this app is not signed with an Apple Developer certificate, **macOS Gatekeeper will block the first launch**. To open it: find `usage.app` in Finder → right-click → Open → confirm Open. After that, double-clicking works normally.
+The first launch still needs right-click → Open to pass Gatekeeper.
 
 ### First launch: set up the status line
 
-The first time you open usage, if you have already used Codex, the Codex card usually reads `~/.codex/sessions` and shows data directly. If you use Claude Code, the popover may show a **"Set Up Status Line"** button — click it to install the hook (a script that runs every time Claude Code refreshes its status line).
+The first time you open usage, if you've already used Codex, it automatically picks up your Codex history and shows it — no setup needed. If you use Claude Code, the popover (the small window that pops up when you click the icon) may show a **"Set Up Status Line"** button — click it to install the hook (a small script that runs every time Claude Code refreshes its status line) that syncs your usage to the menu bar.
 
 Restart the relevant tool afterward: restart Codex once; if Claude Code was configured too, fully quit Claude Code (Cmd+Q) and re-open it so the data lands on disk.
 

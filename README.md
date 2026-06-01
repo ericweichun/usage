@@ -28,30 +28,34 @@
 
 ## 📦 安裝
 
-### Homebrew（推薦）
+兩種安裝方式，挑一個順手的用，步驟都在下面。
 
-一鍵裝好、日後 `brew upgrade` 自動更新：
+### 下載現成 App
+
+到 [GitHub Releases 頁面](https://github.com/aqua5230/usage/releases/latest) 下載最新的 `usage.app.zip`，解壓縮後把 `usage.app` 拖到「應用程式」資料夾（或任何地方）就能用。
+
+⚠️ 因為沒有 Apple Developer 簽章，**第一次開啟時 macOS Gatekeeper（系統內建、用來擋陌生程式的保全機制）會擋下來**。解法：在 Finder 找到 `usage.app` → 按住 Ctrl 點右鍵 → 選「打開」→ 再確認一次「打開」。之後就能直接雙擊。
+
+### Homebrew
+
+用 Homebrew（macOS 的套件管理工具）裝，好處是日後一行 `brew upgrade` 就能自動更新。兩行指令裝好：
 
 ```bash
 brew tap aqua5230/homebrew-usage
 brew install aqua5230/homebrew-usage/usage
 ```
 
-裝完後在 Finder 找到 `usage.app`（位於 `/opt/homebrew/Cellar/usage/` 底下），按住 Ctrl 右鍵 → 打開，讓 macOS 放行一次。之後可連結到 Applications：
+裝完後到 Finder 把 `usage.app`（在 `/opt/homebrew/Cellar/usage/` 底下）拖進「應用程式」資料夾即可；或用這行指令幫它自動建好捷徑：
 
 ```bash
 ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $2}')/usage.app /Applications/usage.app
 ```
 
-### 下載現成 App
-
-到 [GitHub Releases 頁面](https://github.com/aqua5230/usage/releases/latest) 下載最新的 `usage.app.zip`，解壓縮後把 `usage.app` 拖到任何地方（例如 `/Applications`）就能跑。
-
-⚠️ 因為沒有 Apple Developer 簽章，**第一次開啟時 macOS Gatekeeper（系統的「擋陌生程式」保全機制）會擋下來**。解法：在 Finder 找到 `usage.app` → 按住 Ctrl 點右鍵 → 選「打開」→ 再確認一次「打開」。之後就能直接雙擊。
+第一次開啟同樣要按住 Ctrl 右鍵 → 打開，讓 macOS 放行一次。
 
 ### 首次打開：設定狀態列
 
-第一次打開 usage，如果你用過 Codex，Codex 區塊通常會直接讀取 `~/.codex/sessions` 並顯示。若你使用 Claude Code，popover 可能會顯示**「設定狀態列」按鈕**——點一下即可裝好 hook（事件觸發點，每次刷新狀態列自動跑的小程式）。
+第一次打開 usage，如果你用過 Codex，它會自動讀到你的 Codex 使用紀錄並顯示，不用手動設定。若你使用 Claude Code，popover（點圖示後彈出的小視窗）可能會顯示**「設定狀態列」按鈕**——點一下即可裝好 hook（每次 Claude Code 刷新狀態列時自動跑一次的小程式），把用量同步到選單列。
 
 設定後請重開相關工具：Codex 需重新開啟一次；如果設定了 Claude Code，請完全結束（Cmd+Q）再重開一次，數字才會落到磁碟。
 
@@ -123,3 +127,5 @@ ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $
 如果 usage 幫你避開了 quota（API 配額）耗盡的中斷，請點 ⭐ —— 讓更多人找到它。
 
 如果這個工具幫到你、歡迎請我喝杯咖啡 ☕
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/lollapalooza)
