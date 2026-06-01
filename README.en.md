@@ -26,6 +26,27 @@ All numbers come from local files written by Claude Code and Codex — it **neve
 - **HTML deep reports** — token and cost trends, per-project rankings, shareable with colleagues.
 - **5-language UI** — Traditional Chinese, Simplified Chinese, English, Japanese, Korean, auto-following the system language.
 
+## 🔒 Privacy & data sources
+
+- Usage numbers are read only from the local log files Claude Code / Codex leave on your machine — it **never calls the Anthropic / OpenAI API and never reads the Keychain** (macOS's built-in password vault).
+- The only two times it goes online: fetching a public model-pricing table to estimate cost (falls back to built-in prices if that fails), and occasionally checking GitHub for a new version. Neither involves your usage data, and nothing is ever uploaded.
+
+## Requirements
+
+- macOS
+- Claude Code or Codex has been used at least once so local usage data exists
+- (Only if running from source) Python 3.13
+
+## ⚡ 30-second quick start
+
+The shortest path (full details in the sections below):
+
+1. Download `usage.app.zip` from [Releases](https://github.com/aqua5230/usage/releases/latest)
+2. Unzip it and drag `usage.app` into your Applications folder
+3. First launch: right-click → **Open** (to pass Gatekeeper once)
+4. Click the paw icon in the top-right menu bar to see your usage
+5. If you use Claude Code, click "Set Up Status Line" in the popover
+
 ## 📦 Install
 
 Two ways to install — pick whichever suits you. Steps for both are below.
@@ -59,6 +80,12 @@ The first time you open usage, if you've already used Codex, it automatically pi
 
 Restart the relevant tool afterward: restart Codex once; if Claude Code was configured too, fully quit Claude Code (Cmd+Q) and re-open it so the data lands on disk.
 
+**Then you'll see:**
+
+- A paw icon and usage percentage in the top-right menu bar
+- Click it for the Claude Code / Codex usage cards
+- If it shows `--`, it's usually not broken — there's just no local usage data yet: Codex needs one conversation first, and Claude Code needs the status line set up plus a full restart
+
 Once set up, the bottom of the Claude Code window will show a status line like this — **5h / 7d quota bars, context usage, session duration, current model — all on one line**:
 
 <p align="center">
@@ -68,6 +95,28 @@ Once set up, the bottom of the Claude Code window will show a status line like t
 To toggle the status line on / off later (e.g. you want to see Claude Code's native status line), click the **CLI ✓** button in the menubar popover's "Projects" section toolbar.
 
 > Running from source, or want to install via the command line? See the [development docs](docs/DEVELOPMENT.en.md).
+
+## Troubleshooting
+
+The "Fix" column distinguishes three kinds of users — find yours first:
+
+- **.app users** — downloaded `usage.app.zip` from GitHub Releases, unzipped, dragged `usage.app` to `/Applications`, double-click to launch like any Mac app. No Terminal, no Python.
+- **LaunchAgent users** — cloned the source and ran `./scripts/install-launchagent.sh` so macOS auto-starts usage on login.
+- **Source users** — cloned the source and run `python3 main.py` manually in Terminal each time.
+
+> Seeing `--`? Don't reinstall just yet — in the vast majority of cases there's simply no local usage data yet, and it appears after one conversation.
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| Menu bar shows `--` | No Codex `rate_limits` yet, or the Claude Code hook has not refreshed | Run one Codex conversation first. For Claude Code integration, **.app users** click "Set Up Status Line"; **Source users** run `python3 main.py --setup` |
+| Accidentally hit "Quit", paw icon disappeared from the menu bar | "Quit" fully terminates the usage process; you have to relaunch it | **.app users**: press `Cmd+Space` for Spotlight, type `usage`, hit Enter; or double-click `usage.app` from `/Applications`. **LaunchAgent users**: run `launchctl start com.lollapalooza.usage` in Terminal. **Source users**: run `python3 main.py` in Terminal again |
+| Status says "N minutes stale" | Claude Code isn't running | Open Claude Code and let it run; it updates the file on its next status refresh |
+| Codex section is empty | `~/.codex/sessions/` doesn't exist or has no `rate_limits` events yet | Run a Codex conversation to generate log entries |
+| Today's cost shows $0.00 | Model name doesn't match the pricing table, or pricing download/cache failed | Delete `~/.claude/pricing_cache.json` to force a re-fetch; or run with `USAGE_DEBUG=1` for details |
+| App won't open (blocked by macOS) | Gatekeeper blocks unsigned apps | Finder → find `usage.app` → right-click → Open → confirm Open |
+| App crashes immediately on launch (macOS Sequoia / arm64) | You're on v0.10.x or v0.11.0 — these had a py2app bundling bug | Upgrade to **v0.11.1 or newer** by downloading `usage.app.zip` from [Releases](https://github.com/aqua5230/usage/releases/latest) |
+
+Table didn't solve it? If it's clearly a bug, open an [Issue](https://github.com/aqua5230/usage/issues); for questions, ideas, or general usage chat, head to [Discussions](https://github.com/aqua5230/usage/discussions).
 
 ## Comparison
 
@@ -82,32 +131,6 @@ To toggle the status line on / off later (e.g. you want to see Claude Code's nat
 | Progress Concierge (session resume) | ✅ | — | — |
 | Zero API calls | ✅ | ✅ | ✅ |
 | Open-source license | AGPL-3.0 | MIT | — |
-
-## Requirements
-
-- macOS
-- Claude Code or Codex has been used at least once so local usage data exists
-- (Only if running from source) Python 3.13
-
-## Troubleshooting
-
-The "Fix" column distinguishes three kinds of users — find yours first:
-
-- **.app users** — downloaded `usage.app.zip` from GitHub Releases, unzipped, dragged `usage.app` to `/Applications`, double-click to launch like any Mac app. No Terminal, no Python.
-- **LaunchAgent users** — cloned the source and ran `./scripts/install-launchagent.sh` so macOS auto-starts usage on login.
-- **Source users** — cloned the source and run `python3 main.py` manually in Terminal each time.
-
-| Symptom | Likely cause | Fix |
-|---------|--------------|-----|
-| Menu bar shows `--` | No Codex `rate_limits` yet, or the Claude Code hook has not refreshed | Run one Codex conversation first. For Claude Code integration, **.app users** click "Set Up Status Line"; **Source users** run `python3 main.py --setup` |
-| Accidentally hit "Quit", paw icon disappeared from the menu bar | "Quit" fully terminates the usage process; you have to relaunch it | **.app users**: press `Cmd+Space` for Spotlight, type `usage`, hit Enter; or double-click `usage.app` from `/Applications`. **LaunchAgent users**: run `launchctl start com.lollapalooza.usage` in Terminal. **Source users**: run `python3 main.py` in Terminal again |
-| Status says "N minutes stale" | Claude Code isn't running | Open Claude Code and let it run; it updates the file on its next status refresh |
-| Codex section is empty | `~/.codex/sessions/` doesn't exist or has no `rate_limits` events yet | Run a Codex conversation to generate log entries |
-| Today's cost shows $0.00 | Model name doesn't match the pricing table, or pricing download/cache failed | Delete `~/.claude/pricing_cache.json` to force a re-fetch; or run with `USAGE_DEBUG=1` for details |
-| App won't open (blocked by macOS) | Gatekeeper blocks unsigned apps | Finder → find `usage.app` → right-click → Open → confirm Open |
-| App crashes immediately on launch (macOS Sequoia / arm64) | You're on v0.10.x or v0.11.0 — these had a py2app bundling bug | Upgrade to **v0.11.1 or newer** by downloading `usage.app.zip` from [Releases](https://github.com/aqua5230/usage/releases/latest) |
-
-Table didn't solve it? If it's clearly a bug, open an [Issue](https://github.com/aqua5230/usage/issues); for questions, ideas, or general usage chat, head to [Discussions](https://github.com/aqua5230/usage/discussions).
 
 ## Run from source / develop
 

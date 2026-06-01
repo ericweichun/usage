@@ -26,6 +26,27 @@
 - **HTML 深度報告** —— token 與成本走勢、各專案排名，可一鍵分享給同事。
 - **5 語言介面** —— 繁中、簡中、英、日、韓，自動跟隨系統語言。
 
+## 🔒 隱私與資料來源
+
+- 用量數字只讀 Claude Code / Codex 留在你本機的紀錄檔——**不呼叫 Anthropic / OpenAI 的 API、不讀 Keychain（macOS 內建的密碼保險箱）**。
+- 唯二會連網的地方：抓一份公開的模型價格表來估算成本（抓不到就用內建價格），以及偶爾跟 GitHub 確認有沒有新版本。兩者都跟你的用量資料無關，也不會把任何東西上傳出去。
+
+## 你需要的東西
+
+- macOS
+- 已經使用過 Claude Code 或 Codex 其中之一，讓它們在本機留下用量資料
+- （從原始碼跑才需要）Python 3.13
+
+## ⚡ 30 秒快速開始
+
+最短路徑（後面章節有完整說明）：
+
+1. 到 [Releases](https://github.com/aqua5230/usage/releases/latest) 下載 `usage.app.zip`
+2. 解壓縮，把 `usage.app` 拖進「應用程式」資料夾
+3. 第一次開啟：按住 Ctrl 點右鍵 → 「打開」（讓 macOS 放行一次）
+4. 點右上角選單列的腳印圖示，就能看到用量
+5. 有在用 Claude Code 的話，彈出視窗點「設定狀態列」
+
 ## 📦 安裝
 
 兩種安裝方式，挑一個順手的用，步驟都在下面。
@@ -59,6 +80,12 @@ ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $
 
 設定後請重開相關工具：Codex 需重新開啟一次；如果設定了 Claude Code，請完全結束（Cmd+Q）再重開一次，數字才會落到磁碟。
 
+**接著你會看到：**
+
+- 選單列右上角出現腳印圖示和用量百分比
+- 點開是 Claude Code / Codex 的用量卡片
+- 若顯示 `--`，多半不是壞掉，而是還沒有本機用量資料：Codex 要先跑過一次對話，Claude Code 要設定狀態列並完全重開
+
 設定完成後，Claude Code 視窗底部會出現這樣的狀態列——**5 小時 / 7 天配額條、對話窗用量、會話時長、目前模型，全擠在一行**：
 
 <p align="center">
@@ -68,6 +95,28 @@ ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $
 之後想隨時關掉 / 重裝狀態列（例如想看 Claude Code 原本的狀態列），可從 menubar popover 的「專案」section 工具列點 **CLI ✓** 按鈕一鍵切換。
 
 > 從原始碼執行、或想用指令模式安裝？見 [開發文件](docs/DEVELOPMENT.md)。
+
+## 常見問題排查
+
+下面的「解法」欄會分三種使用者寫，先對一下你屬於哪一種：
+
+- **.app 使用者** —— 從 GitHub Releases 下載 `usage.app.zip`、解壓後拖到 `/Applications`，像一般 Mac 軟體那樣雙擊圖示用的。不用碰 Terminal、不用裝 Python。
+- **LaunchAgent 使用者** —— git clone 原始碼後，跑過 `./scripts/install-launchagent.sh` 讓 macOS 幫你開機自動啟動的。
+- **原始碼使用者** —— git clone 原始碼後，每次自己在 Terminal 跑 `python3 main.py` 的。
+
+> 看到 `--` 先別急著重裝——絕大多數情況只是還沒有本機用量資料，跑一次對話就會出現。
+
+| 症狀 | 原因 | 解法 |
+|------|------|------|
+| menu bar 顯示 `--` | 還沒有 Codex rate_limits，或 Claude Code hook 還沒刷新 | 先用 Codex 跑一次對話；若要接 Claude Code，**.app 使用者**點「設定狀態列」，**原始碼使用者**跑 `python3 main.py --setup` |
+| 不小心按「結束」、腳印從選單列消失 | 「結束」會把整個 usage 程式關掉，要手動再開 | **.app 使用者**：按 `Cmd+Space` 叫出 Spotlight、輸入 `usage` 雙擊；或從 `/Applications` 找到 `usage.app` 雙擊。**LaunchAgent 使用者**：在 Terminal 跑 `launchctl start com.lollapalooza.usage`。**從原始碼跑的**：在 Terminal 再跑一次 `python3 main.py` |
+| 狀態顯示「N 分鐘未更新」 | Claude Code 沒在跑，沒有刷新 statusLine | 打開 Claude Code 跑一下，它刷新時會自動更新 |
+| Codex 那塊空白或不顯示 | `~/.codex/sessions/` 不存在，或還沒有含 rate_limits 的 token_count 事件 | 用 Codex 跑一次對話，等它寫入紀錄 |
+| 今日花費是 $0.00 | 模型名稱對不上 pricing 表，或 pricing 下載 / 快取失敗 | 刪掉 `~/.claude/pricing_cache.json` 讓它重新抓；或設 `USAGE_DEBUG=1` 看錯誤訊息 |
+| app 雙擊打不開 | macOS Gatekeeper 擋住未簽章的 app | Finder → 找到 `usage.app` → 按住 Ctrl 右鍵 → 打開 → 確認打開 |
+| app 一打開就閃退（macOS Sequoia / arm64） | 你裝的是 v0.10.x 或 v0.11.0，這幾版有 py2app 打包 bug | 升級到 **v0.11.1 或更新**，到 [Releases](https://github.com/aqua5230/usage/releases/latest) 重新下載 `usage.app.zip` |
+
+上面表格沒解決你的問題？確定是 bug 就開 [Issue](https://github.com/aqua5230/usage/issues)；只是想問問題、分享想法或聊聊用法，到 [Discussions](https://github.com/aqua5230/usage/discussions)。
 
 ## 跟其他工具比較
 
@@ -82,32 +131,6 @@ ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $
 | 進度管家（session 接續） | ✅ | — | — |
 | 零 API 呼叫 | ✅ | ✅ | ✅ |
 | 開源授權 | AGPL-3.0 | MIT | — |
-
-## 你需要的東西
-
-- macOS
-- 已經使用過 Claude Code 或 Codex 其中之一，讓它們在本機留下用量資料
-- （從原始碼跑才需要）Python 3.13
-
-## 常見問題排查
-
-下面的「解法」欄會分三種使用者寫，先對一下你屬於哪一種：
-
-- **.app 使用者** —— 從 GitHub Releases 下載 `usage.app.zip`、解壓後拖到 `/Applications`，像一般 Mac 軟體那樣雙擊圖示用的。不用碰 Terminal、不用裝 Python。
-- **LaunchAgent 使用者** —— git clone 原始碼後，跑過 `./scripts/install-launchagent.sh` 讓 macOS 幫你開機自動啟動的。
-- **原始碼使用者** —— git clone 原始碼後，每次自己在 Terminal 跑 `python3 main.py` 的。
-
-| 症狀 | 原因 | 解法 |
-|------|------|------|
-| menu bar 顯示 `--` | 還沒有 Codex rate_limits，或 Claude Code hook 還沒刷新 | 先用 Codex 跑一次對話；若要接 Claude Code，**.app 使用者**點「設定狀態列」，**原始碼使用者**跑 `python3 main.py --setup` |
-| 不小心按「結束」、腳印從選單列消失 | 「結束」會把整個 usage 程式關掉，要手動再開 | **.app 使用者**：按 `Cmd+Space` 叫出 Spotlight、輸入 `usage` 雙擊；或從 `/Applications` 找到 `usage.app` 雙擊。**LaunchAgent 使用者**：在 Terminal 跑 `launchctl start com.lollapalooza.usage`。**從原始碼跑的**：在 Terminal 再跑一次 `python3 main.py` |
-| 狀態顯示「N 分鐘未更新」 | Claude Code 沒在跑，沒有刷新 statusLine | 打開 Claude Code 跑一下，它刷新時會自動更新 |
-| Codex 那塊空白或不顯示 | `~/.codex/sessions/` 不存在，或還沒有含 rate_limits 的 token_count 事件 | 用 Codex 跑一次對話，等它寫入紀錄 |
-| 今日花費是 $0.00 | 模型名稱對不上 pricing 表，或 pricing 下載 / 快取失敗 | 刪掉 `~/.claude/pricing_cache.json` 讓它重新抓；或設 `USAGE_DEBUG=1` 看錯誤訊息 |
-| app 雙擊打不開 | macOS Gatekeeper 擋住未簽章的 app | Finder → 找到 `usage.app` → 按住 Ctrl 右鍵 → 打開 → 確認打開 |
-| app 一打開就閃退（macOS Sequoia / arm64） | 你裝的是 v0.10.x 或 v0.11.0，這幾版有 py2app 打包 bug | 升級到 **v0.11.1 或更新**，到 [Releases](https://github.com/aqua5230/usage/releases/latest) 重新下載 `usage.app.zip` |
-
-上面表格沒解決你的問題？確定是 bug 就開 [Issue](https://github.com/aqua5230/usage/issues)；只是想問問題、分享想法或聊聊用法，到 [Discussions](https://github.com/aqua5230/usage/discussions)。
 
 ## 從原始碼跑 / 開發
 
