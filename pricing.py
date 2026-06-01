@@ -6,8 +6,10 @@ import logging
 import os
 import re
 import tempfile
+import threading
 import time
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
@@ -35,9 +37,11 @@ PROVIDER_PREFIXES = (
 DATE_SUFFIX_RE = re.compile(r"-(?:\d{8}|\d{4}-\d{2}-\d{2})$")
 
 PricingTable = dict[str, dict[str, float]]
-PricingSource = Literal["cache", "fetched", "fallback"]
+PricingSource = Literal["cache", "stale", "fetched", "fallback"]
 
 _pricing_cache: tuple[PricingTable, PricingSource, float] | None = None
+_pricing_cache_lock = threading.Lock()
+_pricing_warm_up_in_progress = False
 
 
 class _CostEntry(Protocol):
@@ -80,14 +84,90 @@ def calculate_cost(entry: _CostEntry) -> float:
 def get_pricing() -> PricingTable:
     global _pricing_cache
     now = time.monotonic()
-    if _pricing_cache is not None:
-        pricing, source, cached_at = _pricing_cache
-        if source != "fallback" or (now - cached_at) <= FALLBACK_RETRY_SECONDS:
+    with _pricing_cache_lock:
+        cached_entry = _pricing_cache
+    if cached_entry is not None:
+        pricing, source, cached_at = cached_entry
+        if _memory_cache_is_fresh(source, cached_at, now):
             return pricing
+        warm_up_pricing()
+        return pricing
 
     pricing, source = _load_pricing_with_source()
-    _pricing_cache = (pricing, source, now)
+    with _pricing_cache_lock:
+        _pricing_cache = (pricing, source, now)
+    if source in {"stale", "fallback"}:
+        warm_up_pricing()
     return pricing
+
+
+def _memory_cache_is_fresh(source: PricingSource, cached_at: float, now: float) -> bool:
+    if source == "fallback":
+        return (now - cached_at) <= FALLBACK_RETRY_SECONDS
+    if source == "stale":
+        return False
+    return (now - cached_at) <= CACHE_TTL_DAYS * 86400
+
+
+def warm_up_pricing(on_ready: Callable[[], None] | None = None) -> None:
+    global _pricing_warm_up_in_progress
+    with _pricing_cache_lock:
+        if _pricing_warm_up_in_progress:
+            return
+        _pricing_warm_up_in_progress = True
+
+    thread = threading.Thread(target=_warm_up_pricing_worker, args=(on_ready,), daemon=True)
+    thread.start()
+
+
+def _warm_up_pricing_worker(on_ready: Callable[[], None] | None) -> None:
+    global _pricing_cache, _pricing_warm_up_in_progress
+    try:
+        with _pricing_cache_lock:
+            baseline = _pricing_cache
+        if baseline is None:
+            baseline_pricing, baseline_source = _load_pricing_with_source()
+            baseline = (baseline_pricing, baseline_source, time.monotonic())
+
+        fetched = _fetch_pricing()
+        if not fetched:
+            return
+
+        _write_cache(fetched)
+        now = time.monotonic()
+        with _pricing_cache_lock:
+            previous = _pricing_cache or baseline
+            pricing, source, _ = previous
+            should_notify = source in {"stale", "fallback"} or pricing != fetched
+            _pricing_cache = (fetched, "fetched", now)
+
+        if should_notify and on_ready is not None:
+            on_ready()
+    except Exception:
+        if os.environ.get("USAGE_DEBUG") == "1":
+            logger.warning("failed to warm up pricing", exc_info=True)
+    finally:
+        with _pricing_cache_lock:
+            _pricing_warm_up_in_progress = False
+
+
+def _set_pricing_cache_for_test(
+    value: tuple[PricingTable, PricingSource, float] | None,
+) -> None:
+    global _pricing_cache
+    with _pricing_cache_lock:
+        _pricing_cache = value
+
+
+def _get_pricing_cache_for_test() -> tuple[PricingTable, PricingSource, float] | None:
+    with _pricing_cache_lock:
+        return _pricing_cache
+
+
+def _reset_pricing_warm_up_for_test() -> None:
+    global _pricing_warm_up_in_progress
+    with _pricing_cache_lock:
+        _pricing_warm_up_in_progress = False
 
 
 def _load_pricing() -> PricingTable:
@@ -100,14 +180,9 @@ def _load_pricing_with_source() -> tuple[PricingTable, PricingSource]:
     if cached:
         return cached, "cache"
 
-    fetched = _fetch_pricing()
-    if fetched:
-        _write_cache(fetched)
-        return fetched, "fetched"
-
     stale_cached = _read_cache(allow_stale=True)
     if stale_cached:
-        return stale_cached, "cache"
+        return stale_cached, "stale"
 
     return _fallback_pricing(), "fallback"
 

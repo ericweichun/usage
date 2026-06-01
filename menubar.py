@@ -82,7 +82,7 @@ from menubar_state import (
 from panels.base import Panel as UsagePanel
 from panels.base import load_active_panel_id, resolve_resource, save_active_panel_id
 from prefs import _load_preferences, _save_preferences
-from pricing import calculate_cost
+from pricing import calculate_cost, warm_up_pricing
 from statusline_settings import (
     _claude_settings_path as _claude_settings_path,
 )
@@ -391,8 +391,16 @@ class AppDelegate(NSObject):
         )
         NSRunLoop.currentRunLoop().addTimer_forMode_(self.timer, NSRunLoopCommonModes)
         self._fs_stream = setup_fsevents(self)
+        warm_up_pricing(self._refresh_after_pricing_warm_up)
         thread = threading.Thread(target=self._maybe_check_update_in_background, daemon=True)
         thread.start()
+
+    def _refresh_after_pricing_warm_up(self) -> None:
+        self.performSelectorOnMainThread_withObject_waitUntilDone_(
+            "refreshNow:",
+            None,
+            False,
+        )
 
     def timerFired_(self, timer: Any) -> None:
         self._refresh()

@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
 import urllib.request
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -13,6 +15,15 @@ import pytest
 import pricing
 from adapters.types import UsageEntry as AnalyzerUsageEntry
 from history_loader import UsageEntry
+
+
+@pytest.fixture(autouse=True)
+def reset_pricing_state() -> Iterator[None]:
+    pricing._set_pricing_cache_for_test(None)
+    pricing._reset_pricing_warm_up_for_test()
+    yield
+    pricing._set_pricing_cache_for_test(None)
+    pricing._reset_pricing_warm_up_for_test()
 
 
 class FakeResponse:
@@ -301,20 +312,23 @@ def test_read_cache_uses_legacy_claude_path_when_new_cache_missing(
     assert pricing._read_cache() == {"legacy-model": {"input_cost_per_token": 1.0}}
 
 
-def test_load_pricing_falls_back_when_fetch_fails_without_real_network(
+def test_load_pricing_falls_back_without_fetching(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     cache_path = tmp_path / "pricing_cache.json"
     monkeypatch.setattr(pricing, "CACHE_PATH", cache_path)
+    fetch_calls = 0
 
-    def fake_urlopen(request: object, timeout: int) -> object:
-        _ = request, timeout
-        raise OSError("offline")
+    def fake_fetch_pricing() -> pricing.PricingTable | None:
+        nonlocal fetch_calls
+        fetch_calls += 1
+        return None
 
-    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(pricing, "_fetch_pricing", fake_fetch_pricing)
 
     assert pricing._load_pricing() == pricing._fallback_pricing()
+    assert fetch_calls == 0
 
 
 def test_fetch_pricing_returns_none_for_bad_utf8_payload(
@@ -343,37 +357,49 @@ def test_load_pricing_uses_fresh_cache_without_fetching(
     assert fetch_calls == 0
 
 
-def test_load_pricing_fetches_and_writes_when_fresh_cache_missing(
+def test_warm_up_pricing_fetches_writes_updates_cache_and_notifies(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fetched = {"fetched-model": {"input_cost_per_token": 2.0}}
     writes: list[pricing.PricingTable] = []
+    ready = threading.Event()
 
     monkeypatch.setattr(pricing, "_read_cache", lambda *, allow_stale=False: None)
     monkeypatch.setattr(pricing, "_fetch_pricing", lambda: fetched)
     monkeypatch.setattr(pricing, "_write_cache", writes.append)
+    monkeypatch.setattr("pricing.time.monotonic", lambda: 1_000.0)
 
-    assert pricing._load_pricing_with_source() == (fetched, "fetched")
+    pricing.warm_up_pricing(ready.set)
+
+    assert ready.wait(timeout=1)
     assert writes == [fetched]
+    assert pricing._get_pricing_cache_for_test() == (fetched, "fetched", 1_000.0)
 
 
-def test_load_pricing_uses_stale_cache_when_fetch_fails(
+def test_load_pricing_uses_stale_cache_without_fetching(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     stale = {"stale-model": {"input_cost_per_token": 3.0}}
+    fetch_calls = 0
 
     def fake_read_cache(*, allow_stale: bool = False) -> pricing.PricingTable | None:
         return stale if allow_stale else None
 
+    def fake_fetch_pricing() -> pricing.PricingTable | None:
+        nonlocal fetch_calls
+        fetch_calls += 1
+        return None
+
     monkeypatch.setattr(pricing, "_read_cache", fake_read_cache)
-    monkeypatch.setattr(pricing, "_fetch_pricing", lambda: None)
+    monkeypatch.setattr(pricing, "_fetch_pricing", fake_fetch_pricing)
     monkeypatch.setattr(
         pricing,
         "_fallback_pricing",
         lambda: {"fallback-model": {"input_cost_per_token": 4.0}},
     )
 
-    assert pricing._load_pricing_with_source() == (stale, "cache")
+    assert pricing._load_pricing_with_source() == (stale, "stale")
+    assert fetch_calls == 0
 
 
 def test_load_pricing_uses_fallback_when_cache_and_fetch_missing(
@@ -392,17 +418,17 @@ def test_get_pricing_reuses_fallback_within_retry_ttl(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     now = 1_000.0
-    fetch_calls = 0
+    warm_up_calls = 0
     fallback = {"fallback-model": {"input_cost_per_token": 1.0}}
 
-    def fake_fetch_pricing() -> pricing.PricingTable | None:
-        nonlocal fetch_calls
-        fetch_calls += 1
-        return None
+    def fake_warm_up_pricing(on_ready: object = None) -> None:
+        nonlocal warm_up_calls
+        _ = on_ready
+        warm_up_calls += 1
 
-    monkeypatch.setattr(pricing, "_pricing_cache", None)
+    pricing._set_pricing_cache_for_test(None)
     monkeypatch.setattr(pricing, "_read_cache", lambda *, allow_stale=False: None)
-    monkeypatch.setattr(pricing, "_fetch_pricing", fake_fetch_pricing)
+    monkeypatch.setattr(pricing, "warm_up_pricing", fake_warm_up_pricing)
     monkeypatch.setattr(pricing, "_fallback_pricing", lambda: fallback)
     monkeypatch.setattr("pricing.time.monotonic", lambda: now)
     monkeypatch.setattr(pricing, "FALLBACK_RETRY_SECONDS", 600)
@@ -410,34 +436,127 @@ def test_get_pricing_reuses_fallback_within_retry_ttl(
     assert pricing.get_pricing() == fallback
     now += 599
     assert pricing.get_pricing() == fallback
+    assert warm_up_calls == 1
+    assert pricing._get_pricing_cache_for_test() == (fallback, "fallback", 1_000.0)
+
+
+def test_get_pricing_without_cache_returns_fallback_without_fetching(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fallback = {"fallback-model": {"input_cost_per_token": 1.0}}
+    fetch_calls = 0
+    warm_up_calls = 0
+
+    def fake_fetch_pricing() -> pricing.PricingTable | None:
+        nonlocal fetch_calls
+        fetch_calls += 1
+        return {"fetched-model": {"input_cost_per_token": 2.0}}
+
+    def fake_warm_up_pricing(on_ready: object = None) -> None:
+        nonlocal warm_up_calls
+        _ = on_ready
+        warm_up_calls += 1
+
+    monkeypatch.setattr(pricing, "_read_cache", lambda *, allow_stale=False: None)
+    monkeypatch.setattr(pricing, "_fetch_pricing", fake_fetch_pricing)
+    monkeypatch.setattr(pricing, "_fallback_pricing", lambda: fallback)
+    monkeypatch.setattr(pricing, "warm_up_pricing", fake_warm_up_pricing)
+
+    assert pricing.get_pricing() == fallback
+    assert fetch_calls == 0
+    assert warm_up_calls == 1
+
+
+def test_get_pricing_with_stale_cache_triggers_warm_up(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = 1_000.0
+    stale = {"stale-model": {"input_cost_per_token": 3.0}}
+    warm_up_calls = 0
+
+    def fake_read_cache(*, allow_stale: bool = False) -> pricing.PricingTable | None:
+        return stale if allow_stale else None
+
+    def fake_warm_up_pricing(on_ready: object = None) -> None:
+        nonlocal warm_up_calls
+        _ = on_ready
+        warm_up_calls += 1
+
+    monkeypatch.setattr(pricing, "_read_cache", fake_read_cache)
+    monkeypatch.setattr(pricing, "warm_up_pricing", fake_warm_up_pricing)
+    monkeypatch.setattr("pricing.time.monotonic", lambda: now)
+
+    assert pricing.get_pricing() == stale
+    assert warm_up_calls == 1
+    assert pricing._get_pricing_cache_for_test() == (stale, "stale", 1_000.0)
+
+
+def test_warm_up_pricing_deduplicates_concurrent_and_reentrant_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fetched = {"fetched-model": {"input_cost_per_token": 2.0}}
+    fetch_started = threading.Event()
+    release_fetch = threading.Event()
+    ready = threading.Event()
+    fetch_calls = 0
+    ready_calls = 0
+
+    def fake_fetch_pricing() -> pricing.PricingTable | None:
+        nonlocal fetch_calls
+        fetch_calls += 1
+        fetch_started.set()
+        assert release_fetch.wait(timeout=1)
+        return fetched
+
+    def on_ready() -> None:
+        nonlocal ready_calls
+        ready_calls += 1
+        pricing.warm_up_pricing()
+        ready.set()
+
+    monkeypatch.setattr(pricing, "_fetch_pricing", fake_fetch_pricing)
+    monkeypatch.setattr(pricing, "_write_cache", lambda table: None)
+
+    pricing.warm_up_pricing(on_ready)
+    assert fetch_started.wait(timeout=1)
+
+    for _ in range(5):
+        pricing.warm_up_pricing()
+
+    release_fetch.set()
+
+    assert ready.wait(timeout=1)
     assert fetch_calls == 1
-    assert pricing._pricing_cache == (fallback, "fallback", 1_000.0)
+    assert ready_calls == 1
+    cached = pricing._get_pricing_cache_for_test()
+    assert cached is not None
+    assert cached[0] == fetched
 
 
-def test_get_pricing_retries_fallback_after_retry_ttl_and_switches_to_fetched(
+def test_get_pricing_triggers_warm_up_after_fallback_retry_ttl(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     now = 1_000.0
     fallback = {"fallback-model": {"input_cost_per_token": 1.0}}
-    fetched = {"fetched-model": {"input_cost_per_token": 2.0}}
-    fetch_results: list[pricing.PricingTable | None] = [None, fetched]
+    warm_up_calls = 0
 
-    def fake_fetch_pricing() -> pricing.PricingTable | None:
-        return fetch_results.pop(0)
+    def fake_warm_up_pricing(on_ready: object = None) -> None:
+        nonlocal warm_up_calls
+        _ = on_ready
+        warm_up_calls += 1
 
-    monkeypatch.setattr(pricing, "_pricing_cache", None)
+    pricing._set_pricing_cache_for_test(None)
     monkeypatch.setattr(pricing, "_read_cache", lambda *, allow_stale=False: None)
-    monkeypatch.setattr(pricing, "_fetch_pricing", fake_fetch_pricing)
+    monkeypatch.setattr(pricing, "warm_up_pricing", fake_warm_up_pricing)
     monkeypatch.setattr(pricing, "_fallback_pricing", lambda: fallback)
-    monkeypatch.setattr(pricing, "_write_cache", lambda table: None)
     monkeypatch.setattr("pricing.time.monotonic", lambda: now)
     monkeypatch.setattr(pricing, "FALLBACK_RETRY_SECONDS", 600)
 
     assert pricing.get_pricing() == fallback
     now += 601
-    assert pricing.get_pricing() == fetched
-    assert fetch_results == []
-    assert pricing._pricing_cache == (fetched, "fetched", 1_601.0)
+    assert pricing.get_pricing() == fallback
+    assert warm_up_calls == 2
+    assert pricing._get_pricing_cache_for_test() == (fallback, "fallback", 1_000.0)
 
 
 def test_get_pricing_retries_fallback_after_monotonic_ttl_when_wall_clock_moves_backward(
@@ -446,17 +565,17 @@ def test_get_pricing_retries_fallback_after_monotonic_ttl_when_wall_clock_moves_
     monotonic_now = 1_000.0
     wall_clock_now = 5_000.0
     fallback = {"fallback-model": {"input_cost_per_token": 1.0}}
-    fetched = {"fetched-model": {"input_cost_per_token": 2.0}}
-    fetch_results: list[pricing.PricingTable | None] = [None, fetched]
+    warm_up_calls = 0
 
-    def fake_fetch_pricing() -> pricing.PricingTable | None:
-        return fetch_results.pop(0)
+    def fake_warm_up_pricing(on_ready: object = None) -> None:
+        nonlocal warm_up_calls
+        _ = on_ready
+        warm_up_calls += 1
 
-    monkeypatch.setattr(pricing, "_pricing_cache", None)
+    pricing._set_pricing_cache_for_test(None)
     monkeypatch.setattr(pricing, "_read_cache", lambda *, allow_stale=False: None)
-    monkeypatch.setattr(pricing, "_fetch_pricing", fake_fetch_pricing)
+    monkeypatch.setattr(pricing, "warm_up_pricing", fake_warm_up_pricing)
     monkeypatch.setattr(pricing, "_fallback_pricing", lambda: fallback)
-    monkeypatch.setattr(pricing, "_write_cache", lambda table: None)
     monkeypatch.setattr("pricing.time.monotonic", lambda: monotonic_now)
     monkeypatch.setattr("pricing.time.time", lambda: wall_clock_now)
     monkeypatch.setattr(pricing, "FALLBACK_RETRY_SECONDS", 600)
@@ -464,8 +583,9 @@ def test_get_pricing_retries_fallback_after_monotonic_ttl_when_wall_clock_moves_
     assert pricing.get_pricing() == fallback
     monotonic_now += 601
     wall_clock_now -= 4_000
-    assert pricing.get_pricing() == fetched
-    assert pricing._pricing_cache == (fetched, "fetched", 1_601.0)
+    assert pricing.get_pricing() == fallback
+    assert warm_up_calls == 2
+    assert pricing._get_pricing_cache_for_test() == (fallback, "fallback", 1_000.0)
 
 
 def test_get_pricing_keeps_fetched_result_after_retry_ttl(
@@ -473,16 +593,16 @@ def test_get_pricing_keeps_fetched_result_after_retry_ttl(
 ) -> None:
     now = 1_000.0
     fetched = {"fetched-model": {"input_cost_per_token": 2.0}}
-    fetch_calls = 0
+    load_calls = 0
 
-    def fake_fetch_pricing() -> pricing.PricingTable | None:
-        nonlocal fetch_calls
-        fetch_calls += 1
-        return fetched
+    def fake_load_pricing_with_source() -> tuple[pricing.PricingTable, pricing.PricingSource]:
+        nonlocal load_calls
+        load_calls += 1
+        return fetched, "fetched"
 
-    monkeypatch.setattr(pricing, "_pricing_cache", None)
+    pricing._set_pricing_cache_for_test(None)
     monkeypatch.setattr(pricing, "_read_cache", lambda: None)
-    monkeypatch.setattr(pricing, "_fetch_pricing", fake_fetch_pricing)
+    monkeypatch.setattr(pricing, "_load_pricing_with_source", fake_load_pricing_with_source)
     monkeypatch.setattr(pricing, "_write_cache", lambda table: None)
     monkeypatch.setattr("pricing.time.monotonic", lambda: now)
     monkeypatch.setattr(pricing, "FALLBACK_RETRY_SECONDS", 600)
@@ -490,8 +610,8 @@ def test_get_pricing_keeps_fetched_result_after_retry_ttl(
     assert pricing.get_pricing() == fetched
     now += 601
     assert pricing.get_pricing() == fetched
-    assert fetch_calls == 1
-    assert pricing._pricing_cache == (fetched, "fetched", 1_000.0)
+    assert load_calls == 1
+    assert pricing._get_pricing_cache_for_test() == (fetched, "fetched", 1_000.0)
 
 
 def test_get_pricing_keeps_cache_result_after_retry_ttl(
@@ -506,7 +626,7 @@ def test_get_pricing_keeps_cache_result_after_retry_ttl(
         fetch_calls += 1
         return None
 
-    monkeypatch.setattr(pricing, "_pricing_cache", None)
+    pricing._set_pricing_cache_for_test(None)
     monkeypatch.setattr(pricing, "_read_cache", lambda: cached)
     monkeypatch.setattr(pricing, "_fetch_pricing", fake_fetch_pricing)
     monkeypatch.setattr("pricing.time.monotonic", lambda: now)
@@ -516,7 +636,7 @@ def test_get_pricing_keeps_cache_result_after_retry_ttl(
     now += 601
     assert pricing.get_pricing() == cached
     assert fetch_calls == 0
-    assert pricing._pricing_cache == (cached, "cache", 1_000.0)
+    assert pricing._get_pricing_cache_for_test() == (cached, "cache", 1_000.0)
 
 
 def test_write_cache_writes_json_atomically(
