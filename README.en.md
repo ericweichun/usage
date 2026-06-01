@@ -20,11 +20,11 @@ All numbers come from local files written by Claude Code and Codex — it **neve
 
 ## ✨ Features
 
-- **🐾 Menu bar usage monitor**: pins Claude Code + Codex 5-hour / 7-day quota to the top-right. Percentages share the bar color (yellow / green / red) so the warning level reads at a glance. Click for Session, Weekly, per-project usage, and today's cost estimate.
-- **🔄 Progress Concierge**: when you open a new Claude Code session, it automatically hands your last progress (your last request, the commits you made, any unfinished todos) to the AI — no re-explaining. Fully local, zero API, off by default. See the [landing page](https://aqua5230.github.io/usage/#resume).
-- **🎨 9 visual panel themes**: Classic, Matrix, Windows 95, Newspaper, Cloud Observation, Midnight Aquarium, Prism Arcade, Black Hole, World Cup 2026 — switch with one click.
-- **📊 HTML deep reports**: daily / weekly / monthly token + cost trends, per-project rankings, top-model distribution, shareable with a built-in "hide project names" toggle.
-- **🌍 5-language i18n**: Traditional Chinese / Simplified Chinese / English / Japanese / Korean, auto-following the system language.
+- **Menu bar usage monitor** — pins Claude Code and Codex quota to the top-right. Numbers share the bar color, so the warning level reads at a glance. Click for the full breakdown.
+- **Progress Concierge** — opening a new Claude Code session automatically hands your last progress to the AI, no re-explaining. Fully local, zero API, off by default. [Learn more](https://aqua5230.github.io/usage/#resume).
+- **9 visual panel themes** — from clean light cards to a World Cup broadcast HUD, switch with one click.
+- **HTML deep reports** — token and cost trends, per-project rankings, shareable with colleagues.
+- **5-language UI** — Traditional Chinese, Simplified Chinese, English, Japanese, Korean, auto-following the system language.
 
 ## 📦 Install
 
