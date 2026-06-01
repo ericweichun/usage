@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-06-01
+
+### Changed
+- **HTML report merges "Your subscription" and "By tool" into "Your tools"**: the two panels used to describe the same Claude Code / Codex tools separately. Now there's one card per tool — the plan badge and subscription start date sit alongside the share / tokens / cost stats under a single shared header, dropping the duplicate block.
+- **Top KPI cards rebalanced**: the TOKENS column now gets the widest slot so the full number (e.g. `2,364,752,661`) never truncates or overflows at any window width, with `tabular-nums` for cleaner digit alignment.
+
+### Docs
+- **README overhaul (EN/繁中)**: privacy / requirements and quick start moved to the top, the three install methods presented on equal footing, feature bullets and punctuation trimmed, and the developer guide moved to `docs/DEVELOPMENT`.
+
 ## [0.14.1] - 2026-06-01
 
 ### Fixed
