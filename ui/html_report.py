@@ -307,25 +307,60 @@ def _donut_svg(items: list[tuple[str, int]], lang: str) -> str:
     )
 
 
-def _subscription_body(subs: list[dict[str, Any]], lang: str) -> str:
-    if not subs:
-        return _empty_line(_t(lang, "sub_empty"))
-    rows = []
-    for sub in subs:
+def _tools_body(subs: list[dict[str, Any]], agents: list[dict[str, Any]], lang: str) -> str:
+    """One card per tool, joining subscription plan with usage by tool name."""
+    by_name = {str(sub.get("agent", "")): sub for sub in subs}
+    seen: set[str] = set()
+    rows: list[str] = []
+
+    def _plan_html(sub: dict[str, Any] | None) -> str:
+        if not sub:
+            return ""
+        plan = sub.get("plan")
         since = sub.get("since")
         since_html = (
             f'<span class="sub-since" data-mask>{_escape(_t(lang, "sub_since"))} {_escape(since)}</span>'
             if since
             else ""
         )
-        rows.append(
-            '<div class="sub-row">'
-            f'<span class="sub-agent">{_escape(str(sub.get("agent", "")))}</span>'
-            f'<span class="sub-plan">{_escape(str(sub.get("plan", "")))}</span>'
-            f"{since_html}"
+        plan_html = f'<span class="sub-plan">{_escape(str(plan))}</span>' if plan else ""
+        return plan_html + since_html
+
+    def _row(name: str, plan_html: str, stats_html: str) -> str:
+        return (
+            '<div class="tool-row">'
+            f'<div class="tool-head"><span class="sub-agent">{_escape(name)}</span>{plan_html}</div>'
+            f"{stats_html}"
             "</div>"
         )
-    return f'<div class="subs">{"".join(rows)}</div>'
+
+    for agent in agents:
+        name = _display_name(agent["name"], lang)
+        seen.add(str(agent["name"]))
+        stats_html = (
+            f'<span class="pct" data-label="{_escape(_t(lang, "share"))}">{float(agent["pct"]):.1f}%</span>'
+            f'<span class="tokens" data-label="{_escape(_t(lang, "tokens"))}">{_fmt_tokens(int(agent["tokens"]))}</span>'
+            f'<span class="cost" data-label="{_escape(_t(lang, "cost"))}">{_fmt_cost(float(agent["cost"]))}</span>'
+        )
+        rows.append(_row(name, _plan_html(by_name.get(str(agent["name"]))), stats_html))
+
+    # Subscriptions for tools that have no usage in this period still get a card.
+    for sub_name, sub in by_name.items():
+        if sub_name in seen or not sub_name:
+            continue
+        rows.append(_row(sub_name, _plan_html(sub), "<span></span><span></span><span></span>"))
+
+    if not rows:
+        return _empty_line(_t(lang, "sub_empty"))
+    head = (
+        '<div class="tools-head">'
+        "<span></span>"
+        f'<span>{_escape(_t(lang, "share"))}</span>'
+        f'<span>{_escape(_t(lang, "tokens"))}</span>'
+        f'<span>{_escape(_t(lang, "cost"))}</span>'
+        "</div>"
+    )
+    return f'<div class="tools">{head}{"".join(rows)}</div>'
 
 
 def _tip_section(tip: Tip, lang: str) -> str:
@@ -430,24 +465,6 @@ def generate_html(data: dict[str, Any], language: str | None = None) -> str:
         else _empty_line(_t(lang, "empty_models"))
     )
 
-    agent_rows = [
-        _rank_line(
-            _display_name(agent["name"], lang),
-            float(agent["pct"]),
-            int(agent["tokens"]),
-            float(agent["cost"]),
-            lang,
-        )
-        for agent in data.get("by_agent", [])
-    ]
-    agent_rows_html = "".join(agent_rows)
-    agent_body = (
-        f'<div class="rank-head"><span></span><span>{_escape(_t(lang, "agent"))}</span><span>{_escape(_t(lang, "share"))}</span><span>{_escape(_t(lang, "tokens"))}</span><span>{_escape(_t(lang, "cost"))}</span></div>'
-        f'<div class="rank-list">{agent_rows_html}</div>'
-        if agent_rows
-        else _empty_line(_t(lang, "empty_projects"))
-    )
-
     session_rows = []
     for idx, session in enumerate(data.get("top_sessions", []), 1):
         session_rows.append(f"""
@@ -478,7 +495,7 @@ def generate_html(data: dict[str, Any], language: str | None = None) -> str:
         "pathCopied": _t(lang, "share_path_copied"),
     }
     share_config_json = json.dumps(share_config, ensure_ascii=False).replace("</", "<\\/")
-    subscription_body = _subscription_body(data.get("subscriptions", []), lang)
+    tools_body = _tools_body(data.get("subscriptions", []), data.get("by_agent", []), lang)
     persona_body = _persona_body(data.get("persona"), lang)
     title = _t(lang, "title")
     return f"""<!doctype html>
@@ -503,10 +520,10 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
 .share-trigger{{display:inline-flex;align-items:center;gap:7px;background:#161b22;border:1px solid #30363d;color:#f0f6fc;padding:4px 11px;border-radius:4px;cursor:pointer;font:inherit;font-size:.8rem;line-height:1.3;text-decoration:none;transition:border-color .15s,color .15s,transform .15s}}
 .share-trigger:hover{{border-color:#58a6ff;color:#58a6ff;transform:translateY(-1px)}}
 .share-trigger:focus-visible,.share-close:focus-visible,.share-action:focus-visible{{outline:2px solid #58a6ff;outline-offset:2px}}
-.cards{{display:grid;grid-template-columns:1.5fr 1.4fr 1fr 1fr 1fr;gap:10px;margin:22px 0 12px}}
+.cards{{display:grid;grid-template-columns:1.7fr 1.15fr .95fr .95fr .95fr;gap:10px;margin:22px 0 12px}}
 .card{{background:var(--panel);padding:16px 14px;border-radius:6px;min-height:108px;display:flex;flex-direction:column}}
 .card span{{display:block;color:var(--muted);font-size:.75rem;text-transform:uppercase;margin-bottom:10px}}
-.card b{{display:block;font-size:clamp(.9rem,1.25vw,1.15rem);color:var(--text);white-space:nowrap;overflow-wrap:normal;line-height:1.2;font-weight:700;letter-spacing:0}}
+.card b{{display:block;font-size:clamp(1rem,1.5vw,1.3rem);color:var(--text);white-space:nowrap;overflow-wrap:normal;line-height:1.2;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}}
 .card i{{display:block;font-style:normal;color:var(--muted);font-size:.72rem;margin-top:auto;padding-top:6px;overflow-wrap:anywhere;letter-spacing:0}}
 .card:first-child b{{color:var(--token)}}.card:nth-child(2) b{{color:var(--cost)}}
 .section{{background:var(--panel);border-radius:8px;margin-top:16px;padding:18px 16px}}
@@ -573,12 +590,18 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
 .donut-legend .dot{{width:10px;height:10px;border-radius:2px}}
 .donut-legend .lg-name{{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 .donut-legend .lg-pct{{color:var(--muted);text-align:right}}
-.subs{{display:grid;gap:10px}}
-.sub-row{{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 14px;border:1px solid #30363d;border-radius:7px;background:#090b0e}}
-.sub-agent{{font-weight:700;color:#f0f6fc;min-width:96px}}
+.tools{{display:grid;gap:10px}}
+.tools-head,.tool-row{{display:grid;grid-template-columns:minmax(0,1fr) 72px 100px 100px;gap:18px;align-items:center}}
+.tools-head{{padding:0 17px;color:var(--muted);font-size:.74rem;text-transform:uppercase;margin-bottom:-2px}}
+.tools-head>span:nth-child(n+2){{text-align:right}}
+.tool-row{{padding:14px 16px;border:1px solid #30363d;border-radius:7px;background:#090b0e}}
+.tool-head{{display:flex;align-items:center;gap:14px;flex-wrap:wrap;min-width:0}}
+.sub-agent{{font-weight:700;color:#f0f6fc}}
 .sub-plan{{color:var(--token);background:rgba(56,139,253,0.12);padding:3px 11px;border-radius:999px;font-size:.86rem}}
-.sub-since{{margin-left:auto;color:var(--muted);font-size:.84rem}}
-@media (max-width:780px){{.wrap{{padding:28px 14px}}header{{display:block}}.meta{{text-align:left;margin-top:16px}}.header-actions{{align-items:flex-start;margin-top:16px}}.cards{{grid-template-columns:repeat(2,1fr)}}.rank-head{{display:none}}.rank-list{{display:grid;gap:10px}}.rank-line{{display:grid;grid-template-columns:1fr;gap:8px;padding:12px;border:1px solid #30363d;border-radius:6px;background:#090b0e}}.rank-line .arrow{{display:none}}.rank-line .name{{white-space:normal;font-weight:700;color:#f0f6fc}}.rank-line .pct,.rank-line .tokens,.rank-line .cost{{display:flex;justify-content:space-between;gap:14px;text-align:left}}.rank-line .pct::before,.rank-line .tokens::before,.rank-line .cost::before{{content:attr(data-label);color:var(--muted)}}}}
+.sub-since{{color:var(--muted);font-size:.84rem}}
+.tool-row .pct,.tool-row .tokens,.tool-row .cost{{white-space:nowrap;text-align:right}}
+.tool-row .pct{{color:var(--token)}}.tool-row .tokens{{color:#dce2ea}}.tool-row .cost{{color:var(--cost)}}
+@media (max-width:780px){{.wrap{{padding:28px 14px}}header{{display:block}}.meta{{text-align:left;margin-top:16px}}.header-actions{{align-items:flex-start;margin-top:16px}}.cards{{grid-template-columns:repeat(2,1fr)}}.rank-head{{display:none}}.rank-list{{display:grid;gap:10px}}.rank-line{{display:grid;grid-template-columns:1fr;gap:8px;padding:12px;border:1px solid #30363d;border-radius:6px;background:#090b0e}}.rank-line .arrow{{display:none}}.rank-line .name{{white-space:normal;font-weight:700;color:#f0f6fc}}.rank-line .pct,.rank-line .tokens,.rank-line .cost{{display:flex;justify-content:space-between;gap:14px;text-align:left}}.rank-line .pct::before,.rank-line .tokens::before,.rank-line .cost::before{{content:attr(data-label);color:var(--muted)}}.tools-head{{display:none}}.tool-row{{grid-template-columns:1fr;gap:8px}}.tool-row .pct,.tool-row .tokens,.tool-row .cost{{display:flex;justify-content:space-between;gap:14px;text-align:left}}.tool-row .pct:empty,.tool-row .tokens:empty,.tool-row .cost:empty{{display:none}}.tool-row .pct::before,.tool-row .tokens::before,.tool-row .cost::before{{content:attr(data-label);color:var(--muted)}}}}
 @media (max-width:480px){{.wrap{{padding:22px 12px 28px}}h1{{white-space:normal}}.cards{{grid-template-columns:repeat(2,1fr);gap:8px}}.card{{min-height:96px;padding:13px 11px}}.share-dialog{{width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;border:0;border-radius:0}}.share-modal{{min-height:100dvh;padding:16px 12px 18px}}.share-section{{padding:12px}}.share-action{{min-height:42px;font-size:.72rem;gap:4px;white-space:normal}}.share-file-actions{{grid-template-columns:1fr}}.section{{padding:16px 12px}}}}
 </style>
 </head>
@@ -612,8 +635,7 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
     </div>
   </dialog>
   <section class="cards">{''.join(f'<div class="card"><span>{html.escape(label)}</span><b>{html.escape(value)}</b>' + (f'<i>{html.escape(sub)}</i>' if sub else '') + '</div>' for label, value, sub in cards)}</section>
-  {_section(_t(lang, "sub_section"), subscription_body, "sub-section")}
-  {_section(_t(lang, "agent_section"), agent_body)}
+  {_section(_t(lang, "tools_section"), tools_body, "tools-section")}
   {_section(_t(lang, "project_section"), project_body, "project-section")}
   {_section(_t(lang, "model_section"), model_body)}
   {_section(_t(lang, "trend_section"), _trend_ascii(data.get("daily_trend", []), lang))}
