@@ -37,25 +37,18 @@
 - 已經使用過 Claude Code 或 Codex 其中之一，讓它們在本機留下用量資料
 - （從原始碼跑才需要）Python 3.13
 
-## ⚡ 30 秒快速開始
-
-最短路徑（後面章節有完整說明）：
-
-1. 到 [Releases](https://github.com/aqua5230/usage/releases/latest) 下載 `usage.app.zip`
-2. 解壓縮，把 `usage.app` 拖進「應用程式」資料夾
-3. 第一次開啟：按住 Ctrl 點右鍵 → 「打開」（讓 macOS 放行一次）
-4. 點右上角選單列的腳印圖示，就能看到用量
-5. 有在用 Claude Code 的話，彈出視窗點「設定狀態列」
-
 ## 📦 安裝
 
 兩種安裝方式，挑一個順手的用，步驟都在下面。
 
 ### 下載現成 App
 
-到 [GitHub Releases 頁面](https://github.com/aqua5230/usage/releases/latest) 下載最新的 `usage.app.zip`，解壓縮後把 `usage.app` 拖到「應用程式」資料夾（或任何地方）就能用。
+1. 到 [GitHub Releases 頁面](https://github.com/aqua5230/usage/releases/latest) 下載最新的 `usage.app.zip`
+2. 解壓縮，把 `usage.app` 拖到「應用程式」資料夾（或任何地方）
+3. 第一次開啟：在 Finder 按住 Ctrl 點右鍵 → 選「打開」→ 再確認一次「打開」
+4. 點右上角選單列的腳印圖示，就能看到用量
 
-⚠️ 因為沒有 Apple Developer 簽章，**第一次開啟時 macOS Gatekeeper（系統內建、用來擋陌生程式的保全機制）會擋下來**。解法：在 Finder 找到 `usage.app` → 按住 Ctrl 點右鍵 → 選「打開」→ 再確認一次「打開」。之後就能直接雙擊。
+⚠️ 第 3 步是因為這個 app 沒有 Apple Developer 簽章，**macOS Gatekeeper（系統內建、用來擋陌生程式的保全機制）會擋第一次開啟**；右鍵「打開」放行一次之後，以後直接雙擊就行。
 
 ### Homebrew
 

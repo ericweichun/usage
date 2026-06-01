@@ -37,25 +37,18 @@ All numbers come from local files written by Claude Code and Codex — it **neve
 - Claude Code or Codex has been used at least once so local usage data exists
 - (Only if running from source) Python 3.13
 
-## ⚡ 30-second quick start
-
-The shortest path (full details in the sections below):
-
-1. Download `usage.app.zip` from [Releases](https://github.com/aqua5230/usage/releases/latest)
-2. Unzip it and drag `usage.app` into your Applications folder
-3. First launch: right-click → **Open** (to pass Gatekeeper once)
-4. Click the paw icon in the top-right menu bar to see your usage
-5. If you use Claude Code, click "Set Up Status Line" in the popover
-
 ## 📦 Install
 
 Two ways to install — pick whichever suits you. Steps for both are below.
 
 ### Download the app
 
-Go to the [GitHub Releases page](https://github.com/aqua5230/usage/releases/latest) and download the latest `usage.app.zip`. Unzip it and drag `usage.app` into your Applications folder (or anywhere you like).
+1. Download the latest `usage.app.zip` from the [GitHub Releases page](https://github.com/aqua5230/usage/releases/latest)
+2. Unzip it and drag `usage.app` into your Applications folder (or anywhere you like)
+3. First launch: in Finder, right-click `usage.app` → **Open** → confirm Open
+4. Click the paw icon in the top-right menu bar to see your usage
 
-⚠️ Because this app is not signed with an Apple Developer certificate, **macOS Gatekeeper (the built-in feature that blocks unfamiliar programs) will block the first launch**. To open it: find `usage.app` in Finder → right-click → Open → confirm Open. After that, double-clicking works normally.
+⚠️ Step 3 is needed because the app isn't signed with an Apple Developer certificate, so **macOS Gatekeeper (the built-in feature that blocks unfamiliar programs) blocks the first launch**; once you right-click → Open to allow it once, double-clicking works normally afterward.
 
 ### Homebrew
 
