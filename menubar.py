@@ -87,6 +87,7 @@ from panels.base import load_active_panel_id, resolve_resource, save_active_pane
 from pricing import calculate_cost
 from usage_client import ClaudeUsageClient, PollOutcome, PollState
 from usage_lang import detect_lang
+from usage_notifications import NotificationEvent, QuotaNotifier
 from usage_rate import UsageRateTracker
 
 __all__ = [
@@ -266,6 +267,28 @@ def _hide_codex_enabled(prefs: dict[str, Any] | None = None) -> bool:
     return data.get("hide_codex_section") is True
 
 
+def _quota_notifications_enabled(prefs: dict[str, Any] | None = None) -> bool:
+    data = _load_preferences() if prefs is None else prefs
+    return data.get("quota_notifications") is not False
+
+
+def _reset_confetti_enabled(prefs: dict[str, Any] | None = None) -> bool:
+    data = _load_preferences() if prefs is None else prefs
+    return data.get("reset_confetti") is not False
+
+
+def _quota_notification_thresholds(prefs: dict[str, Any] | None = None) -> list[float]:
+    data = _load_preferences() if prefs is None else prefs
+    raw = data.get("quota_notification_thresholds")
+    if not isinstance(raw, list):
+        return [90.0]
+    thresholds: list[float] = []
+    for value in raw:
+        if isinstance(value, int | float) and 0 < float(value) <= 100:
+            thresholds.append(float(value))
+    return thresholds or [90.0]
+
+
 def _session_resume_enabled() -> bool:
     # State lives in ~/.claude/settings.json (a hook), not in usage's prefs file.
     try:
@@ -303,6 +326,54 @@ def _make_alert() -> Any:
     if icon is not None:
         alert.setIcon_(icon)
     return alert
+
+
+def _user_notification_center() -> tuple[Any, dict[str, int]]:
+    from UserNotifications import (
+        UNAuthorizationOptionAlert,
+        UNAuthorizationOptionBadge,
+        UNAuthorizationOptionSound,
+        UNUserNotificationCenter,
+    )
+
+    return (
+        UNUserNotificationCenter.currentNotificationCenter(),
+        {
+            "alert": int(UNAuthorizationOptionAlert),
+            "badge": int(UNAuthorizationOptionBadge),
+            "sound": int(UNAuthorizationOptionSound),
+        },
+    )
+
+
+def _user_notification_classes() -> tuple[Any, Any, Any]:
+    from UserNotifications import (
+        UNMutableNotificationContent,
+        UNNotificationRequest,
+        UNNotificationSound,
+    )
+
+    return UNMutableNotificationContent, UNNotificationRequest, UNNotificationSound
+
+
+def _notification_tool(channel: str) -> str:
+    return "Claude" if channel.startswith("claude_") else "Codex"
+
+
+def _notification_scope(language: str, channel: str) -> str:
+    if channel.endswith("_session"):
+        return _t(language, "session_label")
+    return _t(language, "weekly_label")
+
+
+def _notification_row(state: PopoverState, channel: str) -> QuotaRowState:
+    rows = {
+        "claude_session": state.claude_session,
+        "claude_weekly": state.claude_weekly,
+        "codex_session": state.codex_session,
+        "codex_weekly": state.codex_weekly,
+    }
+    return rows[channel]
 
 
 def _update_dismissed_recently(prefs: dict[str, Any]) -> bool:
@@ -374,6 +445,7 @@ class AppDelegate(NSObject):
     _fs_stream = objc.ivar()
     _history_entries_cache = objc.ivar()
     _history_entries_cache_fingerprint = objc.ivar()
+    _quota_notifier = objc.ivar()
     language = objc.ivar()
 
     def initWithMock_interval_(self, mock: bool, interval: int) -> AppDelegate:
@@ -394,6 +466,7 @@ class AppDelegate(NSObject):
             "codex_session": BurnRateTracker(),
             "codex_weekly": BurnRateTracker(),
         }
+        self._quota_notifier = QuotaNotifier(_quota_notification_thresholds())
         self._refresh_in_flight = False
         self._refresh_queued = False
         self._fs_stream = None
@@ -420,6 +493,7 @@ class AppDelegate(NSObject):
         self.popover.setContentSize_(_popover_size(self.latest_state, self.active_panel))
         self.popover.setContentViewController_(self.popover_controller)
 
+        self._request_notification_authorization()
         self._refresh()
         self.timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
             300,
@@ -528,6 +602,22 @@ class AppDelegate(NSObject):
         hide_codex_item.setTarget_(self)
         hide_codex_item.setState_(1 if _hide_codex_enabled() else 0)
         menu.addItem_(hide_codex_item)
+        quota_notifications_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            _t(self.language, "quota_notifications_menu"),
+            "toggleQuotaNotifications:",
+            "",
+        )
+        quota_notifications_item.setTarget_(self)
+        quota_notifications_item.setState_(1 if _quota_notifications_enabled() else 0)
+        menu.addItem_(quota_notifications_item)
+        reset_confetti_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            _t(self.language, "reset_confetti_menu"),
+            "toggleResetConfetti:",
+            "",
+        )
+        reset_confetti_item.setTarget_(self)
+        reset_confetti_item.setState_(1 if _reset_confetti_enabled() else 0)
+        menu.addItem_(reset_confetti_item)
         # Project Butler: one toggle that hands last session's progress to the next
         # one. Tooltip carries the full explanation so the menu line stays short.
         menu.addItem_(NSMenuItem.separatorItem())
@@ -580,6 +670,24 @@ class AppDelegate(NSObject):
             sender.setState_(1 if enabled else 0)
         self.latest_state.hide_codex = enabled
         self.popover_controller.setState_(self.latest_state)
+
+    def toggleQuotaNotifications_(self, sender: Any) -> None:
+        prefs = _load_preferences()
+        enabled = not _quota_notifications_enabled(prefs)
+        prefs["quota_notifications"] = enabled
+        _save_preferences(prefs)
+        if hasattr(sender, "setState_"):
+            sender.setState_(1 if enabled else 0)
+        if enabled:
+            self._request_notification_authorization()
+
+    def toggleResetConfetti_(self, sender: Any) -> None:
+        prefs = _load_preferences()
+        enabled = not _reset_confetti_enabled(prefs)
+        prefs["reset_confetti"] = enabled
+        _save_preferences(prefs)
+        if hasattr(sender, "setState_"):
+            sender.setState_(1 if enabled else 0)
 
     def toggleSessionResume_(self, sender: Any) -> None:
         thread = threading.Thread(target=self._toggle_session_resume_in_background, daemon=True)
@@ -837,6 +945,7 @@ class AppDelegate(NSObject):
             self.codex_5h_pct = codex_5h_pct
             self.codex_model = codex_model
             self.latest_state = state
+            self._process_quota_notifications(state)
             if self.popover.isShown():
                 self.popover_controller.setState_(self.latest_state)
             self.popover.setContentSize_(_popover_size(state, self.active_panel))
@@ -848,6 +957,86 @@ class AppDelegate(NSObject):
             self._refresh_in_flight = False
         if should_refresh_again:
             self._refresh()
+
+    def _request_notification_authorization(self) -> None:
+        if self.mock or not _quota_notifications_enabled():
+            return
+        try:
+            center, constants = _user_notification_center()
+            options = constants["badge"] | constants["sound"] | constants["alert"]
+            center.requestAuthorizationWithOptions_completionHandler_(
+                options,
+                lambda granted, error: None,
+            )
+        except Exception:
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("notification authorization failed", exc_info=True)
+
+    def _process_quota_notifications(self, state: PopoverState) -> None:
+        try:
+            events = self._quota_notifier.update(
+                {
+                    "claude_session": (
+                        state.claude_session.percent,
+                        state.claude_session.available,
+                    ),
+                    "claude_weekly": (state.claude_weekly.percent, state.claude_weekly.available),
+                    "codex_session": (state.codex_session.percent, state.codex_session.available),
+                    "codex_weekly": (state.codex_weekly.percent, state.codex_weekly.available),
+                }
+            )
+            for event in events:
+                if _quota_notifications_enabled() and not self.mock:
+                    self._send_quota_notification(event, state)
+                if (
+                    event.kind == "restored"
+                    and event.channel in {"claude_weekly", "codex_weekly"}
+                    and _reset_confetti_enabled()
+                    and not self.mock
+                ):
+                    self._celebrate_weekly_reset()
+        except Exception:
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("quota notification processing failed", exc_info=True)
+
+    def _send_quota_notification(self, event: NotificationEvent, state: PopoverState) -> None:
+        try:
+            center, _constants = _user_notification_center()
+            content_cls, request_cls, sound_cls = _user_notification_classes()
+            row = _notification_row(state, event.channel)
+            title_key = f"notif_{event.kind}_title"
+            body_key = f"notif_{event.kind}_body"
+            content = content_cls.alloc().init()
+            content.setTitle_(_t(self.language, title_key))
+            content.setBody_(
+                _t(
+                    self.language,
+                    body_key,
+                    tool=_notification_tool(event.channel),
+                    scope=_notification_scope(self.language, event.channel),
+                    pct=_format_percent(row.percent or event.threshold or 0.0),
+                    reset=row.reset_text,
+                )
+            )
+            content.setSound_(sound_cls.defaultSound())
+            request = request_cls.requestWithIdentifier_content_trigger_(
+                f"usage.{event.channel}.{event.kind}.{int(time.time() * 1000)}",
+                content,
+                None,
+            )
+            center.addNotificationRequest_withCompletionHandler_(request, lambda error: None)
+        except Exception:
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("send quota notification failed", exc_info=True)
+
+    def _celebrate_weekly_reset(self) -> None:
+        try:
+            import confetti
+
+            confetti.celebrate()
+        except Exception:
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("weekly reset confetti failed", exc_info=True)
 
     def _inject_web_language(self, language: str) -> None:
         content_view = self.popover_controller.content_view

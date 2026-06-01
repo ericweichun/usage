@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from typing import TypedDict
 
 import codex_loader
-from burn_rate import WARNING_PERCENT_FLOOR, BurnRateTracker
+from burn_rate import WARNING_PERCENT_FLOOR, BurnRateTracker, pace_ratio
 from i18n import _t
 from usage_client import PollOutcome, PollState
 from usage_rate import GROUP_NAMES
@@ -21,6 +21,8 @@ WARN_COLOR = (255 / 255, 196 / 255, 57 / 255)
 DANGER_COLOR = (255 / 255, 69 / 255, 58 / 255)
 WEEKLY_FORECAST_WINDOW_SECONDS = 30 * 60
 WEEKLY_FORECAST_MIN_SPAN_SECONDS = 30 * 60
+SESSION_WINDOW_SECONDS = 5 * 3600
+WEEKLY_WINDOW_SECONDS = 7 * 86400
 
 
 def _bar_color(pct: float, brand: tuple[float, float, float]) -> tuple[float, float, float]:
@@ -127,6 +129,7 @@ def codex_rows(
                 CODEX_COLOR,
                 language,
                 forecast_seconds=burn_rate_trackers["codex_session"].forecast_seconds(),
+                window_seconds=SESSION_WINDOW_SECONDS,
             ),
             _quota_row(
                 "Weekly",
@@ -137,6 +140,7 @@ def codex_rows(
                 language,
                 forecast_seconds=burn_rate_trackers["codex_weekly"].forecast_seconds(),
                 warning_max_seconds=24 * 3600,
+                window_seconds=WEEKLY_WINDOW_SECONDS,
             ),
         )
         return rows, 12, "gpt-5", None
@@ -181,6 +185,7 @@ def codex_rows(
             CODEX_COLOR,
             language,
             forecast_seconds=burn_rate_trackers["codex_session"].forecast_seconds(),
+            window_seconds=SESSION_WINDOW_SECONDS,
         ),
         _quota_row(
             "Weekly",
@@ -194,6 +199,7 @@ def codex_rows(
                 min_span_seconds=WEEKLY_FORECAST_MIN_SPAN_SECONDS,
             ),
             warning_max_seconds=24 * 3600,
+            window_seconds=WEEKLY_WINDOW_SECONDS,
         ),
     )
     return rows, codex_5h_pct, model, codex_stale
@@ -244,6 +250,7 @@ def build_popover_state(
             CLAUDE_COLOR,
             language,
             forecast_seconds=burn_rate_trackers["claude_session"].forecast_seconds(),
+            window_seconds=SESSION_WINDOW_SECONDS,
         )
         claude_weekly = _quota_row(
             "Weekly",
@@ -257,6 +264,7 @@ def build_popover_state(
                 min_span_seconds=WEEKLY_FORECAST_MIN_SPAN_SECONDS,
             ),
             warning_max_seconds=24 * 3600,
+            window_seconds=WEEKLY_WINDOW_SECONDS,
         )
         status_value = outcome.message or _t(language, "status_synced")
         if snapshot.is_stale or snapshot.data_source != "hook":
@@ -304,6 +312,7 @@ def _quota_row(
     language: str = "en",
     forecast_seconds: float | None = None,
     warning_max_seconds: float | None = None,
+    window_seconds: float | None = None,
 ) -> QuotaRowState:
     if pct is None or resets_at is None:
         return _missing_row(title, color, language)
@@ -325,6 +334,15 @@ def _quota_row(
             empty=format_human_time(warning_seconds, language),
             reset=format_human_time(time_to_reset, language),
         )
+        pace_text = _pace_text(
+            percent=pct,
+            resets_at=resets_at,
+            now=now,
+            window_seconds=window_seconds,
+            language=language,
+        )
+        if pace_text:
+            reset_text = f"{reset_text} {pace_text}"
     else:
         reset_text = _t(language, "reset_in", time=format_human_time(time_to_reset, language))
     return QuotaRowState(
@@ -357,3 +375,28 @@ def _format_percent(value: float) -> str:
     if value.is_integer():
         return str(int(value))
     return f"{value:.1f}"
+
+
+def _pace_text(
+    *,
+    percent: float,
+    resets_at: float,
+    now: float,
+    window_seconds: float | None,
+    language: str,
+) -> str | None:
+    if window_seconds is None:
+        return None
+    ratio = pace_ratio(
+        percent=percent,
+        resets_at=resets_at,
+        now=now,
+        window_seconds=window_seconds,
+    )
+    if ratio is None:
+        return None
+    if ratio >= 1.2:
+        return _t(language, "pace_faster", n=round(ratio, 1))
+    if ratio <= 0.8:
+        return _t(language, "pace_slower")
+    return None

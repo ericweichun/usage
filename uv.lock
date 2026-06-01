@@ -374,6 +374,22 @@ wheels = [
 ]
 
 [[package]]
+name = "pyobjc-framework-usernotifications"
+version = "11.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyobjc-core" },
+    { name = "pyobjc-framework-cocoa" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b4/4c/e7e180fcd06c246c37f218bcb01c40ea0213fde5ace3c09d359e60dcaafd/pyobjc_framework_usernotifications-11.1.tar.gz", hash = "sha256:38fc763afa7854b41ddfca8803f679a7305d278af8a7ad02044adc1265699996", size = 55428, upload-time = "2025-06-14T20:58:42.572Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d1/fb/ae1ea7f7c511714c1502fa9c4856c6b3dfe110ff7cc094070fec5ad496b8/pyobjc_framework_usernotifications-11.1-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:9efa3004059a8fe3f3c52f638f0401dbcdbc7b2f539587c8868da2486a64d674", size = 9628, upload-time = "2025-06-14T20:55:59.807Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/46/4934930848d74aeea32435378154501fcb3dbd77f759c4aa09b99e094310/pyobjc_framework_usernotifications-11.1-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:62a4bd242b761a6f00a4374a369391346d225d68be07691e042ec7db452084c8", size = 9793, upload-time = "2025-06-14T20:56:00.496Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/f7/fadd62a479322bc8bf20684c6a87a1eb40b28c03899a8cc3d5b6fe781d93/pyobjc_framework_usernotifications-11.1-cp314-cp314-macosx_11_0_universal2.whl", hash = "sha256:dcdcb657d2fa47108e4ef93ec3320025576857e8f69a15f082f5eda930b35e86", size = 9666, upload-time = "2025-06-14T20:56:01.176Z" },
+    { url = "https://files.pythonhosted.org/packages/72/c3/406d196d094cf8c30bbc815a8ca8ef57bfa21c2494f93ff1125f78f8a922/pyobjc_framework_usernotifications-11.1-cp314-cp314t-macosx_11_0_universal2.whl", hash = "sha256:bad5e650c014757159523466e5b2c127e066045e2a5579a5cac9aeca46bda017", size = 9852, upload-time = "2025-06-14T20:56:01.871Z" },
+]
+
+[[package]]
 name = "pyobjc-framework-webkit"
 version = "11.1"
 source = { registry = "https://pypi.org/simple" }
@@ -482,6 +498,7 @@ source = { editable = "." }
 dependencies = [
     { name = "pyobjc-framework-cocoa" },
     { name = "pyobjc-framework-quartz" },
+    { name = "pyobjc-framework-usernotifications" },
     { name = "pyobjc-framework-webkit" },
     { name = "rich" },
 ]
@@ -501,6 +518,7 @@ dev = [
 requires-dist = [
     { name = "pyobjc-framework-cocoa", specifier = ">=11.0" },
     { name = "pyobjc-framework-quartz", specifier = ">=11.0" },
+    { name = "pyobjc-framework-usernotifications", specifier = ">=11.0" },
     { name = "pyobjc-framework-webkit", specifier = ">=11.0" },
     { name = "rich", specifier = ">=14.0.0,<15.0.0" },
 ]
