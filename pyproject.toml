@@ -24,7 +24,6 @@ py-modules = [
     "menubar",
     "menubar_state",
     "usage_notifications",
-    "confetti",
     "tui",
     "pricing",
     "history_loader",

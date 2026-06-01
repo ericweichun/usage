@@ -164,11 +164,6 @@ def _quota_notifications_enabled(prefs: dict[str, Any] | None = None) -> bool:
     return data.get("quota_notifications") is not False
 
 
-def _reset_confetti_enabled(prefs: dict[str, Any] | None = None) -> bool:
-    data = _load_preferences() if prefs is None else prefs
-    return data.get("reset_confetti") is not False
-
-
 def _quota_notification_thresholds(prefs: dict[str, Any] | None = None) -> list[float]:
     data = _load_preferences() if prefs is None else prefs
     raw = data.get("quota_notification_thresholds")
@@ -502,14 +497,6 @@ class AppDelegate(NSObject):
         quota_notifications_item.setTarget_(self)
         quota_notifications_item.setState_(1 if _quota_notifications_enabled() else 0)
         menu.addItem_(quota_notifications_item)
-        reset_confetti_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            _t(self.language, "reset_confetti_menu"),
-            "toggleResetConfetti:",
-            "",
-        )
-        reset_confetti_item.setTarget_(self)
-        reset_confetti_item.setState_(1 if _reset_confetti_enabled() else 0)
-        menu.addItem_(reset_confetti_item)
         # Project Butler: one toggle that hands last session's progress to the next
         # one. Tooltip carries the full explanation so the menu line stays short.
         menu.addItem_(NSMenuItem.separatorItem())
@@ -572,14 +559,6 @@ class AppDelegate(NSObject):
             sender.setState_(1 if enabled else 0)
         if enabled:
             self._request_notification_authorization()
-
-    def toggleResetConfetti_(self, sender: Any) -> None:
-        prefs = _load_preferences()
-        enabled = not _reset_confetti_enabled(prefs)
-        prefs["reset_confetti"] = enabled
-        _save_preferences(prefs)
-        if hasattr(sender, "setState_"):
-            sender.setState_(1 if enabled else 0)
 
     def toggleSessionResume_(self, sender: Any) -> None:
         thread = threading.Thread(target=self._toggle_session_resume_in_background, daemon=True)
@@ -880,13 +859,6 @@ class AppDelegate(NSObject):
             for event in events:
                 if _quota_notifications_enabled() and not self.mock:
                     self._send_quota_notification(event, state)
-                if (
-                    event.kind == "restored"
-                    and event.channel in {"claude_weekly", "codex_weekly"}
-                    and _reset_confetti_enabled()
-                    and not self.mock
-                ):
-                    self._celebrate_weekly_reset()
         except Exception:
             if os.environ.get("USAGE_DEBUG") == "1":
                 logger.warning("quota notification processing failed", exc_info=True)
@@ -920,15 +892,6 @@ class AppDelegate(NSObject):
         except Exception:
             if os.environ.get("USAGE_DEBUG") == "1":
                 logger.warning("send quota notification failed", exc_info=True)
-
-    def _celebrate_weekly_reset(self) -> None:
-        try:
-            import confetti
-
-            confetti.celebrate()
-        except Exception:
-            if os.environ.get("USAGE_DEBUG") == "1":
-                logger.warning("weekly reset confetti failed", exc_info=True)
 
     def _inject_web_language(self, language: str) -> None:
         content_view = self.popover_controller.content_view

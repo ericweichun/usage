@@ -64,7 +64,6 @@ if __name__ == "__main__":
             "UserNotifications",
             "objc",
             "menubar",
-            "confetti",
             "usage_notifications",
             "tui",
             "tui_sprite",
