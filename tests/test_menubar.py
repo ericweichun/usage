@@ -511,6 +511,51 @@ def test_check_update_skips_cache_on_failure(monkeypatch: pytest.MonkeyPatch) ->
     assert saved == []
 
 
+def test_clear_stale_update_cache_clears_after_upgrade(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    saved: list[dict[str, Any]] = []
+    prefs = {
+        "last_update_check": {
+            "checked_at": 1700000000.0,
+            "current_version": "0.14.3",
+            "latest_version": "0.15.0",
+            "release_url": "https://x/v0.15.0",
+        }
+    }
+    monkeypatch.setattr(menubar, "_load_preferences", lambda: prefs)
+    monkeypatch.setattr(menubar, "_save_preferences", lambda d: saved.append(dict(d)))
+    monkeypatch.setattr(menubar, "_current_version", lambda: "0.15.0")
+
+    menubar.AppDelegate._clear_stale_update_cache(cast(Any, object()))
+
+    assert saved
+    cache = saved[-1]["last_update_check"]
+    assert cache["current_version"] == "0.15.0"
+    assert cache["latest_version"] == "0.15.0"
+
+
+def test_clear_stale_update_cache_keeps_pending_update(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    saved: list[dict[str, Any]] = []
+    prefs = {
+        "last_update_check": {
+            "checked_at": 1700000000.0,
+            "current_version": "0.15.0",
+            "latest_version": "0.16.0",
+            "release_url": "https://x/v0.16.0",
+        }
+    }
+    monkeypatch.setattr(menubar, "_load_preferences", lambda: prefs)
+    monkeypatch.setattr(menubar, "_save_preferences", lambda d: saved.append(dict(d)))
+    monkeypatch.setattr(menubar, "_current_version", lambda: "0.15.0")
+
+    menubar.AppDelegate._clear_stale_update_cache(cast(Any, object()))
+
+    assert saved == []
+
+
 def test_statusline_enabled_detects_usage_hook(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

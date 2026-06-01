@@ -396,6 +396,7 @@ class AppDelegate(NSObject):
 
     def timerFired_(self, timer: Any) -> None:
         self._refresh()
+        self._clear_stale_update_cache()
 
     def refreshNow_(self, sender: Any) -> None:
         self._refresh(queue_if_busy=True)
@@ -602,6 +603,26 @@ class AppDelegate(NSObject):
         alert.runModal()
         self._refresh()
 
+    def _clear_stale_update_cache(self) -> None:
+        try:
+            current_version = _current_version()
+            prefs = _load_preferences()
+            cached = prefs.get("last_update_check")
+            if (
+                isinstance(cached, dict)
+                and isinstance(cached.get("latest_version"), str)
+                and cached.get("current_version") != current_version
+                and update_checker.compare_versions(current_version, cached["latest_version"]) >= 0
+            ):
+                prefs["last_update_check"] = {
+                    **cached,
+                    "current_version": current_version,
+                    "latest_version": current_version,
+                }
+                _save_preferences(prefs)
+        except Exception:
+            pass
+
     def _maybe_check_update_in_background(self) -> None:
         self._check_update_in_background(
             manual=False,
@@ -619,25 +640,6 @@ class AppDelegate(NSObject):
         prefs = _load_preferences()
         if not manual and not _auto_update_check_enabled(prefs):
             return
-
-        # Always refresh current_version in the cache so the statusline badge
-        # clears immediately after an upgrade, even during the cooldown window.
-        try:
-            current_version = _current_version()
-            cached = prefs.get("last_update_check")
-            if (
-                isinstance(cached, dict)
-                and isinstance(cached.get("latest_version"), str)
-                and update_checker.compare_versions(current_version, cached["latest_version"]) >= 0
-            ):
-                prefs["last_update_check"] = {
-                    **cached,
-                    "current_version": current_version,
-                    "latest_version": current_version,
-                }
-                _save_preferences(prefs)
-        except Exception:
-            current_version = None
 
         if not ignore_cooldown and _update_dismissed_recently(prefs):
             return
