@@ -6,13 +6,15 @@ import importlib
 import json
 import logging
 import os
-import tempfile
 import time
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
 from i18n import packaged_resource_path
+from prefs import PREFERENCES_FILE as PREFERENCES_FILE
+from prefs import _load_preferences as _load_preferences
+from prefs import _save_preferences as _save_preferences
 from usage_client import ClaudeUsageClient, PollOutcome, PollState
 from usage_lang import detect_lang
 from usage_rate import UsageRateTracker
@@ -20,7 +22,6 @@ from usage_rate import UsageRateTracker
 SPRITE_INTERVAL_S = [2.0, 0.8, 0.4, 0.15]  # idle/normal/active/heavy
 IMPORT_RETRY_ATTEMPTS = 6
 IMPORT_RETRY_DELAY_S = 3.0
-PREFERENCES_FILE = Path(os.path.expanduser("~/.claude/usage-preferences.json"))
 REPAIR_DISMISS_SECONDS = 24 * 3600
 
 logger = logging.getLogger(__name__)
@@ -68,32 +69,6 @@ def _i18n_text(language: str, key: str) -> str:
 
 def _health_language() -> str:
     return detect_lang()
-
-
-def _load_preferences() -> dict[str, Any]:
-    if not PREFERENCES_FILE.exists():
-        return {}
-    try:
-        data = json.loads(PREFERENCES_FILE.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
-def _save_preferences(data: dict[str, Any]) -> None:
-    PREFERENCES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
-    tmp_path: str | None = None
-    try:
-        fd, tmp_path = tempfile.mkstemp(dir=PREFERENCES_FILE.parent, suffix=".tmp")
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(payload)
-        os.replace(tmp_path, PREFERENCES_FILE)
-        tmp_path = None
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            with suppress(OSError):
-                os.unlink(tmp_path)
 
 
 def _save_user_preference(key: str) -> None:

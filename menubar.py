@@ -46,7 +46,6 @@ from burn_rate import BurnRateTracker
 from fsevents_watch import cleanup_fsevents, setup_fsevents
 from history_loader import UsageEntry, load_entries
 from i18n import _t, packaged_resource_path
-from main import _load_preferences, _save_preferences
 from menubar_state import (
     CLAUDE_COLOR as CLAUDE_COLOR,
 )
@@ -82,6 +81,7 @@ from menubar_state import (
 )
 from panels.base import Panel as UsagePanel
 from panels.base import load_active_panel_id, resolve_resource, save_active_panel_id
+from prefs import _load_preferences, _save_preferences
 from pricing import calculate_cost
 from statusline_settings import (
     _claude_settings_path as _claude_settings_path,
