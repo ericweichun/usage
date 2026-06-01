@@ -1057,35 +1057,7 @@ class AppDelegate(NSObject):
             return False
 
     def _history_sources_fingerprint(self) -> tuple[tuple[str, int, float], ...]:
-        sources = (
-            Path.home() / ".claude",
-            Path.home() / ".codex" / "sessions",
-            Path.home() / ".codex" / "logs_2.sqlite",
-            Path.home() / ".codex" / "logs_2.sqlite-wal",
-            Path.home() / ".codex" / "state_5.sqlite",
-            Path.home() / ".codex" / "state_5.sqlite-wal",
-        )
-        fingerprint: list[tuple[str, int, float]] = []
-        for source in sources:
-            newest_mtime = 0.0
-            file_count = 0
-            try:
-                if source.is_file():
-                    stat = source.stat()
-                    file_count = 1
-                    newest_mtime = stat.st_mtime
-                elif source.exists():
-                    for path in source.rglob("*.jsonl"):
-                        try:
-                            stat = path.stat()
-                        except OSError:
-                            continue
-                        file_count += 1
-                        newest_mtime = max(newest_mtime, stat.st_mtime)
-            except OSError:
-                pass
-            fingerprint.append((str(source), file_count, newest_mtime))
-        return tuple(fingerprint)
+        return menubar_state.history_sources_fingerprint()
 
     def _load_history_entries(self) -> list[UsageEntry]:
         if self.mock:
@@ -1152,36 +1124,13 @@ class AppDelegate(NSObject):
         else:
             if hours_back == 24:
                 today = datetime.now().astimezone().date()
-                resolved = [
-                    e for e in entries if e.timestamp.astimezone().date() == today
-                ]
+                resolved = [e for e in entries if e.timestamp.astimezone().date() == today]
             elif hours_back > 0:
                 cutoff = datetime.now(tz=UTC) - timedelta(hours=hours_back)
                 resolved = [e for e in entries if e.timestamp >= cutoff]
             else:
                 resolved = entries
-
-        aggregates: dict[str, list[float]] = {}
-        for entry in resolved:
-            bucket = aggregates.setdefault(entry.project, [0.0, 0.0])
-            bucket[0] += entry.total_tokens
-            bucket[1] += calculate_cost(entry)
-
-        ranked = sorted(
-            aggregates.items(),
-            key=lambda item: (int(item[1][0]), item[0]),
-            reverse=True,
-        )
-        rows: list[tuple[str, int, float | None]] = []
-        for project, (tokens, cost) in ranked[:3]:
-            rows.append(
-                (
-                    project,
-                    int(tokens),
-                    cost,
-                )
-            )
-        return rows
+        return menubar_state.project_rows(resolved)
 
     def _compose_title(self, state: PopoverState) -> str:
         base = (

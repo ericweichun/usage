@@ -5,11 +5,14 @@ import os
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TypedDict
 
 import codex_loader
 from burn_rate import WARNING_PERCENT_FLOOR, BurnRateTracker, pace_ratio
+from history_loader import UsageEntry
 from i18n import _t
+from pricing import calculate_cost
 from usage_client import PollOutcome, PollState
 from usage_rate import GROUP_NAMES
 
@@ -66,6 +69,62 @@ class PopoverState:
     show_install_button: bool = False
     hide_codex: bool = False
     codex_stale: CodexStaleState | None = None
+
+
+def history_sources_fingerprint() -> tuple[tuple[str, int, float], ...]:
+    sources = (
+        Path.home() / ".claude",
+        Path.home() / ".codex" / "sessions",
+        Path.home() / ".codex" / "logs_2.sqlite",
+        Path.home() / ".codex" / "logs_2.sqlite-wal",
+        Path.home() / ".codex" / "state_5.sqlite",
+        Path.home() / ".codex" / "state_5.sqlite-wal",
+    )
+    fingerprint: list[tuple[str, int, float]] = []
+    for source in sources:
+        newest_mtime = 0.0
+        file_count = 0
+        try:
+            if source.is_file():
+                stat = source.stat()
+                file_count = 1
+                newest_mtime = stat.st_mtime
+            elif source.exists():
+                for path in source.rglob("*.jsonl"):
+                    try:
+                        stat = path.stat()
+                    except OSError:
+                        continue
+                    file_count += 1
+                    newest_mtime = max(newest_mtime, stat.st_mtime)
+        except OSError:
+            pass
+        fingerprint.append((str(source), file_count, newest_mtime))
+    return tuple(fingerprint)
+
+
+def project_rows(entries: list[UsageEntry]) -> list[tuple[str, int, float | None]]:
+    aggregates: dict[str, list[float]] = {}
+    for entry in entries:
+        bucket = aggregates.setdefault(entry.project, [0.0, 0.0])
+        bucket[0] += entry.total_tokens
+        bucket[1] += calculate_cost(entry)
+
+    ranked = sorted(
+        aggregates.items(),
+        key=lambda item: (int(item[1][0]), item[0]),
+        reverse=True,
+    )
+    rows: list[tuple[str, int, float | None]] = []
+    for project, (tokens, cost) in ranked[:3]:
+        rows.append(
+            (
+                project,
+                int(tokens),
+                cost,
+            )
+        )
+    return rows
 
 
 def _group_name(group: int, language: str) -> str:
