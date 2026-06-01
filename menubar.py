@@ -801,8 +801,8 @@ class AppDelegate(NSObject):
         except Exception as exc:
             if os.environ.get("USAGE_DEBUG") == "1":
                 logger.warning("refresh failed", exc_info=True)
-            codex_5h_pct = None
-            codex_model = "unknown"
+            codex_5h_pct = codex_result["codex_5h_pct"]
+            codex_model = codex_result.get("codex_model", "unknown")
             state = _error_state(type(exc).__name__, self.mock, self.language)
 
         result = {"state": state, "codex_5h_pct": codex_5h_pct, "codex_model": codex_model}

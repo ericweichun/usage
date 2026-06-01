@@ -188,7 +188,7 @@ def _active_window_limit_reached(
         return False
     if sqlite_reset is None:
         return True
-    if sqlite_reset is not None and sqlite_reset < datetime.now(UTC).timestamp():
+    if sqlite_reset < datetime.now(UTC).timestamp():
         return False
     # A newer reset window means Codex has already moved past the 100% event.
     return jsonl_reset is None or jsonl_reset <= sqlite_reset + 60
