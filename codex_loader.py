@@ -95,8 +95,17 @@ def _session_total_tokens(entries: list[UsageEntry]) -> int:
 
 def load_rate_limits() -> CodexRateLimits | None:
     sqlite_limits = _load_sqlite_rate_limits()
-    if sqlite_limits is not None:
+    jsonl_limits = _load_jsonl_rate_limits()
+    if sqlite_limits is None:
+        return jsonl_limits
+    if jsonl_limits is None:
         return sqlite_limits
+    if _rate_limits_timestamp(jsonl_limits) > _rate_limits_timestamp(sqlite_limits):
+        return jsonl_limits
+    return sqlite_limits
+
+
+def _load_jsonl_rate_limits() -> CodexRateLimits | None:
     if not SESSIONS_DIR.is_dir():
         return None
     models = _load_thread_models()
@@ -106,6 +115,11 @@ def load_rate_limits() -> CodexRateLimits | None:
         if rate_limits is not None:
             return rate_limits
     return None
+
+
+def _rate_limits_timestamp(rate_limits: CodexRateLimits) -> datetime:
+    parsed = _parse_timestamp(rate_limits.updated_at)
+    return parsed if parsed is not None else datetime.min.replace(tzinfo=UTC)
 
 
 def _load_sqlite_rate_limits() -> CodexRateLimits | None:

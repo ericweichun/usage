@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-06-01
+
+### 修正
+- **Codex 額度卡在舊值**：`load_rate_limits()` 原本只要 SQLite（`logs_2.sqlite`）撈到資料就直接回傳，不再比對 `~/.codex/sessions/*.jsonl` 裡更新的 `rate_limits`，導致選單列卡在前一天的舊額度。改成同時讀 SQLite 與 JSONL 兩個來源，依 `updated_at` 挑最新有效的那筆；時間相同時維持原本偏好 SQLite 的行為。
+
 ## [0.14.0] - 2026-06-01
 
 ### 新增

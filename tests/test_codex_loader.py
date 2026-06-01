@@ -513,6 +513,50 @@ def test_load_rate_limits_prefers_sqlite_websocket_rate_limits(
     )
 
 
+def test_load_rate_limits_uses_newer_jsonl_when_sqlite_is_stale(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    sessions_dir = tmp_path / "sessions"
+    logs_db = tmp_path / "logs.sqlite"
+    old = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+    new = datetime(2026, 1, 1, 12, 5, tzinfo=UTC)
+    new_limits = _rate_limits()
+    new_limits["primary"]["used_percent"] = 25
+    new_limits["secondary"]["used_percent"] = 70
+    _write_rate_limit_session(
+        sessions_dir / "rate.jsonl",
+        new.isoformat(),
+        new_limits,
+        new.timestamp(),
+    )
+    body = (
+        "session_loop{thread_id=session-sqlite}:turn{model=gpt-5.5}: "
+        'websocket event: {"type":"codex.rate_limits","plan_type":"plus",'
+        '"rate_limits":{"allowed":true,"limit_reached":false,'
+        '"primary":{"used_percent":40,"window_minutes":300,"reset_at":9999999999},'
+        '"secondary":{"used_percent":6,"window_minutes":10080,"reset_at":9999999998}},'
+        '"code_review_rate_limits":null}'
+    )
+    _create_logs_db(
+        logs_db,
+        [(1, int(old.timestamp()), body)],
+        target="codex_api::endpoint::responses_websocket",
+    )
+    monkeypatch.setattr(codex_loader, "SESSIONS_DIR", sessions_dir)
+    monkeypatch.setattr(codex_loader, "LOGS_DB", logs_db)
+
+    result = codex_loader.load_rate_limits()
+
+    assert result == codex_loader.CodexRateLimits(
+        five_hour_pct=25.0,
+        five_hour_resets_at=9_999_999_999.0,
+        seven_day_pct=70.0,
+        seven_day_resets_at=9_999_999_999.0,
+        model="unknown",
+        updated_at=new.isoformat(),
+    )
+
+
 def test_load_rate_limits_reads_sqlite_usage_limit_error_headers(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
