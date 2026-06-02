@@ -166,3 +166,30 @@ def test_evaluate_javascript_completion_handler_block_signature() -> None:
     )
     # Must not raise TypeError about the missing block signature.
     view.evaluateJavaScript_completionHandler_("1+1", lambda value, error: None)
+
+
+def test_build_view_falls_back_to_error_panel_on_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # When the WKWebView panel can't be built/loaded, build_view must return a
+    # native ErrorPanelView instead of degrading to a silent grey popover, and
+    # that view must satisfy the injectState_/teardown surface the controller
+    # drives it with. Failing inside _load_panel_html (before the WKWebView is
+    # instantiated) keeps this independent of a window server.
+    import panels.web_panel as web_panel
+    from panels.web_panel import ErrorPanelView
+
+    def boom(_filename: str) -> str:
+        raise RuntimeError("kaboom")
+
+    monkeypatch.setattr(web_panel, "_load_panel_html", boom)
+
+    panel = HTMLPanel("test", "panel_default_name", "test.html", codex_card_height=100.0)
+
+    class Delegate:
+        language = "en"
+
+    view = panel.build_view(Delegate())
+    assert isinstance(view, ErrorPanelView)
+    view.injectState_({})  # no-op, must not raise
+    view.teardown()  # no-op, must not raise

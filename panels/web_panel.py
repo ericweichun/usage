@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import objc
-from AppKit import NSMakeRect, NSView
+from AppKit import NSColor, NSFont, NSMakeRect, NSTextField, NSView
 from Foundation import NSBundle, NSObject
 from Quartz import CGColorCreateGenericRGB
 
@@ -48,6 +50,8 @@ except ModuleNotFoundError:
     )
 
 from panels.base import resolve_resource
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from menubar import PopoverState, QuotaRowState
@@ -146,6 +150,26 @@ class WebPanelView(WKWebView):
             self._pending = None
             self.injectState_(payload)
 
+    def webView_didFailNavigation_withError_(
+        self, web_view: Any, navigation: Any, error: Any
+    ) -> None:
+        if os.environ.get("USAGE_DEBUG") == "1":
+            logger.warning("panel navigation failed: %s", error)
+
+    def webView_didFailProvisionalNavigation_withError_(
+        self, web_view: Any, navigation: Any, error: Any
+    ) -> None:
+        if os.environ.get("USAGE_DEBUG") == "1":
+            logger.warning("panel provisional navigation failed: %s", error)
+
+    def renderTimeoutElapsed_(self, _arg: Any) -> None:
+        # If the HTML never finished rendering, the popover shows only the dark
+        # backing layer (a "grey window"). Surface that in the debug log so a
+        # reporter's USAGE_DEBUG output points straight at it instead of leaving
+        # us guessing.
+        if not self._ready and os.environ.get("USAGE_DEBUG") == "1":
+            logger.warning("panel HTML did not finish rendering within timeout")
+
     def setBridge_(self, bridge: Any) -> None:
         self.bridge = bridge
 
@@ -164,6 +188,41 @@ class WebPanelView(WKWebView):
         self.bridge = None
         self.delegate_ref = None
         self.user_content_controller = None
+
+
+class ErrorPanelView(NSView):
+    # Native fallback shown when the WKWebView panel can't be built or loaded,
+    # so the popover never degrades to a silent grey window. Exposes the same
+    # injectState_/teardown surface as WebPanelView so the controller can drive
+    # it without special-casing.
+    def initWithFrame_message_(self, frame: Any, message: str) -> ErrorPanelView:
+        self = objc.super(ErrorPanelView, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self.setWantsLayer_(True)
+        layer = self.layer()
+        if layer is not None:
+            layer.setBackgroundColor_(CGColorCreateGenericRGB(10 / 255, 15 / 255, 20 / 255, 1.0))
+        inset = 24.0
+        label = NSTextField.alloc().initWithFrame_(
+            NSMakeRect(inset, inset, frame.size.width - 2 * inset, frame.size.height - 2 * inset)
+        )
+        label.setStringValue_(message)
+        label.setEditable_(False)
+        label.setBezeled_(False)
+        label.setDrawsBackground_(False)
+        label.setSelectable_(True)
+        label.setTextColor_(NSColor.whiteColor())
+        label.setFont_(NSFont.systemFontOfSize_(13.0))
+        label.cell().setWraps_(True)
+        self.addSubview_(label)
+        return self
+
+    def injectState_(self, payload: dict[str, object]) -> None:
+        pass
+
+    def teardown(self) -> None:
+        pass
 
 
 class HTMLPanel:
@@ -192,22 +251,41 @@ class HTMLPanel:
         self.codex_card_height = codex_card_height
 
     def build_view(self, delegate: Any) -> NSView:
-        if WKUserContentController is None or WKWebViewConfiguration is None:
-            raise RuntimeError("pyobjc-framework-WebKit is required to build HTMLPanel")
-        html = _load_panel_html(self.html_filename)
-        configuration = WKWebViewConfiguration.alloc().init()
-        controller = WKUserContentController.alloc().init()
-        configuration.setUserContentController_(controller)
-        web_view = WebPanelView.alloc().initWithFrame_configuration_delegate_(
-            NSMakeRect(0, 0, self.width, self.height),
-            configuration,
-            delegate,
+        try:
+            if WKUserContentController is None or WKWebViewConfiguration is None:
+                raise RuntimeError("pyobjc-framework-WebKit is unavailable")
+            html = _load_panel_html(self.html_filename)
+            configuration = WKWebViewConfiguration.alloc().init()
+            controller = WKUserContentController.alloc().init()
+            configuration.setUserContentController_(controller)
+            web_view = WebPanelView.alloc().initWithFrame_configuration_delegate_(
+                NSMakeRect(0, 0, self.width, self.height),
+                configuration,
+                delegate,
+            )
+            bridge = UsageScriptBridge.alloc().initWithDelegate_webView_(delegate, web_view)
+            web_view.setBridge_(bridge)
+            controller.addScriptMessageHandler_name_(bridge, "usage")
+            web_view.loadHTMLString_baseURL_(html, None)
+            web_view.performSelector_withObject_afterDelay_("renderTimeoutElapsed:", None, 4.0)
+            return web_view
+        except Exception as exc:
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("panel build failed", exc_info=True)
+            return self._error_view(delegate, exc)
+
+    def _error_view(self, delegate: Any, exc: BaseException) -> NSView:
+        language = getattr(delegate, "language", "en")
+        bundle = _load_i18n_bundle()
+        prompt = bundle.get(language, bundle.get("en", {})).get(
+            "panel_load_error", "Panel failed to load. Please report this:"
         )
-        bridge = UsageScriptBridge.alloc().initWithDelegate_webView_(delegate, web_view)
-        web_view.setBridge_(bridge)
-        controller.addScriptMessageHandler_name_(bridge, "usage")
-        web_view.loadHTMLString_baseURL_(html, None)
-        return web_view
+        detail = f"{type(exc).__name__}: {exc}"
+        message = f"{prompt}\n\n{detail}\n\nhttps://github.com/aqua5230/usage/issues"
+        return ErrorPanelView.alloc().initWithFrame_message_(
+            NSMakeRect(0, 0, self.width, self.height),
+            message,
+        )
 
     def apply_state(self, view: NSView, state: PopoverState) -> None:
         view.injectState_(_state_payload(state))

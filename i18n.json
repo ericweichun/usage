@@ -1,6 +1,7 @@
 {
   "zh-TW": {
     "panel_default_name": "預設",
+    "panel_load_error": "面板載入失敗，請回報這個問題：",
     "panel_matrix": "駭客任務",
     "panel_win95": "視窗 95",
     "panel_newspaper": "復古報紙",
@@ -293,6 +294,7 @@
   },
   "en": {
     "panel_default_name": "Default",
+    "panel_load_error": "Panel failed to load. Please report this:",
     "panel_matrix": "Matrix",
     "panel_win95": "Windows 95",
     "panel_newspaper": "Vintage Newspaper",
@@ -585,6 +587,7 @@
   },
   "zh-CN": {
     "panel_default_name": "默认",
+    "panel_load_error": "面板加载失败，请反馈这个问题：",
     "panel_matrix": "黑客任务",
     "panel_win95": "视窗 95",
     "panel_newspaper": "复古报纸",
@@ -877,6 +880,7 @@
   },
   "ja": {
     "panel_default_name": "デフォルト",
+    "panel_load_error": "パネルの読み込みに失敗しました。報告してください：",
     "panel_matrix": "マトリックス",
     "panel_win95": "Windows 95",
     "panel_newspaper": "レトロ新聞",
@@ -1169,6 +1173,7 @@
   },
   "ko": {
     "panel_default_name": "기본",
+    "panel_load_error": "패널을 불러오지 못했습니다. 제보해 주세요:",
     "panel_matrix": "매트릭스",
     "panel_win95": "윈도우 95",
     "panel_newspaper": "복고 신문",
