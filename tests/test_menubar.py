@@ -416,6 +416,81 @@ def test_switch_panel_menu_contains_update_items(monkeypatch: pytest.MonkeyPatch
     assert "Show in report" not in main_titles
 
 
+def test_switch_panel_cancel_closes_visible_popover(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeController:
+        def __init__(self) -> None:
+            self.states: list[object] = []
+
+        def setState_(self, state: object) -> None:
+            self.states.append(state)
+
+    class FakeButton:
+        def bounds(self) -> str:
+            return "button-bounds"
+
+    class FakeStatusItem:
+        def __init__(self) -> None:
+            self._button = FakeButton()
+
+        def button(self) -> FakeButton:
+            return self._button
+
+    class FakePopover:
+        def __init__(self) -> None:
+            self.closed = 0
+            self.sizes: list[object] = []
+            self.shown: list[tuple[object, object, object]] = []
+
+        def isShown(self) -> bool:
+            return True
+
+        def performClose_(self, sender: object) -> None:
+            self.closed += 1
+
+        def setContentSize_(self, size: object) -> None:
+            self.sizes.append(size)
+
+        def showRelativeToRect_ofView_preferredEdge_(
+            self,
+            rect: object,
+            view: object,
+            edge: object,
+        ) -> None:
+            self.shown.append((rect, view, edge))
+
+    class FakePanel:
+        id = "classic"
+        codex_card_height = 0.0
+
+        def preferred_size(self) -> tuple[float, float]:
+            return (300.0, 400.0)
+
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(True, 60)
+    delegate.language = "en"
+    delegate.latest_state = menubar._empty_state(language="en")
+    delegate.active_panel = FakePanel()
+    delegate.popover_controller = FakeController()
+    delegate.popover = FakePopover()
+    delegate.status_item = FakeStatusItem()
+
+    monkeypatch.setattr(menubar, "NSMenu", _FakeMenu)
+    monkeypatch.setattr(menubar, "NSMenuItem", _FakeMenuItem)
+    monkeypatch.setattr(
+        "menubar.panels.all_panels",
+        lambda: [SimpleNamespace(id="classic", i18n_key="panel_default_name")],
+    )
+    monkeypatch.setattr("menubar.login_item.is_enabled", lambda: False)
+
+    menubar.AppDelegate.switchPanel_(delegate, object())
+
+    assert delegate.popover.closed == 1
+    assert delegate.popover_controller.states == []
+    assert delegate.popover.sizes == []
+    assert delegate.popover.shown == []
+
+
 def test_auto_update_disabled_skips_background_check(monkeypatch: pytest.MonkeyPatch) -> None:
     called = False
 

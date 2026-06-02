@@ -333,6 +333,7 @@ class AppDelegate(NSObject):
     _history_entries_cache = objc.ivar()
     _history_entries_cache_fingerprint = objc.ivar()
     _quota_notifier = objc.ivar()
+    _switch_menu_action_taken = objc.ivar()
     language = objc.ivar()
 
     def initWithMock_interval_(self, mock: bool, interval: int) -> AppDelegate:
@@ -359,6 +360,7 @@ class AppDelegate(NSObject):
         self._fs_stream = None
         self._history_entries_cache = None
         self._history_entries_cache_fingerprint = None
+        self._switch_menu_action_taken = False
         return self
 
     def applicationDidFinishLaunching_(self, notification: Any) -> None:
@@ -518,13 +520,20 @@ class AppDelegate(NSObject):
         butler_item.setState_(1 if _session_resume_enabled() else 0)
         butler_item.setToolTip_(_t(self.language, "project_butler_tooltip"))
         menu.addItem_(butler_item)
+        self._switch_menu_action_taken = False
         menu.popUpMenuPositioningItem_atLocation_inView_(None, NSMakePoint(0, 0), sender)
+        if self._switch_menu_action_taken:
+            self._resync_popover_after_menu()
+        else:
+            self._close_popover_after_menu()
 
     def selectPanel_(self, sender: Any) -> None:
+        self._mark_switch_menu_action()
         panel_id = str(sender.representedObject())
         self._set_active_panel_id(panel_id)
 
     def toggleLaunchAtLogin_(self, sender: Any) -> None:
+        self._mark_switch_menu_action()
         try:
             if login_item.is_enabled():
                 login_item.disable()
@@ -535,6 +544,7 @@ class AppDelegate(NSObject):
                 logger.warning("toggle launch at login failed", exc_info=True)
 
     def toggleAutoUpdateCheck_(self, sender: Any) -> None:
+        self._mark_switch_menu_action()
         prefs = _load_preferences()
         enabled = not _auto_update_check_enabled(prefs)
         prefs["auto_update_check"] = enabled
@@ -550,6 +560,7 @@ class AppDelegate(NSObject):
             thread.start()
 
     def toggleHideCodex_(self, sender: Any) -> None:
+        self._mark_switch_menu_action()
         prefs = _load_preferences()
         enabled = not _hide_codex_enabled(prefs)
         prefs["hide_codex_section"] = enabled
@@ -560,6 +571,7 @@ class AppDelegate(NSObject):
         self.popover_controller.setState_(self.latest_state)
 
     def toggleQuotaNotifications_(self, sender: Any) -> None:
+        self._mark_switch_menu_action()
         prefs = _load_preferences()
         enabled = not _quota_notifications_enabled(prefs)
         prefs["quota_notifications"] = enabled
@@ -570,6 +582,7 @@ class AppDelegate(NSObject):
             self._request_notification_authorization()
 
     def toggleSessionResume_(self, sender: Any) -> None:
+        self._mark_switch_menu_action()
         thread = threading.Thread(target=self._toggle_session_resume_in_background, daemon=True)
         thread.start()
 
@@ -748,6 +761,28 @@ class AppDelegate(NSObject):
                 button,
                 NSMinYEdge,
             )
+
+    def _mark_switch_menu_action(self) -> None:
+        self._switch_menu_action_taken = True
+
+    def _close_popover_after_menu(self) -> None:
+        if not hasattr(self, "popover") or self.popover is None:
+            return
+        if not self.popover.isShown():
+            return
+        self.popover.performClose_(None)
+
+    def _resync_popover_after_menu(self) -> None:
+        if not hasattr(self, "popover") or not hasattr(self, "popover_controller"):
+            return
+        if not hasattr(self, "status_item"):
+            return
+        if self.popover is None or self.popover_controller is None or self.status_item is None:
+            return
+        if not self.popover.isShown():
+            return
+        self.popover_controller.setState_(self.latest_state)
+        self.popover.setContentSize_(_popover_size(self.latest_state, self.active_panel))
 
     def togglePopover_(self, sender: Any) -> None:
         if self.popover.isShown():
