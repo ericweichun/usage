@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.15.5] - 2026-06-03
+
+### Changed
+- **Color Claude / Codex brand icons in the menu bar**: the menu bar previously marked each service's usage with emoji (🐾 for Claude, 📜 for Codex). It now shows the official Claude and Codex brand icons in color, which read more clearly on both light and dark menu bars.
+
 ## [0.15.4] - 2026-06-03
 
 ### Fixed

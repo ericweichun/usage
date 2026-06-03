@@ -47,7 +47,7 @@
 1. 到 [GitHub Releases 頁面](https://github.com/aqua5230/usage/releases/latest) 下載最新的 `usage.app.zip`
 2. 解壓縮，把 `usage.app` 拖到「應用程式」資料夾（或任何地方）
 3. 第一次開啟：在 Finder 按住 Ctrl 點右鍵 → 選「打開」→ 再確認一次「打開」
-4. 點右上角選單列的腳印圖示，就能看到用量
+4. 點右上角選單列的用量圖示，就能看到用量
 
 ⚠️ 第 3 步是因為這個 app 沒有 Apple Developer 簽章，**macOS Gatekeeper（系統內建、用來擋陌生程式的保全機制）會擋第一次開啟**；右鍵「打開」放行一次之後，以後直接雙擊就行。
 
@@ -76,7 +76,7 @@ ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $
 
 **接著你會看到：**
 
-- 選單列右上角出現腳印圖示和用量百分比
+- 選單列右上角出現 Claude／Codex 用量圖示和百分比
 - 點開是 Claude Code / Codex 的用量卡片
 - 若顯示 `--`，多半不是壞掉，而是還沒有本機用量資料：Codex 要先跑過一次對話，Claude Code 要設定狀態列並完全重開
 
@@ -103,7 +103,7 @@ ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $
 | 症狀 | 原因 | 解法 |
 |------|------|------|
 | menu bar 顯示 `--` | 還沒有 Codex rate_limits，或 Claude Code hook 還沒刷新 | 先用 Codex 跑一次對話；若要接 Claude Code，**.app 使用者**點「設定狀態列」，**原始碼使用者**跑 `python3 main.py --setup` |
-| 不小心按「結束」、腳印從選單列消失 | 「結束」會把整個 usage 程式關掉，要手動再開 | **.app 使用者**：按 `Cmd+Space` 叫出 Spotlight、輸入 `usage` 雙擊；或從 `/Applications` 找到 `usage.app` 雙擊。**LaunchAgent 使用者**：在 Terminal 跑 `launchctl start com.lollapalooza.usage`。**從原始碼跑的**：在 Terminal 再跑一次 `python3 main.py` |
+| 不小心按「結束」、用量圖示從選單列消失 | 「結束」會把整個 usage 程式關掉，要手動再開 | **.app 使用者**：按 `Cmd+Space` 叫出 Spotlight、輸入 `usage` 雙擊；或從 `/Applications` 找到 `usage.app` 雙擊。**LaunchAgent 使用者**：在 Terminal 跑 `launchctl start com.lollapalooza.usage`。**從原始碼跑的**：在 Terminal 再跑一次 `python3 main.py` |
 | 狀態顯示「N 分鐘未更新」 | Claude Code 沒在跑，沒有刷新 statusLine | 打開 Claude Code 跑一下，它刷新時會自動更新 |
 | Codex 那塊空白或不顯示 | `~/.codex/sessions/` 不存在，或還沒有含 rate_limits 的 token_count 事件 | 用 Codex 跑一次對話，等它寫入紀錄 |
 | 今日花費是 $0.00 | 模型名稱對不上 pricing 表，或 pricing 下載 / 快取失敗 | 刪掉 `~/.claude/pricing_cache.json` 讓它重新抓；或設 `USAGE_DEBUG=1` 看錯誤訊息 |

@@ -47,7 +47,7 @@ Two ways to install — pick whichever suits you. Steps for both are below.
 1. Download the latest `usage.app.zip` from the [GitHub Releases page](https://github.com/aqua5230/usage/releases/latest)
 2. Unzip it and drag `usage.app` into your Applications folder (or anywhere you like)
 3. First launch: in Finder, right-click `usage.app` → **Open** → confirm Open
-4. Click the paw icon in the top-right menu bar to see your usage
+4. Click the usage icons in the top-right menu bar to see your usage
 
 ⚠️ Step 3 is needed because the app isn't signed with an Apple Developer certificate, so **macOS Gatekeeper (the built-in feature that blocks unfamiliar programs) blocks the first launch**; once you right-click → Open to allow it once, double-clicking works normally afterward.
 
@@ -76,7 +76,7 @@ Restart the relevant tool afterward: restart Codex once; if Claude Code was conf
 
 **Then you'll see:**
 
-- A paw icon and usage percentage in the top-right menu bar
+- The Claude / Codex usage icons and percentages in the top-right menu bar
 - Click it for the Claude Code / Codex usage cards
 - If it shows `--`, it's usually not broken — there's just no local usage data yet: Codex needs one conversation first, and Claude Code needs the status line set up plus a full restart
 
@@ -103,7 +103,7 @@ The "Fix" column distinguishes three kinds of users — find yours first:
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | Menu bar shows `--` | No Codex `rate_limits` yet, or the Claude Code hook has not refreshed | Run one Codex conversation first. For Claude Code integration, **.app users** click "Set Up Status Line"; **Source users** run `python3 main.py --setup` |
-| Accidentally hit "Quit", paw icon disappeared from the menu bar | "Quit" fully terminates the usage process; you have to relaunch it | **.app users**: press `Cmd+Space` for Spotlight, type `usage`, hit Enter; or double-click `usage.app` from `/Applications`. **LaunchAgent users**: run `launchctl start com.lollapalooza.usage` in Terminal. **Source users**: run `python3 main.py` in Terminal again |
+| Accidentally hit "Quit", usage icons disappeared from the menu bar | "Quit" fully terminates the usage process; you have to relaunch it | **.app users**: press `Cmd+Space` for Spotlight, type `usage`, hit Enter; or double-click `usage.app` from `/Applications`. **LaunchAgent users**: run `launchctl start com.lollapalooza.usage` in Terminal. **Source users**: run `python3 main.py` in Terminal again |
 | Status says "N minutes stale" | Claude Code isn't running | Open Claude Code and let it run; it updates the file on its next status refresh |
 | Codex section is empty | `~/.codex/sessions/` doesn't exist or has no `rate_limits` events yet | Run a Codex conversation to generate log entries |
 | Today's cost shows $0.00 | Model name doesn't match the pricing table, or pricing download/cache failed | Delete `~/.claude/pricing_cache.json` to force a re-fetch; or run with `USAGE_DEBUG=1` for details |
