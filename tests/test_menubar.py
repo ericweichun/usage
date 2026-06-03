@@ -1183,6 +1183,9 @@ def test_apply_refresh_result_pushes_state_only_when_popover_is_shown() -> None:
         def setTitle_(self, title: str) -> None:
             self.titles.append(title)
 
+        def setAttributedTitle_(self, value: object) -> None:
+            pass
+
     class FakeStatusItem:
         def __init__(self, button: FakeButton) -> None:
             self._button = button
@@ -1247,6 +1250,9 @@ def test_apply_codex_refresh_result_updates_quota_before_full_refresh() -> None:
 
         def setTitle_(self, title: str) -> None:
             self.titles.append(title)
+
+        def setAttributedTitle_(self, value: object) -> None:
+            pass
 
     class FakeStatusItem:
         def __init__(self, button: FakeButton) -> None:

@@ -23,15 +23,21 @@ from AppKit import (
     NSApp,
     NSApplication,
     NSApplicationActivationPolicyAccessory,
+    NSAttributedString,
+    NSFont,
+    NSFontAttributeName,
     NSImage,
     NSMakePoint,
+    NSMakeRect,
     NSMakeSize,
     NSMenu,
     NSMenuItem,
     NSMinYEdge,
+    NSMutableAttributedString,
     NSPopover,
     NSPopoverBehaviorTransient,
     NSStatusBar,
+    NSTextAttachment,
     NSVariableStatusItemLength,
     NSViewController,
 )
@@ -188,6 +194,10 @@ def _session_resume_enabled() -> bool:
 
 _ALERT_ICON: Any = None
 _ALERT_ICON_LOADED = False
+_CLAUDE_MENUBAR_ICON: Any = None
+_CLAUDE_MENUBAR_ICON_LOADED = False
+_CODEX_MENUBAR_ICON: Any = None
+_CODEX_MENUBAR_ICON_LOADED = False
 
 
 def _alert_icon() -> Any:
@@ -205,6 +215,47 @@ def _alert_icon() -> Any:
             if os.environ.get("USAGE_DEBUG") == "1":
                 logger.warning("load alert icon failed", exc_info=True)
     return _ALERT_ICON
+
+
+def _load_menubar_template_icon(filename: str) -> Any:
+    image = NSImage.alloc().initWithContentsOfFile_(resolve_resource(filename))
+    if image is not None:
+        image.setTemplate_(True)
+        image.setSize_(NSMakeSize(14, 14))
+    return image
+
+
+def _claude_menubar_icon() -> Any:
+    global _CLAUDE_MENUBAR_ICON, _CLAUDE_MENUBAR_ICON_LOADED
+    if not _CLAUDE_MENUBAR_ICON_LOADED:
+        _CLAUDE_MENUBAR_ICON_LOADED = True
+        try:
+            _CLAUDE_MENUBAR_ICON = _load_menubar_template_icon("claude_menubar.png")
+        except Exception:
+            _CLAUDE_MENUBAR_ICON = None
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("load Claude menubar icon failed", exc_info=True)
+    return _CLAUDE_MENUBAR_ICON
+
+
+def _codex_menubar_icon() -> Any:
+    global _CODEX_MENUBAR_ICON, _CODEX_MENUBAR_ICON_LOADED
+    if not _CODEX_MENUBAR_ICON_LOADED:
+        _CODEX_MENUBAR_ICON_LOADED = True
+        try:
+            _CODEX_MENUBAR_ICON = _load_menubar_template_icon("codex_menubar.png")
+        except Exception:
+            _CODEX_MENUBAR_ICON = None
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("load Codex menubar icon failed", exc_info=True)
+    return _CODEX_MENUBAR_ICON
+
+
+def _menubar_icon_attachment_string(image: Any) -> Any:
+    attachment = NSTextAttachment.alloc().init()
+    attachment.setImage_(image)
+    attachment.setBounds_(NSMakeRect(0, -2.5, 14, 14))
+    return NSAttributedString.attributedStringWithAttachment_(attachment)
 
 
 def _make_alert() -> Any:
@@ -888,7 +939,7 @@ class AppDelegate(NSObject):
                 self.popover_controller.setState_(self.latest_state)
             self.popover.setContentSize_(_popover_size(state, self.active_panel))
             self._inject_web_language(state.language)
-            self.status_item.button().setTitle_(self._compose_title(state))
+            self._set_button_title(state)
         finally:
             should_refresh_again = bool(self._refresh_queued)
             self._refresh_queued = False
@@ -933,7 +984,7 @@ class AppDelegate(NSObject):
         if self.popover.isShown():
             self.popover_controller.setState_(self.latest_state)
         self.popover.setContentSize_(_popover_size(self.latest_state, self.active_panel))
-        self.status_item.button().setTitle_(self._compose_title(self.latest_state))
+        self._set_button_title(self.latest_state)
 
     def _request_notification_authorization(self) -> None:
         if self.mock or not _quota_notifications_enabled():
@@ -1200,6 +1251,34 @@ class AppDelegate(NSObject):
             else:
                 resolved = entries
         return menubar_state.project_rows(resolved)
+
+    def _menubar_text_string(self, text: str) -> Any:
+        return NSAttributedString.alloc().initWithString_attributes_(
+            text,
+            {NSFontAttributeName: NSFont.menuBarFontOfSize_(0)},
+        )
+
+    def _menubar_attributed_title(self, state: PopoverState) -> Any:
+        title = NSMutableAttributedString.alloc().init()
+        claude_percent = (
+            "--"
+            if state.claude_session.percent is None
+            else f"{_format_percent(state.claude_session.percent)}%"
+        )
+        title.appendAttributedString_(_menubar_icon_attachment_string(_claude_menubar_icon()))
+        title.appendAttributedString_(self._menubar_text_string(f" {claude_percent}"))
+        if self.codex_5h_pct is not None:
+            title.appendAttributedString_(self._menubar_text_string(" · "))
+            title.appendAttributedString_(_menubar_icon_attachment_string(_codex_menubar_icon()))
+            title.appendAttributedString_(
+                self._menubar_text_string(f" {_format_percent(float(self.codex_5h_pct))}%"),
+            )
+        return title
+
+    def _set_button_title(self, state: PopoverState) -> None:
+        button = self.status_item.button()
+        button.setTitle_(self._compose_title(state))
+        button.setAttributedTitle_(self._menubar_attributed_title(state))
 
     def _compose_title(self, state: PopoverState) -> str:
         base = (

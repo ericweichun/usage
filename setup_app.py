@@ -47,7 +47,9 @@ if __name__ == "__main__":
         "iconfile": "assets/usage.icns",
         "resources": [
             "assets/claude.webp",
+            "assets/claude_menubar.png",
             "assets/codex.webp",
+            "assets/codex_menubar.png",
             "assets/panels",
             "i18n.json",
             "pyproject.toml",
