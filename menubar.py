@@ -198,6 +198,8 @@ _CLAUDE_MENUBAR_ICON: Any = None
 _CLAUDE_MENUBAR_ICON_LOADED = False
 _CODEX_MENUBAR_ICON: Any = None
 _CODEX_MENUBAR_ICON_LOADED = False
+_USAGE_MENUBAR_ICON: Any = None
+_USAGE_MENUBAR_ICON_LOADED = False
 
 
 def _alert_icon() -> Any:
@@ -217,10 +219,10 @@ def _alert_icon() -> Any:
     return _ALERT_ICON
 
 
-def _load_menubar_template_icon(filename: str) -> Any:
+def _load_menubar_color_icon(filename: str) -> Any:
     image = NSImage.alloc().initWithContentsOfFile_(resolve_resource(filename))
     if image is not None:
-        image.setTemplate_(True)
+        image.setTemplate_(False)
         image.setSize_(NSMakeSize(14, 14))
     return image
 
@@ -230,7 +232,7 @@ def _claude_menubar_icon() -> Any:
     if not _CLAUDE_MENUBAR_ICON_LOADED:
         _CLAUDE_MENUBAR_ICON_LOADED = True
         try:
-            _CLAUDE_MENUBAR_ICON = _load_menubar_template_icon("claude_menubar.png")
+            _CLAUDE_MENUBAR_ICON = _load_menubar_color_icon("claude_color_menubar.png")
         except Exception:
             _CLAUDE_MENUBAR_ICON = None
             if os.environ.get("USAGE_DEBUG") == "1":
@@ -243,12 +245,25 @@ def _codex_menubar_icon() -> Any:
     if not _CODEX_MENUBAR_ICON_LOADED:
         _CODEX_MENUBAR_ICON_LOADED = True
         try:
-            _CODEX_MENUBAR_ICON = _load_menubar_template_icon("codex_menubar.png")
+            _CODEX_MENUBAR_ICON = _load_menubar_color_icon("codex_color_menubar.png")
         except Exception:
             _CODEX_MENUBAR_ICON = None
             if os.environ.get("USAGE_DEBUG") == "1":
                 logger.warning("load Codex menubar icon failed", exc_info=True)
     return _CODEX_MENUBAR_ICON
+
+
+def _usage_menubar_icon() -> Any:
+    global _USAGE_MENUBAR_ICON, _USAGE_MENUBAR_ICON_LOADED
+    if not _USAGE_MENUBAR_ICON_LOADED:
+        _USAGE_MENUBAR_ICON_LOADED = True
+        try:
+            _USAGE_MENUBAR_ICON = _load_menubar_color_icon("usage_color_menubar.png")
+        except Exception:
+            _USAGE_MENUBAR_ICON = None
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("load usage menubar icon failed", exc_info=True)
+    return _USAGE_MENUBAR_ICON
 
 
 def _menubar_icon_attachment_string(image: Any) -> Any:
@@ -1265,6 +1280,8 @@ class AppDelegate(NSObject):
             if state.claude_session.percent is None
             else f"{_format_percent(state.claude_session.percent)}%"
         )
+        title.appendAttributedString_(_menubar_icon_attachment_string(_usage_menubar_icon()))
+        title.appendAttributedString_(self._menubar_text_string(" "))
         title.appendAttributedString_(_menubar_icon_attachment_string(_claude_menubar_icon()))
         title.appendAttributedString_(self._menubar_text_string(f" {claude_percent}"))
         if self.codex_5h_pct is not None:
