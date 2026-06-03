@@ -5,6 +5,8 @@ __pycache__/
 .claude/settings.local.json
 *.log
 pricing_cache.json
+# Runtime cache the app writes when run from source (cache/projects.json)
+/cache/
 usage.log
 usage.err.log
 .DS_Store
