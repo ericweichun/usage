@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/icon.png" alt="usage app icon" width="120">
+</p>
+
 # usage
 
 > Claude Code & Codex usage monitor — pin your quota to the macOS menu bar

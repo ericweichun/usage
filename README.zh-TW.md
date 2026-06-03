@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/icon.png" alt="usage app icon" width="120">
+</p>
+
 # usage
 
 > Claude Code & Codex 用量監看器 —— 把配額釘在 macOS 選單列
