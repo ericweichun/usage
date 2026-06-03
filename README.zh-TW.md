@@ -42,6 +42,8 @@
 
 兩種安裝方式，挑一個順手的用，步驟都在下面。
 
+**最快上手：**`brew install aqua5230/homebrew-usage/usage` → 把 `usage.app` 拖進「應用程式」→ 右鍵「打開」→ 點選單列圖示。
+
 ### 下載現成 App
 
 1. 到 [GitHub Releases 頁面](https://github.com/aqua5230/usage/releases/latest) 下載最新的 `usage.app.zip`
@@ -66,7 +68,7 @@ brew install aqua5230/homebrew-usage/usage
 ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $2}')/usage.app /Applications/usage.app
 ```
 
-第一次開啟同樣要按住 Ctrl 右鍵 → 打開，讓 macOS 放行一次。
+第一次開啟同上：按住 Ctrl 右鍵 →「打開」讓 macOS 放行一次。
 
 ### 首次打開：設定狀態列
 

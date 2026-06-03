@@ -42,6 +42,8 @@ All numbers come from local files written by Claude Code and Codex — it **neve
 
 Two ways to install — pick whichever suits you. Steps for both are below.
 
+**Fastest path:** `brew install aqua5230/homebrew-usage/usage` → move `usage.app` to Applications → right-click **Open** → click the menu bar icons.
+
 ### Download the app
 
 1. Download the latest `usage.app.zip` from the [GitHub Releases page](https://github.com/aqua5230/usage/releases/latest)
@@ -66,7 +68,7 @@ After install, drag `usage.app` (under `/opt/homebrew/Cellar/usage/`) into your 
 ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $2}')/usage.app /Applications/usage.app
 ```
 
-The first launch still needs right-click → Open to pass Gatekeeper.
+Same first-launch right-click → **Open** as above (to pass Gatekeeper).
 
 ### First launch: set up the status line
 
