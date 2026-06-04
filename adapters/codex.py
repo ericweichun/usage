@@ -111,10 +111,10 @@ def _extract_rate_limits(path: Path, models: dict[str, str]) -> RateLimits | Non
 
     now_ts = datetime.now(timezone.utc).timestamp()
     if five_reset is not None and five_reset < now_ts:
-        five_pct = None
+        five_pct = 0.0
         five_reset = None
     if seven_reset is not None and seven_reset < now_ts:
-        seven_pct = None
+        seven_pct = 0.0
         seven_reset = None
 
     if five_pct is None and seven_pct is None:

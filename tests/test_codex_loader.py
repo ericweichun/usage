@@ -471,6 +471,31 @@ def test_load_rate_limits_reads_primary_and_secondary_windows(
     )
 
 
+def test_load_rate_limits_resets_expired_primary_window_to_zero(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    sessions_dir = tmp_path / "sessions"
+    monkeypatch.setattr(codex_loader, "SESSIONS_DIR", sessions_dir)
+    monkeypatch.setattr(codex_loader, "_load_thread_models", lambda: {"session-1": "gpt-test"})
+    now = datetime.now(UTC)
+    _write_rate_limit_session(
+        sessions_dir / "rate.jsonl",
+        now.isoformat(),
+        {
+            "primary": {"used_percent": 42.0, "resets_at": now.timestamp() - 60},
+            "secondary": {"used_percent": 70.0, "resets_at": now.timestamp() + 120},
+        },
+        now.timestamp(),
+    )
+
+    result = codex_loader.load_rate_limits()
+
+    assert result is not None
+    assert result.five_hour_pct == 0.0
+    assert result.five_hour_resets_at is None
+    assert result.seven_day_pct == 70.0
+
+
 def test_load_rate_limits_prefers_sqlite_websocket_rate_limits(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -775,7 +800,7 @@ def test_load_rate_limits_clears_expired_primary_window(
     result = codex_loader.load_rate_limits()
 
     assert result is not None
-    assert result.five_hour_pct is None
+    assert result.five_hour_pct == 0.0
     assert result.five_hour_resets_at is None
     assert result.seven_day_pct == 70.0
     assert result.seven_day_resets_at == now.timestamp() + 120

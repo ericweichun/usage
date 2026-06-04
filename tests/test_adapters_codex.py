@@ -125,6 +125,33 @@ def test_load_rate_limits_scans_recent_thirty_sessions(
     assert result.seven_day_pct == 34
 
 
+def test_load_rate_limits_resets_expired_primary_window_to_zero(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    sessions_dir = tmp_path / "sessions"
+    now = datetime.now(UTC)
+    _write_session(
+        sessions_dir / "expired-primary.jsonl",
+        session_id="expired-primary",
+        timestamp=now.isoformat(),
+        rate_limits={
+            "primary": {"used_percent": 12, "resets_at": now.timestamp() - 60},
+            "secondary": {"used_percent": 34, "resets_at": 9999999998},
+        },
+        mtime=now.timestamp(),
+    )
+    monkeypatch.setattr(codex, "SESSIONS_DIR", str(sessions_dir))
+    monkeypatch.setattr(codex, "_load_thread_models", lambda: {})
+
+    result = codex.load_rate_limits()
+
+    assert result is not None
+    assert result.five_hour_pct == 0.0
+    assert result.five_hour_resets_at is None
+    assert result.seven_day_pct == 34
+
+
 def test_load_entries_accepts_numeric_string_usage_fields(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

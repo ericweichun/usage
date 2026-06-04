@@ -579,10 +579,10 @@ def _extract_rate_limits(path: Path, models: dict[str, str]) -> CodexRateLimits 
     seven_reset = _as_optional_float(secondary.get("resets_at"))
     now_ts = datetime.now(UTC).timestamp()
     if five_reset is not None and five_reset < now_ts:
-        five_pct = None
+        five_pct = 0.0
         five_reset = None
     if seven_reset is not None and seven_reset < now_ts:
-        seven_pct = None
+        seven_pct = 0.0
         seven_reset = None
     if five_pct is None and seven_pct is None:
         return None
