@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.15.9] - 2026-06-05
+
+### Fixed
+- **Menu bar / report no longer fail on non-ASCII (e.g. Chinese) project paths**: a .app launched by double-click has no locale set, so resolving project names via `git` decoded its output as ASCII and raised `UnicodeDecodeError` on paths containing Chinese/Japanese/Korean/accented characters. This affected `history_loader`/`codex_loader` (live menu bar) and `persona_loader` (Usage Habits), leaving the report's "Usage Habits" section blank for non-today ranges. `git` output is now always decoded as UTF-8, so paths in any language work.
+
 ## [0.15.8] - 2026-06-05
 
 ### Fixed

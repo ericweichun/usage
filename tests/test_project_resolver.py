@@ -145,3 +145,18 @@ def test_project_from_encoded_path_outside_dir_is_unknown(tmp_path: Path) -> Non
     result = project_from_encoded_path(tmp_path / "outside.jsonl", projects_dir)
 
     assert result == "unknown"
+
+
+def test_resolve_project_name_forces_utf8_git_decoding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A .app launched via LaunchServices has no LANG, so text=True would decode
+    # git output as ASCII and crash on non-ASCII repo paths. Lock in utf-8.
+    run = Mock(return_value=_completed(0, stdout="worktree /work/main-project\n"))
+    monkeypatch.setattr("project_resolver.subprocess.run", run)
+
+    project_resolver.resolve_project_name("/work/feature")
+
+    _, kwargs = run.call_args
+    assert kwargs.get("encoding") == "utf-8"
+    assert kwargs.get("errors") == "replace"
