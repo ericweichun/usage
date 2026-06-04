@@ -65,7 +65,7 @@ brew install aqua5230/homebrew-usage/usage
 
 ### Homebrew
 
-用 Homebrew（macOS 的套件管理工具）裝，好處是日後一行 `brew upgrade` 就能自動更新。兩行指令裝好：
+用 Homebrew（macOS 的套件管理工具）裝，好處是日後一行 `brew upgrade` 就能自動更新。上方 [快速上手](#-快速上手) 那一行其實就裝好了——那串指令的完整路徑會自動幫你加 tap，所以一行就夠。想看清楚拆成兩步的話：
 
 ```bash
 brew tap aqua5230/homebrew-usage

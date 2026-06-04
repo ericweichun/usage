@@ -65,7 +65,7 @@ Two ways to install — pick whichever suits you. Steps for both are below. (In 
 
 ### Homebrew
 
-Installing via Homebrew (the macOS package manager) means a single `brew upgrade` keeps it current. Two commands:
+Installing via Homebrew (the macOS package manager) means a single `brew upgrade` keeps it current. The [Quick Start](#-quick-start) one-liner above already installs it — that command's full path auto-adds the tap for you, so one line is all you need. Prefer to run the two steps explicitly?
 
 ```bash
 brew tap aqua5230/homebrew-usage
