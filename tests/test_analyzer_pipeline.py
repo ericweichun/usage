@@ -177,13 +177,13 @@ def test_app_analyze_uses_project_range_period(
     delegate.analyzeUsage_(None)
     delegate.analyzeUsage_("all")
 
-    assert calls == ["month", "all"]
+    assert calls == ["last30", "all"]
 
 
 def test_analysis_period_from_project_range() -> None:
     assert menubar._analysis_period_from_project_range("1d") == "today"
     assert menubar._analysis_period_from_project_range("7d") == "week"
-    assert menubar._analysis_period_from_project_range("30d") == "month"
+    assert menubar._analysis_period_from_project_range("30d") == "last30"
     assert menubar._analysis_period_from_project_range("all") == "all"
 
 

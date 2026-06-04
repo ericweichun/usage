@@ -1314,6 +1314,8 @@ def _analysis_period_from_project_range(project_range: str) -> str:
         return "today"
     if project_range == "7d":
         return "week"
+    if project_range == "30d":
+        return "last30"
     if project_range == "all":
         return "all"
     return "month"
