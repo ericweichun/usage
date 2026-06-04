@@ -379,7 +379,7 @@ def test_switch_panel_menu_contains_update_items(monkeypatch: pytest.MonkeyPatch
     delegate.active_panel = SimpleNamespace(id="classic")
     panels = [
         SimpleNamespace(id="classic", i18n_key="panel_default_name"),
-        SimpleNamespace(id="bento", i18n_key="panel_bento"),
+        SimpleNamespace(id="matrix", i18n_key="panel_matrix"),
     ]
 
     monkeypatch.setattr(menubar, "NSMenu", _FakeMenu)
@@ -404,7 +404,7 @@ def test_switch_panel_menu_contains_update_items(monkeypatch: pytest.MonkeyPatch
 
     # Panel themes are collapsed into a submenu, not listed inline on the main menu.
     assert "Default" not in main_titles
-    assert [item.title for item in panel_submenu.items] == ["Default", "Bento Box"]
+    assert [item.title for item in panel_submenu.items] == ["Default", "Matrix"]
     parent = next(item for item in main_menu.items if item.submenu is panel_submenu)
     assert parent.submenu is panel_submenu
 
