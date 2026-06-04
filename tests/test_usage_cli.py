@@ -64,6 +64,34 @@ def test_main_dashboard_uses_mocked_loaders_without_touching_agent_dirs(
     assert rendered["rate_limits"] == RateLimits(five_hour_pct=12, seven_day_pct=34)
 
 
+def test_cli_codex_rate_limits_use_shared_loader_conversion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        usage_cli.codex_loader,
+        "load_rate_limits",
+        lambda: usage_cli.codex_loader.CodexRateLimits(
+            five_hour_pct=0.0,
+            five_hour_resets_at=1234.9,
+            seven_day_pct=56.0,
+            seven_day_resets_at=9876.1,
+            model="gpt-test",
+            updated_at="2026-01-01T00:00:00+00:00",
+        ),
+    )
+
+    result = usage_cli.RATE_LIMIT_LOADERS["codex"]()
+
+    assert result == RateLimits(
+        five_hour_pct=0.0,
+        five_hour_resets_at=1234,
+        seven_day_pct=56.0,
+        seven_day_resets_at=9876,
+        model="gpt-test",
+        updated_at="2026-01-01T00:00:00+00:00",
+    )
+
+
 def test_main_daily_sort_flag_controls_render_order(monkeypatch: pytest.MonkeyPatch) -> None:
     agent = AgentInfo("codex", "Codex", "~/.codex", True)
     high = _entry()

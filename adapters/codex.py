@@ -61,21 +61,6 @@ def _load_thread_models() -> dict[str, str]:
         return {}
 
 
-def load_rate_limits() -> RateLimits | None:
-    sessions_path = Path(SESSIONS_DIR)
-    if not sessions_path.is_dir():
-        return None
-
-    jsonl_files = sorted(sessions_path.rglob("*.jsonl"), key=_safe_mtime, reverse=True)
-    models = _load_thread_models()
-
-    for path in jsonl_files[:30]:
-        rl = _extract_rate_limits(path, models)
-        if rl:
-            return rl
-    return None
-
-
 def _extract_rate_limits(path: Path, models: dict[str, str]) -> RateLimits | None:
     session_id = ""
     last_rl = None
@@ -250,13 +235,6 @@ def _load_jsonl_rows(path: Path) -> list[dict[str, Any]]:
         _file_cache.popitem(last=False)
     _file_cache[path] = (st.st_mtime, st.st_size, rows)
     return rows
-
-
-def _safe_mtime(path: Path) -> float:
-    try:
-        return path.stat().st_mtime
-    except OSError:
-        return float("-inf")
 
 
 def _as_optional_float(value: Any) -> float | None:

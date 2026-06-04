@@ -2,10 +2,11 @@ import sys
 from collections.abc import Callable
 from typing import Any
 
+import codex_loader
 from adapters import claude, codex
 from adapters.rate_limits import load_rate_limits as load_claude_rate_limits
 from adapters.registry import detect_agents
-from adapters.types import AgentInfo
+from adapters.types import AgentInfo, RateLimits
 from analyzer.aggregator import aggregate_daily, aggregate_monthly, aggregate_sessions, aggregate_weekly
 from analyzer.blocks import analyze_blocks, calculate_p90
 from setup_hook import is_claude_setup, is_codex_setup, is_setup, setup, unsetup
@@ -17,7 +18,31 @@ from ui.tables import (
 
 AGENT_ALIASES = {"claude": "claude-code", "codex": "codex"}
 AGENT_LOADERS = {"claude-code": claude, "codex": codex}
-RATE_LIMIT_LOADERS = {"claude-code": load_claude_rate_limits, "codex": codex.load_rate_limits}
+
+
+def _load_codex_rate_limits() -> RateLimits | None:
+    rate_limits = codex_loader.load_rate_limits()
+    if rate_limits is None:
+        return None
+    return RateLimits(
+        five_hour_pct=rate_limits.five_hour_pct,
+        five_hour_resets_at=(
+            int(rate_limits.five_hour_resets_at)
+            if rate_limits.five_hour_resets_at is not None
+            else None
+        ),
+        seven_day_pct=rate_limits.seven_day_pct,
+        seven_day_resets_at=(
+            int(rate_limits.seven_day_resets_at)
+            if rate_limits.seven_day_resets_at is not None
+            else None
+        ),
+        model=rate_limits.model or "",
+        updated_at=rate_limits.updated_at,
+    )
+
+
+RATE_LIMIT_LOADERS = {"claude-code": load_claude_rate_limits, "codex": _load_codex_rate_limits}
 
 SORT_KEYS = {
     "tokens": ("total_tokens", True),
