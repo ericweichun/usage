@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.15.8] - 2026-06-05
+
+### Fixed
+- **Codex "Session (5h)" quota no longer blanks out when the window expires**: after the 5-hour window resets, the session used to show blank (`--`), inconsistent with the Claude side; it now shows 0% like Claude. The CLI and menu bar now read rate limits from the same source, so their numbers no longer disagree.
+
+### Other
+- `doctor` now reports Codex diagnostics: latest session-log age, `logs_2.sqlite` rate-limit row count, `state_5.sqlite` status, and whether 5h / weekly quota data is currently available — making "why isn't it detected" easy to diagnose.
+
 ## [0.15.7] - 2026-06-04
 
 ### Fixed
