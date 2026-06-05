@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.15.10] - 2026-06-05
+
+### Added
+- **New "Insights" section in the report**: below the usage cards, a few local-rule highlights that the raw cards don't show — period-over-period change, the single heaviest spike day, a notable shift in model/project share, your pace, and one matching suggestion. At most five lines, with no fact repeated. Computed entirely on-device: no network, no API, no reading of conversation content.
+
 ## [0.15.9] - 2026-06-05
 
 ### Fixed
