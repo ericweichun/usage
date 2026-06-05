@@ -510,6 +510,79 @@ def _render_tools_section(data: dict[str, Any], lang: str) -> str:
     return _section(_t(lang, "tools_section"), tools_body, "tools-section")
 
 
+def _render_priority_summary(component: dict[str, Any], lang: str) -> str:
+    rows = []
+    for item in component.get("items", []):
+        rows.append(
+            f'<li>{_t(lang, item["key"], **_insight_kwargs(item))}</li>'
+        )
+    return f'<ul class="insight-list">{"".join(rows)}</ul>' if rows else ""
+
+
+def _render_subscription_value(component: dict[str, Any], lang: str) -> str:
+    return (
+        '<div class="insight-note">'
+        f'{_t(lang, component["key"], **_insight_kwargs(component))}'
+        '</div>'
+    )
+
+
+def _render_spike_explainer(component: dict[str, Any], lang: str) -> str:
+    return (
+        '<div class="insight-note">'
+        f'{_t(lang, "insights_spike", **_insight_kwargs(component))}'
+        '</div>'
+    )
+
+
+def _render_next_actions(component: dict[str, Any], lang: str) -> str:
+    rows = []
+    for action in component.get("actions", []):
+        rows.append(
+            f'<li>{_t(lang, action["key"], **_insight_kwargs(action))}</li>'
+        )
+    return f'<ol class="insight-list insight-actions">{"".join(rows)}</ol>' if rows else ""
+
+
+def _insight_kwargs(component: dict[str, Any]) -> dict[str, object]:
+    kwargs: dict[str, object] = {}
+    for key, value in component.items():
+        if key == "key" or key == "type" or key == "items" or key == "actions":
+            continue
+        if key == "tokens" or key == "mean_tokens":
+            kwargs[key] = _fmt_tokens(int(value))
+        elif key == "cost_usd":
+            kwargs[key] = _fmt_cost(float(value))
+        elif key in {"project", "model", "date"}:
+            kwargs[key] = _escape(value)
+        else:
+            kwargs[key] = value
+    return kwargs
+
+
+def _render_insight_surface(data: dict[str, Any], lang: str) -> str:
+    from analyzer.insights import build_insights
+
+    components = build_insights(data)
+    if not components:
+        return ""
+
+    renderers = {
+        "priority_summary": _render_priority_summary,
+        "subscription_value": _render_subscription_value,
+        "spike_explainer": _render_spike_explainer,
+        "next_actions": _render_next_actions,
+    }
+    body = "".join(
+        renderer(component, lang)
+        for component in components
+        if (renderer := renderers.get(str(component.get("type")))) is not None
+    )
+    if not body:
+        return ""
+    return _section(_t(lang, "insights_section"), body, "insights-section")
+
+
 def _render_trend_section(data: dict[str, Any], lang: str) -> str:
     return _section(_t(lang, "trend_section"), _trend_ascii(data.get("daily_trend", []), lang))
 
@@ -818,6 +891,7 @@ def generate_html(data: dict[str, Any], language: str | None = None) -> str:
     cards = _summary_cards(data["summary"], lang)
     share_config_json = _share_config_json(lang)
     title = _t(lang, "title")
+    insight_surface = _render_insight_surface(data, lang)
     return f"""<!doctype html>
 <html lang="{html.escape(lang)}">
 <head>
@@ -833,7 +907,7 @@ def generate_html(data: dict[str, Any], language: str | None = None) -> str:
   {_render_header(data, lang, title, generated_at)}
   {_render_share_dialog(lang)}
   {_render_cards_section(cards)}
-  {_render_tools_section(data, lang)}
+{insight_surface}  {_render_tools_section(data, lang)}
   {_render_project_section(data, lang)}
   {_render_model_section(data, lang)}
   {_render_trend_section(data, lang)}
