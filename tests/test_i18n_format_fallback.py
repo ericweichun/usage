@@ -31,6 +31,20 @@ def test_t_falls_back_to_english_on_malformed_localized_placeholder(
     assert i18n._t("zh-TW", "greet", name="Ada") == "Hello Ada"
 
 
+def test_t_falls_back_to_english_on_type_mismatched_format_spec(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A numeric format spec applied to a non-number raises TypeError, not the
+    # KeyError/ValueError family — the fallback must cover it too.
+    fake_bundle = {
+        "en": {"price": "Cost {x}"},
+        "zh-TW": {"price": "價格 {x:.2f}"},
+    }
+    monkeypatch.setattr(i18n, "_load_i18n_bundle", lambda: fake_bundle)
+
+    assert i18n._t("zh-TW", "price", x=None) == "Cost None"
+
+
 def test_t_falls_back_to_key_when_every_template_is_malformed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
