@@ -70,7 +70,7 @@ class QuotaNotifier:
             if was_depleted and available and current is not None and current < 100.0:
                 events.append(NotificationEvent("restored", channel, None))
 
-        depleted = (not available) or (current is not None and current >= 100.0)
+        depleted = current is not None and current >= 100.0
         if depleted:
             if not state.depleted:
                 events.append(NotificationEvent("depleted", channel, None))

@@ -29,7 +29,7 @@ def test_reset_unlocks_threshold_latch() -> None:
     ]
 
 
-def test_depleted_triggers_once_for_percent_or_unavailable() -> None:
+def test_depleted_triggers_only_when_percent_at_capacity() -> None:
     notifier = QuotaNotifier()
 
     events = notifier.update({"claude_weekly": (100.0, True)})
@@ -38,11 +38,24 @@ def test_depleted_triggers_once_for_percent_or_unavailable() -> None:
     ]
     assert notifier.update({"claude_weekly": (100.0, True)}) == []
 
-    events = notifier.update({"codex_session": (None, False)})
+    assert notifier.update({"codex_session": (None, False)}) == []
+    assert notifier.update({"codex_session": (None, False)}) == []
+
+
+def test_missing_data_does_not_repeat_depleted_or_restore_until_percent_recovers() -> None:
+    notifier = QuotaNotifier()
+
+    events = notifier.update({"codex_session": (100.0, True)})
     assert [(event.kind, event.channel, event.threshold) for event in events] == [
         ("depleted", "codex_session", None)
     ]
+
     assert notifier.update({"codex_session": (None, False)}) == []
+
+    events = notifier.update({"codex_session": (5.0, True)})
+    assert [(event.kind, event.channel, event.threshold) for event in events] == [
+        ("restored", "codex_session", None)
+    ]
 
 
 def test_restored_triggers_after_depleted_reset() -> None:
