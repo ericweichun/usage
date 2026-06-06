@@ -1,3 +1,9 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 lollapalooza <https://github.com/aqua5230>
+#
+# Part of "usage". Free software licensed under the GNU Affero General Public
+# License v3.0 only; see the LICENSE file for full terms and the warranty disclaimer.
+
 """Read the locally-stored subscription plan + start date for each agent.
 
 Everything here is read-only and stays on disk — we only pull the plan name and

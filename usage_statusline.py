@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 lollapalooza <https://github.com/aqua5230>
+#
+# Part of "usage". Free software licensed under the GNU Affero General Public
+# License v3.0 only; see the LICENSE file for full terms and the warranty disclaimer.
+
 # ruff: noqa: SIM105, UP006, UP035, UP045
 """Claude Code statusLine hook：把 Claude Code 推來的狀態 JSON 持久化並渲染狀態列。
 
