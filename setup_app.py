@@ -90,6 +90,10 @@ if __name__ == "__main__":
             "rich.table",
             "rich.text",
         ],
+        "packages": [
+            "WebKit",
+            "UserNotifications",
+        ],
         "plist": {
             "CFBundleIdentifier": "com.lollapalooza.usage",
             "CFBundleName": "usage",

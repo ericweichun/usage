@@ -303,6 +303,7 @@ def _user_notification_center() -> tuple[Any, dict[str, int]]:
         UNAuthorizationOptionSound,
         UNUserNotificationCenter,
     )
+    _register_user_notification_block_metadata()
 
     return (
         UNUserNotificationCenter.currentNotificationCenter(),
@@ -315,6 +316,7 @@ def _user_notification_center() -> tuple[Any, dict[str, int]]:
 
 
 def _user_notification_classes() -> tuple[Any, Any, Any]:
+    _register_user_notification_block_metadata()
     from UserNotifications import (
         UNMutableNotificationContent,
         UNNotificationRequest,
@@ -322,6 +324,44 @@ def _user_notification_classes() -> tuple[Any, Any, Any]:
     )
 
     return UNMutableNotificationContent, UNNotificationRequest, UNNotificationSound
+
+
+def _register_user_notification_block_metadata() -> None:
+    objc.registerMetaDataForSelector(
+        b"UNUserNotificationCenter",
+        b"requestAuthorizationWithOptions:completionHandler:",
+        {
+            "arguments": {
+                3: {
+                    "callable": {
+                        "retval": {"type": b"v"},
+                        "arguments": {
+                            0: {"type": b"^v"},
+                            1: {"type": b"Z"},
+                            2: {"type": b"@"},
+                        },
+                    },
+                },
+            },
+        },
+    )
+    objc.registerMetaDataForSelector(
+        b"UNUserNotificationCenter",
+        b"addNotificationRequest:withCompletionHandler:",
+        {
+            "arguments": {
+                3: {
+                    "callable": {
+                        "retval": {"type": b"v"},
+                        "arguments": {
+                            0: {"type": b"^v"},
+                            1: {"type": b"@"},
+                        },
+                    },
+                },
+            },
+        },
+    )
 
 
 def _notification_tool(channel: str) -> str:
