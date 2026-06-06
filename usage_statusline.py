@@ -194,6 +194,19 @@ def _read_update_hint(now_ts: float) -> Optional[str]:
     return latest
 
 
+def _rate_limits_complete(rate_limits: Any) -> bool:
+    if not isinstance(rate_limits, dict):
+        return False
+    five = rate_limits.get("five_hour")
+    seven = rate_limits.get("seven_day")
+    if not isinstance(five, dict) or not isinstance(seven, dict):
+        return False
+    return (
+        five.get("used_percentage") is not None
+        and seven.get("used_percentage") is not None
+    )
+
+
 def save(data: Dict[str, Any], now: datetime) -> None:
     data["_received_at"] = now.isoformat()
     data["_received_at_ts"] = now.timestamp()
@@ -205,6 +218,16 @@ def save(data: Dict[str, Any], now: datetime) -> None:
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX)
         try:
+            if not _rate_limits_complete(data.get("rate_limits")):
+                try:
+                    with open(STATUS_FILE, encoding="utf-8") as f:
+                        existing = json.load(f)
+                except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                    existing = None
+                if isinstance(existing, dict):
+                    existing_rate_limits = existing.get("rate_limits")
+                    if _rate_limits_complete(existing_rate_limits):
+                        data["rate_limits"] = existing_rate_limits
             fd, tmp_path = tempfile.mkstemp(dir=target_dir, suffix=".tmp")
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False)

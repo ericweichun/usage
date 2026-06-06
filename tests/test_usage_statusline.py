@@ -29,6 +29,71 @@ def test_save_writes_status_json_with_received_metadata(
     assert data["_received_at_ts"] == now.timestamp()
 
 
+def test_save_preserves_existing_complete_rate_limits_when_new_data_is_incomplete(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    status_file = tmp_path / "usage-status.json"
+    status_file.write_text(json.dumps({
+        "rate_limits": {
+            "five_hour": {"used_percentage": 11},
+            "seven_day": {"used_percentage": 22},
+        },
+        "_received_at": "old",
+        "_received_at_ts": 1,
+        "model": {"display_name": "old"},
+    }), encoding="utf-8")
+    now = datetime(2026, 1, 1, 12, 30, tzinfo=UTC)
+    monkeypatch.setattr(usage_statusline, "STATUS_FILE", str(status_file))
+
+    usage_statusline.save({
+        "model": {"display_name": "new"},
+        "rate_limits": {
+            "five_hour": {"used_percentage": None},
+            "seven_day": {"used_percentage": None},
+        },
+    }, now)
+
+    data = json.loads(status_file.read_text(encoding="utf-8"))
+    assert data["model"] == {"display_name": "new"}
+    assert data["rate_limits"] == {
+        "five_hour": {"used_percentage": 11},
+        "seven_day": {"used_percentage": 22},
+    }
+    assert data["_received_at"] == now.isoformat()
+    assert data["_received_at_ts"] == now.timestamp()
+
+
+def test_save_overwrites_existing_rate_limits_when_new_data_is_complete(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    status_file = tmp_path / "usage-status.json"
+    status_file.write_text(json.dumps({
+        "rate_limits": {
+            "five_hour": {"used_percentage": 11},
+            "seven_day": {"used_percentage": 22},
+        },
+    }), encoding="utf-8")
+    now = datetime(2026, 1, 1, 12, 30, tzinfo=UTC)
+    monkeypatch.setattr(usage_statusline, "STATUS_FILE", str(status_file))
+
+    usage_statusline.save({
+        "rate_limits": {
+            "five_hour": {"used_percentage": 88},
+            "seven_day": {"used_percentage": 99},
+        },
+    }, now)
+
+    data = json.loads(status_file.read_text(encoding="utf-8"))
+    assert data["rate_limits"] == {
+        "five_hour": {"used_percentage": 88},
+        "seven_day": {"used_percentage": 99},
+    }
+    assert data["_received_at"] == now.isoformat()
+    assert data["_received_at_ts"] == now.timestamp()
+
+
 def _write_prefs(path: Path, prefs: dict[str, Any]) -> None:
     path.write_text(json.dumps(prefs), encoding="utf-8")
 
