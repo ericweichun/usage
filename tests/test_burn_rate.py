@@ -29,6 +29,32 @@ def test_forecast_uses_recent_samples() -> None:
     assert tracker.forecast_seconds() == pytest.approx(600.0)
 
 
+def test_forecast_ema_responds_to_accelerating_burn() -> None:
+    tracker = BurnRateTracker()
+    samples = [
+        (0.0, 10.0),
+        (75.0, 11.0),
+        (150.0, 12.0),
+        (225.0, 17.0),
+        (300.0, 32.0),
+    ]
+    for timestamp, percent in samples:
+        tracker.record(timestamp, percent)
+
+    first_timestamp, first_percent = samples[0]
+    latest_timestamp, latest_percent = samples[-1]
+    old_two_point_slope = (latest_percent - first_percent) / (
+        latest_timestamp - first_timestamp
+    )
+    old_two_point_forecast = (100.0 - latest_percent) / old_two_point_slope
+
+    ema_forecast = tracker.forecast_seconds(min_span_seconds=300.0)
+
+    assert ema_forecast is not None
+    assert ema_forecast == pytest.approx(566.6666666667)
+    assert ema_forecast < old_two_point_forecast * 0.75
+
+
 def test_forecast_default_allows_six_minute_span() -> None:
     tracker = BurnRateTracker()
     for index in range(10):
