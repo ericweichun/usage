@@ -58,7 +58,18 @@ def _t(language: str, key: str, **kwargs: object) -> str:
     bundle = _load_i18n_bundle()
     table = bundle.get(language) or bundle["en"]
     template = table.get(key) or bundle["en"].get(key) or key
-    return template.format(**kwargs)
+    try:
+        return template.format(**kwargs)
+    except (KeyError, IndexError, ValueError):
+        # A malformed placeholder in one locale's string must not crash the UI;
+        # fall back to the English template, then to the raw key.
+        en_template = bundle["en"].get(key)
+        if en_template is not None and en_template != template:
+            try:
+                return en_template.format(**kwargs)
+            except (KeyError, IndexError, ValueError):
+                pass
+        return key
 
 
 def t(key: str, **kwargs: object) -> str:
