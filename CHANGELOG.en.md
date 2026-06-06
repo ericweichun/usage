@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.15.14] - 2026-06-07
+
+### Fixed
+- **Claude Code quota no longer briefly drops to "--" when entering a new folder**: on the first status-line refresh of a new session, the data Claude Code sends may not yet include rate limits; the hook used to overwrite the status file wholesale with this incomplete data, wiping out the previously valid quota and briefly showing "--" plus "send a message to sync your quota" until you sent another message. The hook now preserves the existing complete quota when the incoming data is incomplete.
+
 ## [0.15.13] - 2026-06-06
 
 ### Fixed
