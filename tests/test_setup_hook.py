@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 import tomllib
 from pathlib import Path
 
@@ -199,6 +200,18 @@ def test_statusline_command_quotes_paths_with_spaces(
     result = subprocess.run(["/bin/sh", "-c", cmd], capture_output=True)
     assert result.returncode == 0, result.stderr.decode("utf-8", "replace")
     assert argv_file.read_text(encoding="utf-8").strip() == str(hook_file)
+
+
+def test_find_system_python_prefers_usr_bin_over_bundled_app_python(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "executable", "/Applications/usage.app/Contents/MacOS/python")
+    monkeypatch.setattr(
+        "setup_hook.os.path.exists",
+        lambda path: path == "/usr/bin/python3",
+    )
+
+    assert setup_hook._find_system_python() == "/usr/bin/python3"
 
 
 def test_setup_codex_replaces_only_tui_status_line(
@@ -430,3 +443,94 @@ def test_self_heal_updates_owned_hook(
 
     assert hook_target.read_text(encoding="utf-8") == '__version__ = "1.0"\n'
     assert data["usage"]["selfHealLog"][-1]["action"] == "update_hook"
+
+
+def test_setup_migrates_bundled_python_commands(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    settings, hook_target, _ = _patch_paths(monkeypatch, tmp_path)
+    resume_source = tmp_path / "usage_session_resume.py"
+    resume_source.write_text('__version__ = "1.0"\n', encoding="utf-8")
+    monkeypatch.setattr(setup_hook, "_resolve_resume_source", lambda: resume_source)
+    settings.write_text(
+        json.dumps(
+            {
+                "statusLine": {
+                    "type": "command",
+                    "command": f"/Applications/usage.app/Contents/MacOS/python {hook_target}",
+                },
+                "hooks": {
+                    "SessionStart": [
+                        {
+                            "matcher": setup_hook.RESUME_MATCHER,
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": (
+                                        "/Applications/usage.app/Contents/MacOS/python "
+                                        f"{resume_source}"
+                                    ),
+                                }
+                            ],
+                        }
+                    ]
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert setup_hook.setup() == 0
+
+    data = json.loads(settings.read_text(encoding="utf-8"))
+    assert data["statusLine"]["command"] == f"/usr/bin/python3 {hook_target}"
+    hooks = data["hooks"]["SessionStart"][0]["hooks"]
+    assert hooks[0]["command"] == f"/usr/bin/python3 {resume_source}"
+    migrate_entries = [
+        entry
+        for entry in data["usage"]["selfHealLog"]
+        if entry["action"] == "migrate_bundled_python"
+    ]
+    assert migrate_entries
+    assert "statusLine=direct" in migrate_entries[-1]["detail"]
+    assert "resume" in migrate_entries[-1]["detail"]
+
+
+def test_setup_keeps_correct_python_commands_unchanged(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    settings, hook_target, _ = _patch_paths(monkeypatch, tmp_path)
+    resume_source = tmp_path / "usage_session_resume.py"
+    resume_source.write_text('__version__ = "1.0"\n', encoding="utf-8")
+    monkeypatch.setattr(setup_hook, "_resolve_resume_source", lambda: resume_source)
+    settings.write_text(
+        json.dumps(
+            {
+                "statusLine": {
+                    "type": "command",
+                    "command": f"/usr/bin/python3 {hook_target}",
+                },
+                "hooks": {
+                    "SessionStart": [
+                        {
+                            "matcher": setup_hook.RESUME_MATCHER,
+                            "hooks": [
+                                {"type": "command", "command": f"/usr/bin/python3 {resume_source}"}
+                            ],
+                        }
+                    ]
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert setup_hook.setup() == 0
+
+    data = json.loads(settings.read_text(encoding="utf-8"))
+    assert data["statusLine"]["command"] == f"/usr/bin/python3 {hook_target}"
+    assert (
+        data["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        == f"/usr/bin/python3 {resume_source}"
+    )
+    assert "usage" not in data

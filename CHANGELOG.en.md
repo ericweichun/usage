@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-06-07
+
+### Fixed
+- **Homebrew install no longer fails**: because the release zip had a single top-level `usage.app` directory, Homebrew would auto-`chdir` into it and then fail to find the file to install, raising `Errno::ENOENT ... usage.app`. The formula's install path is fixed — just reinstall. (Thanks @teddy123434 for reporting #32)
+- **Claude Code no longer errors on startup after installing the status-line hook from the .app**: installing from the packaged .app used to write the app's bundled Python — which can't run standalone outside the bundle — into the hook config, so Claude Code threw `Could not find platform independent libraries` on startup and the status line wouldn't show. It now always uses the system `/usr/bin/python3`, and any previously corrupted config is repaired automatically on next launch or re-run of setup. (Thanks @teddy123434 for reporting #32)
+
 ## [0.16.0] - 2026-06-07
 
 ### Added

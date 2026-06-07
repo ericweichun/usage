@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-06-07
+
+### 修正
+- **用 Homebrew 安裝不再失敗**：`brew install` 時因為壓縮檔頂層只有單一 `usage.app` 目錄，Homebrew 會自動切進該目錄而找不到要安裝的檔案，跳出 `Errno::ENOENT ... usage.app`。已修正 formula 的安裝路徑，重新安裝即可。（感謝 @teddy123434 回報 #32）
+- **從 .app 安裝狀態列 hook 後，Claude Code 啟動不再報錯**：從打包的 .app 安裝時，原本會把 app 內建、離開 app 就無法獨立執行的 Python 寫進 hook 設定，導致 Claude Code 啟動時跳 `Could not find platform independent libraries`、狀態列無法顯示。現在一律改用系統的 `/usr/bin/python3`；先前已經被寫壞的設定，下次啟動或重跑安裝時會自動修正回來。（感謝 @teddy123434 回報 #32）
+
 ## [0.16.0] - 2026-06-07
 
 ### 新增

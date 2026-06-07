@@ -105,7 +105,7 @@ def _resolve_forwarder_source() -> Path:
 
 
 def _statusline_command() -> str:
-    # Prefer /usr/bin/python3 or bundled app Python, not a venv; the hook is stdlib-only.
+    # Prefer a standalone system python, not a venv; the hook is stdlib-only.
     python = _find_system_python()
     return f"{_shell_arg(python)} {_shell_arg(str(HOOK_TARGET))}"
 
@@ -130,11 +130,11 @@ def _statusline_command_target_exists() -> bool:
 
 
 def _find_system_python() -> str:
-    executable = sys.executable
-    if ".app/Contents" in executable:
-        return executable
     if os.path.exists("/usr/bin/python3"):
         return "/usr/bin/python3"
+    executable = sys.executable
+    if ".app/Contents" not in executable:
+        return executable
     return shutil.which("python3") or "python3"
 
 
@@ -145,6 +145,63 @@ def _shell_arg(value: str) -> str:
 def _forwarder_command() -> str:
     python = _find_system_python()
     return f"{shlex.quote(python)} {shlex.quote(str(FORWARDER_TARGET))}"
+
+
+def _uses_bundled_app_python(command: str) -> bool:
+    return ".app/Contents" in command
+
+
+def _migrate_bundled_python_commands_if_needed(
+    settings: dict[str, Any] | None = None,
+) -> None:
+    data = _load_settings() if settings is None else settings
+    changed = False
+    details: list[str] = []
+
+    sl = data.get("statusLine")
+    if isinstance(sl, dict):
+        command = sl.get("command")
+        if isinstance(command, str) and _uses_bundled_app_python(command):
+            if "usage-statusline-forwarder" in command:
+                new_command = _forwarder_command()
+                if command != new_command:
+                    sl["command"] = new_command
+                    changed = True
+                    details.append("statusLine=forwarder")
+            elif "usage-statusline" in command:
+                new_command = _statusline_command()
+                if command != new_command:
+                    sl["command"] = new_command
+                    changed = True
+                    details.append("statusLine=direct")
+
+    entries = _session_start_list(data)
+    if entries:
+        new_command = _resume_command()
+        resume_changed = False
+        for entry in entries:
+            if not isinstance(entry, dict) or not _is_resume_entry(entry):
+                continue
+            hooks = entry.get("hooks")
+            if not isinstance(hooks, list):
+                continue
+            for hook in hooks:
+                if not isinstance(hook, dict):
+                    continue
+                command = hook.get("command")
+                if not isinstance(command, str) or not _uses_bundled_app_python(command):
+                    continue
+                if command != new_command:
+                    hook["command"] = new_command
+                    changed = True
+                    resume_changed = True
+        if resume_changed:
+            details.append("resume")
+
+    if not changed:
+        return
+    _save_settings(data)
+    _append_self_heal_log("migrate_bundled_python", ", ".join(details))
 
 
 def _is_usage_hook(sl: object) -> bool:
@@ -821,6 +878,7 @@ def self_heal() -> None:
         state = _detect_current_state(settings)
         if state in {"external", "legacy-tt"}:
             return
+        _migrate_bundled_python_commands_if_needed(settings)
         if not is_setup() and "statusLine" not in settings:
             exit_code = _run_quietly(setup)
             if exit_code == 0:
@@ -923,6 +981,7 @@ def setup(force_forwarder: bool = False) -> int:
 
     if has_claude:
         settings = _load_settings()
+        _migrate_bundled_python_commands_if_needed(settings)
         state = _detect_current_state(settings)
 
         if force_forwarder or state in {"external", "legacy-tt"}:
