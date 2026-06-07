@@ -4,7 +4,9 @@
 
 # usage
 
-> Claude Code & Codex usage monitor — pin your quota to the macOS menu bar
+### Your quota, where your eyes already are.
+
+Claude Code & Codex usage, always in the macOS menu bar. A command tells you *when you ask* — usage tells you *without being asked*.
 
 [繁體中文](README.zh-TW.md) · English &nbsp;|&nbsp; 💬 [Discussions](https://github.com/aqua5230/usage/discussions) &nbsp;|&nbsp; 🌐 [Landing page](https://aqua5230.github.io/usage/)
 
@@ -18,9 +20,15 @@
   <img src="docs/showcase.en.png" alt="usage — Claude Code &amp; Codex quota pinned to the macOS menu bar" width="820">
 </p>
 
-`usage` is a macOS menu bar tool that pins your **Claude Code and Codex** usage to the top-right of your screen. Click the icon for a popover showing Session, Weekly, per-project usage (today / 7-day / monthly), and today's token usage and cost estimate.
+`usage` keeps your **Claude Code and Codex** quota pinned to the top-right of your screen, color-coded so the warning level reads at a glance. One click opens Session, Weekly, per-project usage (today / 7-day / monthly), and today's token cost. Every number is read from local files Claude Code and Codex already write — it **never calls the Anthropic / OpenAI API** and **never reads the Keychain**, so the monitor itself never adds to your usage.
 
-All numbers come from local files written by Claude Code and Codex — it **never calls the Anthropic / OpenAI API** and **never reads the Keychain**, so it avoids the observer effect of "pinging once a minute counts as usage."
+## Sound familiar?
+
+- 🧱 **You're deep in a refactor and Claude Code just… stops.** Out of quota, no heads-up — now you're blocked and you didn't even see it coming.
+- ❓ **No idea how much of your 5-hour or weekly limit is left.** You're flying blind until you hit the wall.
+- 🔁 **A CLI answers — but only when you stop and run it.** usage never makes you ask; the number's already in the corner of your eye.
+
+usage answers all three at a glance: the number is *already on your screen*, color-coded, updated passively from local logs — no command to run, no page to open.
 
 ## 🚀 Quick Start
 
@@ -30,14 +38,14 @@ brew install aqua5230/homebrew-usage/usage
 
 Then drag `usage.app` to Applications → right-click **Open** once (to pass Gatekeeper) → click the menu bar icons. Prefer a direct download, or want every detail? See [Install](#-install) below.
 
-## ✨ Features
+## ✨ What you get
 
-- **Menu bar usage monitor** — pins Claude Code and Codex quota to the top-right. Numbers share the bar color, so the warning level reads at a glance. Click for the full breakdown.
-- **Progress Concierge** — opening a new Claude Code session automatically hands your last progress to the AI, no re-explaining. Fully local, off by default. [Learn more](https://aqua5230.github.io/usage/#resume).
-- **Quota usage notifications** — a system notification when usage nears a threshold, runs out, or recovers, nudging you to wrap up. Fully local, off by default.
-- **9 visual panel themes** — from clean light cards to a World Cup broadcast HUD, switch with one click.
-- **HTML deep reports** — token and cost trends, per-project rankings, shareable with colleagues.
-- **5-language UI** — Traditional Chinese, Simplified Chinese, English, Japanese, Korean, auto-following the system language.
+- **See it without looking for it.** Your quota lives in the menu bar, color-coded — green to red — so the warning level reads in a glance, no click required. Click only when you want the full breakdown.
+- **Never re-explain your progress again.** Open a new Claude Code session and usage hands your last progress straight to the AI — no `/resume`, no recap, and no dragging a bloated old conversation back just to continue. Fully local, off by default. [Learn more](https://aqua5230.github.io/usage/#resume).
+- **Warned before the wall, not at it.** A system notification when you're nearing a threshold, run out, or recover — so you wrap up on your terms instead of getting cut off mid-sentence. Fully local, off by default.
+- **Know where your tokens actually go.** HTML deep reports with token & cost trends and per-project rankings — shareable with your team.
+- **Make it yours.** 9 switchable panel themes, from a clean light card to a World Cup broadcast HUD.
+- **In your language, automatically.** UI in Traditional Chinese, Simplified Chinese, English, Japanese, and Korean, following your system setting.
 
 ## 🔒 Privacy & data sources
 
