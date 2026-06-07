@@ -151,6 +151,7 @@ ln -s $(brew --prefix)/Cellar/usage/$(brew list --versions usage | awk '{print $
 
 | 功能 | usage | ccusage | TokenTracker |
 |------|:-----:|:-------:|:------------:|
+| 一直在螢幕上——不用敲指令 | ✅ | — | ✅ |
 | macOS menu bar | ✅ | — | ✅ |
 | Claude Code 用量 | ✅ | ✅ | ✅ |
 | Codex 用量 | ✅ | — | ✅ |

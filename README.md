@@ -151,6 +151,7 @@ See all nine on the [landing page](https://aqua5230.github.io/usage/#screenshots
 
 | Feature | usage | ccusage | TokenTracker |
 |---------|:-----:|:-------:|:------------:|
+| Always on screen — no command to run | ✅ | — | ✅ |
 | macOS menu bar | ✅ | — | ✅ |
 | Claude Code usage | ✅ | ✅ | ✅ |
 | Codex usage | ✅ | — | ✅ |
