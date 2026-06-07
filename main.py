@@ -104,7 +104,7 @@ def _is_our_hook_in_settings() -> bool:
     except Exception:
         if os.environ.get("USAGE_DEBUG") == "1":
             logger.warning("hook health check failed", exc_info=True)
-        return True
+        return False
 
 
 def _is_first_run() -> bool:

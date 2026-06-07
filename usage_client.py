@@ -58,10 +58,10 @@ class PollOutcome:
     _status_path: str | None = None
 
 
-def _pct(value: Any) -> int:
+def _pct(value: Any) -> int | None:
     numeric = _as_finite_float(value)
     if numeric is None:
-        return 0
+        return None
     return max(0, min(100, round(numeric)))
 
 

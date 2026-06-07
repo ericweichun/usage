@@ -223,6 +223,26 @@ def test_build_snapshot_keeps_both_percentages_when_present(
     assert snapshot.weekly_percent == 34
 
 
+def test_build_snapshot_treats_invalid_percentage_values_as_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = 1_700_000_000.0
+    monkeypatch.setattr("usage_client.time.time", lambda: now)
+
+    snapshot = usage_client._build_snapshot(
+        {
+            "rate_limits": {
+                "five_hour": {"used_percentage": "bad", "resets_at": now + 60},
+                "seven_day": {"used_percentage": "oops", "resets_at": now + 120},
+            },
+        }
+    )
+
+    assert snapshot is not None
+    assert snapshot.current_percent is None
+    assert snapshot.weekly_percent is None
+
+
 def test_fetch_once_mock_returns_success_with_expected_snapshot() -> None:
     outcome = asyncio.run(usage_client.ClaudeUsageClient(mock=True).fetch_once())
 

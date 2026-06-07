@@ -18,6 +18,7 @@ import pytest
 
 import main
 import setup_hook
+import usage_client
 import usage_statusline_forwarder
 
 
@@ -154,6 +155,65 @@ def test_health_check_triggers_repair_when_displaced(
     main.health_check()
 
     assert calls == [True]
+
+
+def test_health_check_triggers_repair_when_hook_detection_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings, hook_target, _ = _patch_setup_paths(monkeypatch, tmp_path)
+    settings.write_text(
+        json.dumps({"statusLine": {"type": "command", "command": "python3 usage-statusline.py"}}),
+        encoding="utf-8",
+    )
+    hook_target.write_text("print('installed')\n", encoding="utf-8")
+    (tmp_path / ".claude" / "usage-status.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(main, "PREFERENCES_FILE", tmp_path / "usage-preferences.json")
+    monkeypatch.setattr(
+        setup_hook,
+        "_detect_current_state",
+        lambda: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    monkeypatch.setattr(main, "_show_repair_dialog", lambda: "repair")
+    calls: list[bool] = []
+
+    def fake_setup(*, force_forwarder: bool = False) -> int:
+        calls.append(force_forwarder)
+        return 0
+
+    monkeypatch.setattr(setup_hook, "setup", fake_setup)
+
+    main.health_check()
+
+    assert calls == [True]
+
+
+def test_health_check_does_not_prompt_on_first_run_when_hook_detection_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _settings, _hook_target, _ = _patch_setup_paths(monkeypatch, tmp_path)
+    monkeypatch.setattr(main, "PREFERENCES_FILE", tmp_path / "usage-preferences.json")
+    monkeypatch.setattr(
+        usage_client,
+        "STATUS_FILE",
+        str(tmp_path / ".claude" / "usage-status.json"),
+    )
+    monkeypatch.setattr(
+        setup_hook,
+        "_detect_current_state",
+        lambda: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+
+    def fail_dialog() -> str:
+        raise AssertionError("repair dialog should not be shown on first run")
+
+    def fail_setup(*, force_forwarder: bool = False) -> int:
+        _ = force_forwarder
+        raise AssertionError("setup should not run on first run")
+
+    monkeypatch.setattr(main, "_show_repair_dialog", fail_dialog)
+    monkeypatch.setattr(setup_hook, "setup", fail_setup)
+
+    main.health_check()
 
 
 def test_save_preferences_is_atomic_when_replace_fails(
