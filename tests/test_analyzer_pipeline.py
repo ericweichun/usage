@@ -223,7 +223,7 @@ def test_report_codex_entries_use_shared_loader(monkeypatch: Any) -> None:
     assert entries[0].total_tokens == source_entry.total_tokens
 
 
-def test_report_short_periods_use_recent_codex_loader(monkeypatch: Any) -> None:
+def test_report_today_uses_expected_codex_hours_back(monkeypatch: Any) -> None:
     today = datetime.now(tz=UTC)
     agent = AgentInfo("codex", "Codex", "~/.codex", True)
     recent_entry = history_loader.UsageEntry(
@@ -310,11 +310,8 @@ def test_report_week_includes_previous_period_comparison(monkeypatch: Any) -> No
     def fake_load_agent_entries(
         received_agent: AgentInfo,
         hours_back: int = 0,
-        *,
-        use_recent_codex: bool = False,
     ) -> list[UsageEntry]:
         assert received_agent == agent
-        assert use_recent_codex is True
         calls["hours_back"] = hours_back
         return entries
 
@@ -392,11 +389,8 @@ def test_report_last7_includes_previous_period_comparison(monkeypatch: Any) -> N
     def fake_load_agent_entries(
         received_agent: AgentInfo,
         hours_back: int = 0,
-        *,
-        use_recent_codex: bool = False,
     ) -> list[UsageEntry]:
         assert received_agent == agent
-        assert use_recent_codex is True
         calls["hours_back"] = hours_back
         return entries
 
@@ -508,19 +502,14 @@ def test_report_today_uses_codex_token_count_deltas(
     assert data["summary"]["total_tokens"] == 65
 
 
-def test_report_last30_keeps_full_codex_loader(monkeypatch: Any) -> None:
+def test_report_last30_uses_expected_codex_hours_back(monkeypatch: Any) -> None:
     agent = AgentInfo("codex", "Codex", "~/.codex", True)
     calls: dict[str, int] = {}
-
-    def fake_recent(hours_back: int) -> list[UsageEntry]:
-        calls["recent_hours_back"] = hours_back
-        return []
 
     def fake_full(*, hours_back: int = 0) -> list[history_loader.UsageEntry]:
         calls["full_hours_back"] = hours_back
         return []
 
-    monkeypatch.setattr(reporter, "_load_recent_codex_entries", fake_recent)
     monkeypatch.setattr("analyzer.reporter.codex_loader.load_entries", fake_full)
 
     reporter.build_report_data([agent], "last30")

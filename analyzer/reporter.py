@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -23,7 +24,30 @@ from .aggregator import aggregate_sessions
 
 AGENT_LOADERS = {"claude-code": claude, "codex": codex}
 AGENT_NAMES = {"claude-code": "Claude Code", "codex": "Codex"}
-PERSONA_DAYS_BY_PERIOD = {"today": 1, "week": 7, "last7": 7, "month": 30, "all": 3650}
+@dataclass(frozen=True)
+class _PeriodSpec:
+    persona_days: int
+    has_comparison: bool
+
+
+# 每個時間範圍的所有屬性集中在這一張表 —— 加新範圍只改這裡，
+# 不再散落到多個函式各維護一份名單（那正是 last30 漏掉前期比較的根因）。
+PERIOD_SPECS: dict[str, _PeriodSpec] = {
+    "today": _PeriodSpec(persona_days=1, has_comparison=False),
+    "week": _PeriodSpec(persona_days=7, has_comparison=True),
+    "last7": _PeriodSpec(persona_days=7, has_comparison=True),
+    "month": _PeriodSpec(persona_days=30, has_comparison=True),
+    # last30 刻意不做前期比較：它是預設/最常開的報告，做比較要多載一倍歷史
+    # （v0.11.6「faster Codex reports」的效能取捨，由 test_report_last30_uses_expected_codex_hours_back 守護）。
+    "last30": _PeriodSpec(persona_days=30, has_comparison=False),
+    "all": _PeriodSpec(persona_days=3650, has_comparison=False),
+}
+# 未知 period 的保底：與收斂前各名單對未列出 period 的行為一致。
+_DEFAULT_PERIOD_SPEC = _PeriodSpec(persona_days=30, has_comparison=False)
+
+
+def _period_spec(period: str) -> _PeriodSpec:
+    return PERIOD_SPECS.get(period, _DEFAULT_PERIOD_SPEC)
 
 
 def _entry_date(entry: UsageEntry) -> date:
@@ -52,13 +76,9 @@ def _period_bounds(period: str, today: date) -> tuple[date | None, date]:
 def _load_agent_entries(
     agent: AgentInfo,
     hours_back: int = 0,
-    *,
-    use_recent_codex: bool = False,
 ) -> list[UsageEntry]:
     if hours_back > 0 and agent.id == "claude-code":
         return _load_recent_claude_entries(hours_back)
-    if agent.id == "codex" and use_recent_codex and hours_back > 0:
-        return _load_recent_codex_entries(hours_back)
     if agent.id == "codex":
         return _load_codex_entries(hours_back)
     loader = AGENT_LOADERS.get(agent.id)
@@ -106,11 +126,6 @@ def _parse_claude_file(path: Path, base: Path, cutoff: datetime) -> list[UsageEn
     claude.parse_jsonl(path, fallback_project, parsed, local_seen, cutoff)
     return parsed
 
-
-def _load_recent_codex_entries(hours_back: int) -> list[UsageEntry]:
-    return _load_codex_entries(hours_back)
-
-
 def _load_codex_entries(hours_back: int) -> list[UsageEntry]:
     return [
         UsageEntry(
@@ -141,7 +156,7 @@ def _round_cost(value: float) -> float:
 
 
 def _load_persona_for_period(period: str) -> dict[str, Any] | None:
-    days_back = PERSONA_DAYS_BY_PERIOD.get(period, 30)
+    days_back = _period_spec(period).persona_days
     try:
         profile = persona_loader.load_profile(days_back)
     except Exception:
@@ -169,7 +184,7 @@ def _build_comparison(
     date_from: date,
     date_to: date,
 ) -> dict[str, Any]:
-    if period not in {"week", "last7", "month"}:
+    if not _period_spec(period).has_comparison:
         return _empty_comparison(period)
 
     total_days = (date_to - date_from).days + 1
@@ -204,6 +219,12 @@ def _build_comparison(
     }
 
 
+def _top_project(project_tokens: dict[str, int]) -> str | None:
+    if not project_tokens:
+        return None
+    return max(project_tokens.items(), key=lambda item: item[1])[0]
+
+
 def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[str, Any]:
     """
     period: "today" | "week" | "last7" | "month" | "all"
@@ -221,17 +242,14 @@ def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[st
     today = datetime.now().astimezone().date()
     date_from, date_to = _period_bounds(period, today)
     hours_back = 0 if date_from is None else ((date_to - date_from).days + 2) * 24
-    if date_from is not None and period in {"week", "last7", "month"}:
+    if date_from is not None and _period_spec(period).has_comparison:
         total_days_for_comparison = (date_to - date_from).days + 1
         prev_date_from = date_from - timedelta(days=total_days_for_comparison)
         hours_back = ((date_to - prev_date_from).days + 2) * 24
 
     raw_entries: list[UsageEntry] = []
-    use_recent_codex = period in {"today", "week", "last7", "month"}
     for agent in agents:
-        raw_entries.extend(
-            _load_agent_entries(agent, hours_back, use_recent_codex=use_recent_codex)
-        )
+        raw_entries.extend(_load_agent_entries(agent, hours_back))
 
     if date_from is None and raw_entries:
         date_from = min(_entry_date(entry) for entry in raw_entries)
@@ -254,6 +272,7 @@ def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[st
     by_agent_totals: dict[str, dict[str, Any]] = defaultdict(lambda: {"tokens": 0, "cost": 0.0, "sessions": set(), "messages": 0})
     by_project_totals: dict[str, dict[str, Any]] = defaultdict(lambda: {"tokens": 0, "cost": 0.0, "sessions": set()})
     by_model_totals: dict[str, dict[str, Any]] = defaultdict(lambda: {"tokens": 0, "cost": 0.0})
+    by_model_project: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     daily_totals: dict[date, dict[str, Any]] = defaultdict(lambda: {"tokens": 0, "cost": 0.0})
 
     for entry in entries:
@@ -273,6 +292,9 @@ def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[st
         model = by_model_totals[entry.model or "unknown"]
         model["tokens"] += entry.total_tokens
         model["cost"] += cost
+        by_model_project[entry.model or "unknown"][entry.project or "unknown"] += (
+            entry.total_tokens
+        )
 
         day = daily_totals[_entry_date(entry)]
         day["tokens"] += entry.total_tokens
@@ -310,6 +332,7 @@ def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[st
             "tokens": data["tokens"],
             "cost": _round_cost(data["cost"]),
             "pct": _pct(data["tokens"], total_tokens),
+            "top_project": _top_project(by_model_project.get(model, {})),
         }
         for model, data in by_model_totals.items()
     ]
