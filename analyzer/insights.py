@@ -46,7 +46,7 @@ def build_insights(data: dict[str, Any]) -> list[dict[str, Any]]:
     if pace_note is not None:
         components.append(pace_note)
 
-    action = _build_action(change, spike)
+    action = _build_action(change, spike, data)
     if action is not None:
         components.append(action)
 
@@ -138,9 +138,19 @@ def _build_model_shift(data: dict[str, Any]) -> dict[str, Any] | None:
     if pct - prev_pct < 10.0:
         return None
 
+    top_project = _str_value(top_model.get("top_project"), "")
+    if top_project and top_project != "unknown":
+        return {
+            "type": INSIGHT_SHIFT,
+            "key": "insights_shift_model_up",
+            "model": model,
+            "prev_pct": _round_pct(prev_pct),
+            "pct": _round_pct(pct),
+            "project": top_project,
+        }
     return {
         "type": INSIGHT_SHIFT,
-        "key": "insights_shift_model_up",
+        "key": "insights_shift_model_up_plain",
         "model": model,
         "prev_pct": _round_pct(prev_pct),
         "pct": _round_pct(pct),
@@ -185,6 +195,7 @@ def _build_pace_note(data: dict[str, Any]) -> dict[str, Any] | None:
 def _build_action(
     change: dict[str, Any] | None,
     spike: dict[str, Any] | None,
+    data: dict[str, Any],
 ) -> dict[str, Any] | None:
     if (
         change is not None
@@ -194,10 +205,16 @@ def _build_action(
         return {"type": INSIGHT_ACTION, "key": "insights_action_watch_quota"}
 
     if spike is not None:
+        summary = _mapping_value(data.get("summary"))
+        total_tokens = _int_value(summary.get("total_tokens")) if summary else 0
+        spike_tokens = _int_value(spike.get("tokens"))
+        if total_tokens <= 0:
+            return None
         return {
             "type": INSIGHT_ACTION,
-            "key": "insights_action_smooth_spike",
+            "key": "insights_action_spike_share",
             "date": spike["date"],
+            "share": round(spike_tokens / total_tokens * 100),
         }
     return None
 

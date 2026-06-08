@@ -47,8 +47,20 @@ def _payload() -> dict[str, Any]:
             {"project": "usage", "tokens": 1350, "cost": 7.25, "sessions": 31, "pct": 75.0},
         ],
         "by_model": [
-            {"model": "gpt-5-codex", "tokens": 1260, "cost": 6.5, "pct": 70.0},
-            {"model": "gpt-5-mini", "tokens": 540, "cost": 2.75, "pct": 30.0},
+            {
+                "model": "gpt-5-codex",
+                "tokens": 1260,
+                "cost": 6.5,
+                "pct": 70.0,
+                "top_project": "usage",
+            },
+            {
+                "model": "gpt-5-mini",
+                "tokens": 540,
+                "cost": 2.75,
+                "pct": 30.0,
+                "top_project": "new-work",
+            },
         ],
         "daily_trend": _daily(
             [
@@ -218,6 +230,7 @@ def test_shift_model_takes_priority_over_trend() -> None:
         "model": "gpt-5-codex",
         "prev_pct": 40.0,
         "pct": 70.0,
+        "project": "usage",
     }
 
 
@@ -247,9 +260,10 @@ def test_shift_trend_up_and_down() -> None:
     assert shift == {"type": "shift", "key": "insights_shift_trend_down"}
 
 
-def test_action_smooth_spike_is_used_when_quota_watch_does_not_apply() -> None:
+def test_action_spike_share_is_used_when_quota_watch_does_not_apply() -> None:
     payload = _payload()
-    payload["summary"]["total_tokens"] = 1100
+    payload["summary"]["total_tokens"] = 3500
+    payload["comparison"]["prev_tokens"] = 3200
 
     action = next(
         component for component in build_insights(payload) if component["type"] == "action"
@@ -257,6 +271,7 @@ def test_action_smooth_spike_is_used_when_quota_watch_does_not_apply() -> None:
 
     assert action == {
         "type": "action",
-        "key": "insights_action_smooth_spike",
+        "key": "insights_action_spike_share",
         "date": "2026-05-15",
+        "share": 86,
     }
