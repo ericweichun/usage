@@ -119,7 +119,7 @@ jobs:
         run: |
           cd dist && shasum -a 256 usage.app.zip | tee usage.app.zip.sha256
 
-      - name: Extract release notes from CHANGELOG.en.md
+      - name: Extract release notes from CHANGELOG.md
         id: notes
         run: |
           TAG="${{ steps.ref.outputs.tag }}"
@@ -129,9 +129,9 @@ jobs:
             $0 ~ "^## \\[" v "\\]" { flag=1; next }
             /^## \[/ && flag { exit }
             flag { print }
-          ' CHANGELOG.en.md > "$NOTES_FILE"
+          ' CHANGELOG.md > "$NOTES_FILE"
           if [[ ! -s "$NOTES_FILE" ]]; then
-            echo "CHANGELOG.en.md has no section for [$VERSION]; using empty notes."
+            echo "CHANGELOG.md has no section for [$VERSION]; using empty notes."
           fi
           echo "path=$NOTES_FILE" >> "$GITHUB_OUTPUT"
 

@@ -1,17 +1,17 @@
-# 貢獻指南
+# Contributing
 
-繁體中文 · [English](CONTRIBUTING.en.md)
+[繁體中文](CONTRIBUTING.zh-TW.md) · English
 
-歡迎開 issue / PR / [Discussions](https://github.com/aqua5230/usage/discussions)。這份文件只描述硬性要求，不規定流程。
+Issues, PRs, and [Discussions](https://github.com/aqua5230/usage/discussions) are welcome. This document only spells out hard requirements; it does not dictate process.
 
-本專案目前由 maintainer（[@aqua5230](https://github.com/aqua5230)）維護，採仁慈獨裁模式：所有 PR 由 maintainer 審查後決定是否合併，歡迎討論，最終決定權在 maintainer。
+This project is maintained by a single maintainer ([@aqua5230](https://github.com/aqua5230)) under a benevolent-dictator model: every PR is reviewed and merged at the maintainer's discretion. Discussion is welcome, but the final call rests with the maintainer.
 
-## 開 Issue
+## Opening an Issue
 
-- **Bug report**：用 `.github/ISSUE_TEMPLATE/bug_report.md` 模板。請附 macOS 版本、Python 版本、`git rev-parse --short HEAD`、跑哪個模式（menu bar / TUI / mock）。
-- **Feature request**：用 `.github/ISSUE_TEMPLATE/feature_request.md` 模板。
+- **Bug report**: use the `.github/ISSUE_TEMPLATE/bug_report.md` template. Please include macOS version, Python version, `git rev-parse --short HEAD`, and which mode you were running (menu bar / TUI / mock).
+- **Feature request**: use the `.github/ISSUE_TEMPLATE/feature_request.md` template.
 
-## 開 PR 前的必跑檢查
+## Required checks before opening a PR
 
 ```bash
 source .venv/bin/activate
@@ -20,22 +20,22 @@ uv run mypy .
 uv run pytest -v
 ```
 
-三項都要綠才能 merge。CI 也會跑這三項（`.github/workflows/check.yml`）。
+All three must be green to merge. CI runs the same three (`.github/workflows/check.yml`).
 
-## 改 code 的方針
+## Code change guidelines
 
-- **改 prod 模組請順手補測試**：`tests/` 底下挑風格最接近的檔案模仿。新增測試禁止碰 `~/.claude/` 跟 `~/.codex/` 真實檔案，請用 `monkeypatch` 改路徑常數。
-- **內外名稱統一為 `usage`**：檔案路徑、設定 key、binary、env var、LaunchAgent label 都使用 `usage` 前綴。
-- **menubar.py 的 UI 常數**（`CARD_HEIGHT`、`CARD_RADIUS`、`SECTION_GAP` 等）動之前先想清楚，那是 popover 視覺設計的一部分。
+- **When changing prod modules, add tests alongside.** Pick the closest existing file under `tests/` as a style reference. Tests must never touch real `~/.claude/` or `~/.codex/` — use `monkeypatch` to redirect path constants.
+- **Keep internal and public naming unified as `usage`.** File paths, settings keys, binary names, environment variables, and the LaunchAgent label all use the `usage` prefix.
+- **Be deliberate with `menubar.py` UI constants** (`CARD_HEIGHT`, `CARD_RADIUS`, `SECTION_GAP`, etc.); they are part of the popover's visual design.
 
-## CHANGELOG 與發版
+## CHANGELOG and releases
 
-- 改完一件事就把它寫進 `CHANGELOG.md` 的 `## Unreleased` 段，**同時更新 `CHANGELOG.en.md`** 對應段（這個專案的 README / CHANGELOG / release notes 全部雙語）。
-- 發版由 maintainer 處理（`pyproject.toml` 版本 bump + `## Unreleased` → `## X.Y.Z — YYYY-MM-DD` + commit `Release vX.Y.Z` + tag）。
+- For every change, add an entry to the `## Unreleased` section of `CHANGELOG.md` (English, the default), **and also update the corresponding section in `CHANGELOG.zh-TW.md`** (this project keeps the README, CHANGELOG, and release notes bilingual).
+- Releases are cut by the maintainer (bump version in `pyproject.toml`, rename `## Unreleased` to `## X.Y.Z — YYYY-MM-DD`, commit `Release vX.Y.Z`, push tag).
 
-## Commit message 風格
+## Commit message style
 
-跟現有 `git log` 一致：祈使句 + 簡短主旨，必要時加 body 解釋 why（不是 what，what 看 diff 就好）。範例：
+Match the existing `git log`: imperative subject line; add a body explaining *why* (not *what* — the diff already shows what) when useful. Example:
 
 ```
 Fix AttributeError: drop stale tracker.sample() call

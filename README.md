@@ -104,7 +104,7 @@ Once set up, the bottom of the Claude Code window will show a status line like t
 
 To toggle the status line on / off later (e.g. you want to see Claude Code's native status line), click the **CLI ✓** button in the menubar popover's "Projects" section toolbar.
 
-> Running from source, or want to install via the command line? See the [development docs](docs/DEVELOPMENT.en.md).
+> Running from source, or want to install via the command line? See the [development docs](docs/DEVELOPMENT.md).
 
 ## Troubleshooting
 
@@ -160,7 +160,7 @@ See all nine on the [landing page](https://aqua5230.github.io/usage/#screenshots
 
 ## Run from source / develop
 
-To run from source, use the TUI / CLI reports, configure detected agents, or build the `.app` yourself, see the **[development docs (docs/DEVELOPMENT.en.md)](docs/DEVELOPMENT.en.md)**, which cover:
+To run from source, use the TUI / CLI reports, configure detected agents, or build the `.app` yourself, see the **[development docs (docs/DEVELOPMENT.md)](docs/DEVELOPMENT.md)**, which cover:
 
 - How usage gets your data (Claude Code hook flow, Codex log parsing, read priority)
 - Environment setup, configuring detected agents, Menu bar / TUI run modes

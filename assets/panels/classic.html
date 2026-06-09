@@ -54,6 +54,7 @@
       background: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Noto Sans TC", sans-serif;
+      -webkit-font-smoothing: antialiased;
       letter-spacing: 0;
       overscroll-behavior: none;
     }
@@ -150,7 +151,7 @@
       white-space: nowrap;
       font-size: 21px;
       line-height: 1;
-      font-weight: 780;
+      font-weight: 800;
     }
 
     .codex-stale {
@@ -162,7 +163,7 @@
       color: var(--warn);
       font-size: 11px;
       line-height: 1;
-      font-weight: 680;
+      font-weight: 700;
       white-space: nowrap;
     }
 
@@ -241,7 +242,7 @@
       border-radius: 8px;
       background: var(--button);
       color: var(--text);
-      font: 650 12px/26px -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif;
+      font: 600 12px/26px -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif;
       white-space: nowrap;
     }
 
@@ -262,13 +263,13 @@
     .row-title {
       font-size: 15px;
       line-height: 18px;
-      font-weight: 740;
+      font-weight: 700;
     }
 
     .percent {
       font-size: 13px;
       line-height: 18px;
-      font-weight: 760;
+      font-weight: 800;
       color: var(--accent);
       white-space: nowrap;
     }
@@ -297,7 +298,7 @@
       color: var(--muted);
       font-size: 11px;
       line-height: 13px;
-      font-weight: 620;
+      font-weight: 600;
       text-align: right;
       white-space: nowrap;
     }
@@ -321,21 +322,31 @@
       align-items: baseline;
       gap: 8px;
       padding: 8px 0 11px;
-      border-top: 1px solid var(--line);
       font-size: 13.5px;
-      line-height: 18px;
+      line-height: 20px;
     }
 
     .proj-row:first-child {
-      border-top: none;
-      font-weight: 760;
+      font-weight: 600;
     }
 
     .proj-rank {
       width: 16px;
-      color: var(--muted);
-      font-weight: 720;
-      font-size: 12px;
+      height: 16px;
+      align-self: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--muted) 26%, transparent);
+      color: var(--text);
+      font-weight: 700;
+      font-size: 10px;
+    }
+
+    .proj-row:first-child .proj-rank {
+      background: color-mix(in srgb, var(--projects) 32%, transparent);
+      color: white;
     }
 
     .proj-name {
@@ -351,7 +362,7 @@
 
     .proj-tokens {
       color: var(--accent);
-      font-weight: 790;
+      font-weight: 700;
       white-space: nowrap;
       text-align: right;
       min-width: 84px;
@@ -407,7 +418,7 @@
       color: var(--muted);
       font-size: 12px;
       line-height: 16px;
-      font-weight: 640;
+      font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -421,7 +432,7 @@
       color: var(--text);
       font-size: 15px;
       line-height: 20px;
-      font-weight: 760;
+      font-weight: 800;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -484,8 +495,9 @@
 
     .switch[data-active="true"] {
       color: white;
-      border-color: color-mix(in srgb, var(--projects) 42%, transparent);
-      background: color-mix(in srgb, var(--projects) 12%, var(--button));
+      border-color: rgba(48, 209, 88, 0.45);
+      background: linear-gradient(180deg, rgba(48, 209, 88, 0.30), rgba(40, 180, 75, 0.20));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
 
     @media (prefers-color-scheme: light) {
@@ -697,7 +709,7 @@
     function renderProjects(projects) {
       const list = document.querySelector('[data-project-list]');
       if (!list) return;
-      const ranks = ["①", "②", "③"];
+      const ranks = ["1", "2", "3"];
       const rows = (projects || []).slice(0, 3);
       const totalTokens = rows.reduce((s, p) => s + Math.max(0, Number(p.tokens) || 0), 0);
       list.replaceChildren();

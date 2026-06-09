@@ -104,7 +104,7 @@ brew install --cask aqua5230/usage/usage
 
 之後想隨時關掉 / 重裝狀態列（例如想看 Claude Code 原本的狀態列），可從 menubar popover 的「專案」section 工具列點 **CLI ✓** 按鈕一鍵切換。
 
-> 從原始碼執行、或想用指令模式安裝？見 [開發文件](docs/DEVELOPMENT.md)。
+> 從原始碼執行、或想用指令模式安裝？見 [開發文件](docs/DEVELOPMENT.zh-TW.md)。
 
 ## 常見問題排查
 
@@ -160,7 +160,7 @@ brew install --cask aqua5230/usage/usage
 
 ## 從原始碼跑 / 開發
 
-想從原始碼執行、跑 TUI / CLI 報告、設定可偵測的 agent、或自己打包 `.app`，完整說明都在 **[開發文件 docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**，內容包含：
+想從原始碼執行、跑 TUI / CLI 報告、設定可偵測的 agent、或自己打包 `.app`，完整說明都在 **[開發文件 docs/DEVELOPMENT.zh-TW.md](docs/DEVELOPMENT.zh-TW.md)**，內容包含：
 
 - 它怎麼拿到你的用量數字（Claude Code hook 流程、Codex 紀錄解析、讀檔優先序）
 - 建環境、設定可偵測 agent、Menu bar / TUI 執行方式

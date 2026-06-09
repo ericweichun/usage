@@ -1,60 +1,58 @@
-# 開發文件
+# Development
 
-繁體中文 · [English](DEVELOPMENT.en.md)
+[Traditional Chinese](DEVELOPMENT.zh-TW.md) · English
 
-從原始碼執行 usage、跑 TUI / CLI、設定可偵測的 agent、打包 `.app` 的完整說明。一般使用者只想裝來用的話，看 [README](../README.zh-TW.md) 就夠了。
+Everything you need to run usage from source, use the TUI / CLI, configure detected agents, and build a `.app`. If you just want to install and use it, the [README](../README.md) is enough.
 
-## 它怎麼拿到你的用量數字
+## How it gets the data
 
-用量數字來自 Claude Code 跟 Codex 在你本機留下的檔案，不呼叫 Anthropic / OpenAI 的 API。會連網的只有兩件事：(1) 估算 Codex 成本時需要 token 單價表，如果本機沒有快取（`~/.claude/pricing_cache.json`），會先用內建 fallback 價格立即顯示成本估算，再在背景嘗試從公開的 [LiteLLM 價格表](https://github.com/BerriAI/litellm) 下載並快取，7 天後過期再抓；下載失敗不影響用量百分比顯示，網路恢復後會自動更新價格表；(2) v0.11.0 起每天最多一次到 GitHub Releases API 查有沒有新版（可在「更換面板」選單關掉）。
+Usage numbers come from local files written by Claude Code and Codex — no Anthropic / OpenAI API calls. Network access is limited to two things: (1) to estimate Codex costs, usage needs a token pricing table — if no local cache exists (`~/.claude/pricing_cache.json`), usage shows the estimate immediately with a built-in fallback price, then tries to download and cache the public [LiteLLM pricing JSON](https://github.com/BerriAI/litellm) in the background, refreshing it again after 7 days. If the download fails, usage percentage display is unaffected, and pricing updates automatically once the network succeeds. (2) Starting in v0.11.0, usage pings the GitHub Releases API at most once per 24h to check for new versions (toggleable from the "Switch Panel" menu).
 
-### Claude Code 用量
+### Claude Code usage
 
-usage 會幫你裝一個小腳本，這個小腳本叫做 **statusLine hook**（hook 就是「事件觸發點」，每次 Claude Code 刷新狀態列就會自動跑一次的小程式）。流程是這樣：
+usage installs a small **statusLine hook** — a script that Claude Code automatically pipes data into every time it refreshes its status line. The flow:
 
-1. Claude Code 每次更新狀態列時，會把「這 5 小時用了百分之幾、這 7 天用了百分之幾」這類資訊整理成 JSON
-2. 透過標準輸入（stdin）餵給 hook
-3. hook 把 JSON 寫進 `~/.claude/usage-status.json` 這個檔
-4. usage 主程式去讀這個檔
+1. Claude Code refreshes the status line and packages usage info (5-hour percentage, 7-day percentage, etc.) as JSON.
+2. It pipes that JSON to the hook via stdin.
+3. The hook writes the JSON to `~/.claude/usage-status.json`.
+4. The usage UI reads that file.
 
-因為兩邊看的是同一份資料，**數字跟 Claude Code 自己看到的完全一樣**。
+Since both sides look at the same source data, **the numbers match exactly what Claude Code itself shows**.
 
 ```mermaid
 flowchart LR
-    A[Claude Code 主程式] -->|每次刷新狀態列<br/>把 JSON 透過 stdin 餵給 hook| B[usage-statusline.py<br/>hook 腳本]
-    B -->|寫入| C[(~/.claude/<br/>usage-status.json)]
-    D[usage menu bar / TUI] -->|讀取| C
-    D -->|顯示| E[macOS menu bar]
+    A[Claude Code main process] -->|pipes JSON to stdin<br/>on every statusLine refresh| B[usage-statusline.py<br/>hook script]
+    B -->|writes| C[(~/.claude/<br/>usage-status.json)]
+    D[usage menu bar / TUI] -->|reads| C
+    D -->|renders| E[macOS menu bar]
     F((Anthropic API)) -.x.- D
     style F stroke:#c0392b,stroke-dasharray:5 5
 ```
 
-讀檔的優先順序：
+Read priority:
 
-1. `~/.claude/usage-status.json` —— usage 自己 hook 寫的
-2. `~/.claude/usag-status.json` —— v0.1.x legacy 自動 fallback，新使用者不會碰到
-3. `~/.claude/tt-status.json` —— 備援；給從第三方工具 [stormzhang/token-tracker](https://github.com/stormzhang/token-tracker) 升級過來的使用者，usage 會直接共用它的狀態檔（**注意：跟本專案的整合無關，純粹相容外部社群工具**）
+1. `~/.claude/usage-status.json` — written by the hook usage installs.
+2. `~/.claude/usag-status.json` — automatic v0.1.x legacy fallback; new users should not encounter this.
+3. `~/.claude/tt-status.json` — fallback for users migrating from the third-party tool [stormzhang/token-tracker](https://github.com/stormzhang/token-tracker); usage will share its status file. (**Note: unrelated to this project's internal modules; it's purely external-community compat.**)
 
-### Codex 用量
+### Codex usage
 
-Codex CLI 沒有 statusLine hook 這種機制，所以 usage 採另一條路：掃 Codex CLI 在 `~/.codex/sessions/` 底下留下的 `*.jsonl` 對話紀錄檔。Codex 每次對話會在紀錄裡寫入 `rate_limits`（配額資訊），usage 直接讀裡面的 5 小時跟 7 天用量百分比，不需要自己計算。今日的 token 用量跟成本則從同一份紀錄的 token 統計加總。
+Codex CLI doesn't expose a statusLine hook, so usage takes a different route: it scans the conversation logs Codex CLI leaves on disk (`~/.codex/sessions/*.jsonl`). Codex writes `rate_limits` data directly into each log entry — usage reads those fields to get the 5-hour and 7-day quota percentages directly. Today's token count and cost are summed from the token usage recorded in the same files.
 
-要注意的是：Codex 只是**偶爾**才把 `rate_limits` 寫進紀錄，不像 Claude Code 會即時回報，所以這個數字可能**落後你的實際用量**（在網頁上用的更不會進到本機檔）。當本機快照超過 15 分鐘，Codex 卡會標出「約 N 分鐘前」提醒你這是舊資料。維持離線是刻意的——這樣 usage 不會多耗你的 token。
+Note that Codex only writes `rate_limits` into its logs **intermittently** — unlike Claude Code, it has no live status-line reporting — so this number can **lag your real usage** (and anything you do on the web never reaches the local files at all). When the local snapshot is older than 15 minutes, the Codex card shows an "about N minutes ago" tag to flag that it's stale. Staying offline is deliberate: it means usage never burns your tokens.
 
-沒裝 Codex 或沒這個資料夾的話，這部分會自動隱藏，不會影響 Claude Code 那邊的顯示。
+If Codex isn't installed or the directory doesn't exist, that part of the UI hides itself and Claude Code stats continue to work normally.
 
-## 拿到原始碼
+## Download
 
 ```bash
 git clone https://github.com/aqua5230/usage.git
 cd usage
 ```
 
-不熟 git 也可以到 [GitHub 專案頁](https://github.com/aqua5230/usage) 點右上角綠色的 **Code → Download ZIP**，解壓縮後 `cd` 進那個資料夾。
+If you don't use git, go to the [GitHub project page](https://github.com/aqua5230/usage), click the green **Code → Download ZIP**, then `cd` into the unzipped folder.
 
-## 建環境
-
-下面這幾行會幫你開一個**獨立的 Python 環境**（venv，virtual environment 的縮寫，就像幫這個專案開一個專用的抽屜，跟系統 Python 分開，互不干擾），然後把 usage 跟它需要的套件裝進去：
+## Set up the environment
 
 ```bash
 python3 -m venv .venv
@@ -62,85 +60,85 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-`source .venv/bin/activate` 是「進入這個抽屜」的意思 —— 跑完之後你 terminal 提示字元前面會多一個 `(.venv)`，代表現在 Python 指令會在這個獨立環境裡跑。
+This creates an isolated Python environment (`.venv`) for the project, activates it, and installs usage plus its dependencies into it.
 
-## 設定可偵測到的 agent
+## Set up detected agents
 
-> 用 .app 的話，第一次打開直接點 popover 上的「設定狀態列」按鈕即可。下面是給從原始碼跑 usage 的開發者用的。
+> Using the .app? Click the "Set Up Status Line" button in the popover on first launch instead. The steps below are for developers running usage from source.
 
-這個指令會設定目前偵測到的 agent：Codex 會更新 `~/.codex/config.toml` 的 `tui.status_line`；如果你也有 Claude Code，會把 usage 的 hook 腳本複製到 `~/.claude/` 裡，再去改 Claude Code 的設定檔，讓它每次刷新狀態列時去叫這個 hook。
+This command configures detected agents: Codex gets `tui.status_line` in `~/.codex/config.toml`; if Claude Code is present, usage also copies the hook script into `~/.claude/` and updates Claude Code settings to point at it.
 
 ```bash
 source .venv/bin/activate
 python3 main.py --setup
 ```
 
-**跑完後請重開一次 Codex**。如果有設定 Claude Code，也請重開一次 Claude Code，這樣它才會重新讀 `~/.claude/settings.json` 並刷新一次狀態列（資料這時候才會落到磁碟）。
+**Restart Codex once after running this**. If Claude Code was configured, restart Claude Code too so it re-reads `~/.claude/settings.json` and refreshes its status line.
 
-setup 具體做了什麼：
+What `--setup` does in detail:
 
-- 如果有 Codex，在 `~/.codex/config.toml` 設定 `tui.status_line`
-- 如果有 Claude Code，把 `usage_statusline.py` 複製到 `~/.claude/usage-statusline.py`
-- 如果有 Claude Code，在 `~/.claude/settings.json` 把 `statusLine` 指向這個 hook
-- 如果你本來就有自訂的 Claude Code statusLine，會自動備份到 `settings.usage.previousStatusLine`，不會被蓋掉
+- Configures `tui.status_line` in `~/.codex/config.toml` when Codex is detected.
+- If Claude Code is present, copies `usage_statusline.py` to `~/.claude/usage-statusline.py`.
+- If Claude Code is present, points `statusLine` in `~/.claude/settings.json` at that hook.
+- If you already had a custom Claude Code `statusLine`, it is backed up to `settings.usage.previousStatusLine` so nothing is overwritten.
 
-要卸載：
+To uninstall:
 
 ```bash
 python3 main.py --unsetup
 ```
 
-unsetup 會把原本的 Codex `status_line` 與 Claude Code `statusLine` 還原回去，並刪掉 Claude hook 跟 `~/.claude/usage-status.json`。
+`--unsetup` restores the original Codex `status_line` and Claude Code `statusLine`, then removes the Claude hook and `~/.claude/usage-status.json`.
 
-> **備援：手動 curl 安裝**
-> 若 .app 的「設定狀態列」按鈕按了沒反應、或你想用指令模式裝，打開 Terminal（終端機）執行以下指令（先下載、確認內容後再執行，比較安全）：
+> **Fallback: install via curl**
+> If the in-app "Set Up Status Line" button doesn't work or you prefer the command line, run the following in Terminal (download first, inspect, then run):
 >
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/aqua5230/usage/main/scripts/install-hook.sh -o /tmp/usage-install.sh
-> cat /tmp/usage-install.sh   # 可先瀏覽腳本內容
+> cat /tmp/usage-install.sh   # review the script before running
 > bash /tmp/usage-install.sh
 > ```
 
-## 跑起來
+## Run modes
 
-### Menu bar 模式（預設、推薦）
+### Menu bar mode (default)
 
-啟動後會在 macOS 右上角的選單列常駐，平常只顯示一行小小的百分比；點下去就會展開完整的 popover（彈出小視窗）。
+Stays in the macOS menu bar with a short percentage readout. Click it to open the full popover.
 
 ```bash
 source .venv/bin/activate
 python3 main.py
 ```
 
-- **選單列那行字長這樣**：`🐾 37%`；如果同時有 Codex 用量，會變成 `🐾 37% · 📜 10%`：
+- **Menu bar format:** `🐾 37%`. If Codex usage is also detected, a Codex suffix is appended: `🐾 37% · 📜 10%`.
 
-  <img src="menubar.png" alt="menu bar 上方顯示樣式" width="240">
+  <img src="menubar.png" alt="menu bar display" width="240">
 
-- **點一下會展開 popover**，分四塊：
-  1. 上面兩張卡片分別是 Claude Code 跟 Codex；每張各有 Session 跟 Weekly 兩條進度條
-  2. 專案用量卡：列出近期用量前三名的專案，可點右上角按鈕在「今日 / 7 日 / 月」三段之間切換
-  3. 最下面那張小卡是目前速率、同步狀態、今日 token 用量與成本估算（Claude 若 log 有提供實際金額則直接顯示；Codex 成本為依 token 數估算）
-  4. 兩顆按鈕：「立即更新」、「結束」
-- **面板**：點右上角「更換面板」按鈕可切換面板樣式。目前內建九款面板——「預設」（簡潔白色卡片）、「駭客任務」（黑底螢光綠＋數位雨動畫）、「視窗 95」（Windows 95 復古介面）、「復古報紙」（米黃報紙風）、「雲圖觀測」（氣象風玻璃卡片）、「午夜水族箱」（深海動畫）、「稜鏡街機」（彩虹全息動畫）、「黑洞視界」（旋轉吸積盤）、以及全新「世界盃 2026」——FIFA 轉播 HUD 風格，鮮綠球場、棒人球員追球踢球互動動畫、雙向對戰記分條。
+- **Click the icon to expand the popover.** It has four sections:
+  1. Two cards for Claude Code and Codex. Each shows Session and Weekly progress bars with reset countdowns.
+  2. A projects card listing the top three projects by usage. Click the button in the top-right corner to cycle between today / 7-day / monthly views.
+  3. A footer card showing current rate, sync status, and today's token usage and cost estimate (Claude uses the actual `costUSD` from its log when available; Codex cost is estimated from token count × pricing table).
+  4. Two buttons: "Refresh now" and "Quit".
+- **Panel**: click the **Switch Panel** button in the top-right corner to change panel styles. Nine built-in panels are available — **Classic** (clean light cards), **Matrix** (neon green digital rain), **Windows 95** (retro Win95 interface), **Newspaper** (aged newsprint), **Cloud Observation** (weather-station glass cards), **Midnight Aquarium** (deep-sea animation), **Prism Arcade** (rainbow holographic animation), **Black Hole** (rotating accretion disk), and the brand-new **World Cup 2026** — FIFA broadcast HUD with a green pitch, stick-figure players that chase and kick the ball, and bidirectional duel bars instead of standard progress bars.
 
   <p align="center">
-    <img src="matrix.png" alt="駭客任務面板" width="220">
+    <img src="matrix.en.png" alt="matrix panel" width="220">
     &nbsp;&nbsp;
-    <img src="cloud_observation.png" alt="雲圖觀測面板" width="220">
+    <img src="cloud_observation.en.png" alt="cloud observation panel" width="220">
     &nbsp;&nbsp;
-    <img src="world_cup.png" alt="世界盃 2026 面板" width="220">
+    <img src="world_cup.en.png" alt="world cup 2026 panel" width="220">
   </p>
 
-  選擇會記進 `NSUserDefaults`（macOS 內建的偏好設定儲存區），下次開 app 會記得上次選的面板。
-- **更新檢查（v0.11.0+）**：app 啟動會自動到 GitHub Releases 查最新版（24 小時最多一次，避免每次開都被打擾）。發現新版會跳對話框顯示版本＋ release notes，三顆按鈕：「前往下載 / 稍後再說 / 跳過此版本」。「更換面板」選單裡有「自動檢查更新」（可關閉）和「立即檢查更新」兩個項目。
-- **權限提醒**：第一次啟動時，macOS 可能會問你要不要讓它在背景跑，點「允許」就好。
+  Your choice is persisted via `NSUserDefaults`, so the last selected panel survives restarts.
+- **Update check (v0.11.0+)**: On launch, usage pings GitHub Releases for a newer version (rate-limited to once per 24h so you're not nagged every time you open the app). When a newer version is found, an alert shows the version + release notes with three buttons: **Download / Later / Skip this version**. The "Switch Panel" menu has **Automatically Check for Updates** (toggleable) and **Check for Updates Now** entries.
+- **Permissions:** on first launch, macOS may ask whether to allow background execution. Click Allow.
 
-### 終端機 TUI 模式
+### Terminal TUI mode
 
-如果你比較喜歡留在終端機，可以用 TUI（Text-based UI，文字版的圖形介面）模式 —— 畫面全部畫在終端機裡，不開新視窗，靠不停重畫文字模擬動畫效果。會有一個 Claude 的像素藝術 logo、旋轉的 spinner、輪播 Claude Code 那套搞笑 loading 字串，以及跟 menu bar 同樣的兩條進度條：
+If you'd rather stay in a terminal, run the Rich Live TUI — everything draws inside your terminal window via repeated text repaints. You get a pixel-art Claude logo, a spinner, a rotating set of Claude Code's playful loading phrases, and the same two progress bars as the menu bar popover:
 
 <p align="center">
-  <img src="tui.png" alt="usage TUI 模式畫面" width="480">
+  <img src="tui.png" alt="usage TUI mode" width="480">
 </p>
 
 ```bash
@@ -148,135 +146,135 @@ source .venv/bin/activate
 python3 main.py --tui
 ```
 
-按 `Ctrl+C` 退出。
+Press `Ctrl+C` to exit.
 
-## 報告與深度分析（CLI）
+## Reports and deep analytics (CLI)
 
-除了選單列跟 TUI，還有一個分析用的 CLI 進入點 `usage_cli.py`，可以匯出 HTML 報告、或在終端機開互動式 dashboard（儀表板，互動式統計面板）：
+Beyond the menu bar and TUI, there's an analytics CLI entrypoint `usage_cli.py` for exporting HTML reports or running an interactive terminal dashboard:
 
 <p align="center">
-  <img src="report.png" alt="HTML 報告畫面：你的 AI 用量回顧" width="520">
+  <img src="report.en.png" alt="HTML report screen: Your AI Usage Recap" width="520">
 </p>
 
 ```bash
 source .venv/bin/activate
 
-# 互動式 dashboard（自動偵測 Claude / Codex 兩邊用量，用方向鍵切換）
+# Interactive dashboard (auto-detects Claude / Codex; arrow keys switch between agents)
 python3 usage_cli.py
 
-# 只看 Claude Code / 只看 Codex
+# Single-agent dashboard
 python3 usage_cli.py claude
 python3 usage_cli.py codex
 
-# 產生 HTML 報告並用預設瀏覽器打開（預設範圍：近 30 天）
+# Generate an HTML report and open it in your default browser (default range: last 30 days)
 python3 usage_cli.py report
-python3 usage_cli.py report --today              # 今日
-python3 usage_cli.py report --week               # 本週
-python3 usage_cli.py report --month              # 本月
-python3 usage_cli.py report --all                # 全部資料
-python3 usage_cli.py report --out report.html    # 另存到指定位置
+python3 usage_cli.py report --today              # today
+python3 usage_cli.py report --week               # this week
+python3 usage_cli.py report --month              # this month
+python3 usage_cli.py report --all                # all data
+python3 usage_cli.py report --out report.html    # save to a specific path
 
-# 純文字統計表
+# Plain-text tabular stats
 python3 usage_cli.py daily
 python3 usage_cli.py weekly
 python3 usage_cli.py monthly
 ```
 
-HTML 報告包含：每日 / 週 / 月 token 與成本走勢、各專案排名、Top 模型分布。右上角的「分享」按鈕可另存 `.html` 或複製檔案路徑，透過 AirDrop / Mail / Slack / iMessage 把報告傳給同事或主管；對方瀏覽器打開即可閱讀。報告內含「隱藏專案名稱」勾選框（預設打勾，隱私優先），勾選後另存的 HTML 會把所有專案名稱替換成 `Project 1 / Project 2 / ...`，不影響當前螢幕顯示。
+The HTML report covers daily / weekly / monthly token + cost trends, per-project rankings, and top-model distribution. The top-right Share button lets you save a copy as `.html` or copy the file path to send via AirDrop / Mail / Slack / iMessage — recipients open it in any browser. The built-in "Hide project names" toggle (on by default, privacy-first) swaps every project name to `Project 1 / Project 2 / ...` before the file is saved, while the on-screen view is unaffected.
 
-## 開機自動啟動
+## Auto-start on login
 
-LaunchAgent 是 macOS 內建的背景服務管理器（負責「使用者登入後要幫忙啟動哪些程式」），可以讓 usage 在你登入時自動跑起來，不用每次手動啟動。
+A LaunchAgent (the macOS service that handles "what should start when this user logs in") makes usage start automatically.
 
-**最簡單的做法**：點選單列圖示展開 popover，按「⇄ 更換面板」按鈕，選單最下面有「開機自動啟動」一項，勾選即可。.app 版與原始碼版皆適用，不需跑任何指令。
+**Easiest way:** click the menu bar icon to open the popover, press the "⇄ Switch Panel" button, and tick "Launch at Login" at the bottom of the menu. Works for both the .app and source builds — no Terminal needed.
 
-下面的腳本是給原始碼使用者的另一種安裝方式：
+The script below is an alternative install method for source users:
 
-1. **安裝**：
+1. **Install:**
    ```bash
    ./scripts/install-launchagent.sh
    ```
-   這個指令會在 `~/Library/LaunchAgents/` 底下放一份設定檔，然後立刻把 usage 載入起來。
+   This drops a plist into `~/Library/LaunchAgents/` and loads usage immediately.
 
-2. **手動啟動（測試用）**：
+2. **Manual start (for testing):**
    ```bash
    launchctl start com.lollapalooza.usage
    ```
 
-3. **查看 log**（log 就是這個服務跑的時候的「日誌」，裡面有訊息跟錯誤紀錄）：
-   - 一般訊息：`~/Library/Logs/usage/usage.log`
-   - 錯誤訊息：`~/Library/Logs/usage/usage.err.log`
+3. **Logs:**
+   - stdout: `~/Library/Logs/usage/usage.log`
+   - stderr: `~/Library/Logs/usage/usage.err.log`
 
-4. **移除**：
+4. **Uninstall:**
    ```bash
    ./scripts/uninstall-launchagent.sh
    ```
 
-## 想先看看 UI 長什麼樣（預覽模式）
+## Preview mode (no install required)
 
-還沒裝 hook、或者只想看看介面長什麼樣，可以用假資料（mock data）跑一次：
+If you haven't installed the hook yet, or you just want to see what the UI looks like, run with fake data:
 
 ```bash
-# Menu bar 預覽
+# Menu bar preview
 python3 main.py --mock
 
-# TUI 預覽
+# TUI preview
 python3 main.py --tui --mock
 ```
 
-## 全部可用參數
+## Options
 
-- `--setup` / `--unsetup`：設定 / 還原偵測到的 agent（Codex `status_line`；Claude Code `statusLine` hook）。
-- `--tui`：強制使用終端機 TUI 模式（不開 menu bar）。
-- `--interval N`：UI 多久重新讀一次狀態檔（秒）。最小值 30，預設 60。
-- `--mock`：用假資料跑，不讀任何狀態檔。
-- `--force-group {0,1,2,3}`：強制指定速率分組（只有 TUI 模式有效）。
+- `--setup` / `--unsetup` — configure or restore detected agents (Codex `status_line`; Claude Code `statusLine` hook).
+- `--tui` — force terminal TUI mode (no menu bar).
+- `--interval N` — how often (seconds) the UI re-reads the status file. Minimum 30, default 60.
+- `--mock` — use fake data; don't read any status file.
+- `--force-group {0,1,2,3}` — force a specific rate group (TUI only).
 
-## 除錯
+## Debug
 
-想看 usage 內部有沒有吞掉什麼錯誤（例如 OSError，作業系統相關錯誤），啟動時加環境變數：
+To see internal warnings (e.g. swallowed `OSError`s), set:
 
 ```bash
 USAGE_DEBUG=1 python3 main.py
 ```
 
-## 語言
+## Language
 
-usage 會自動偵測 macOS 系統語言，目前支援：
+usage auto-detects the macOS system language. Supported languages:
 
-| 系統語言 | 顯示語言 |
-|---------|---------|
-| 繁體中文 | 繁體中文 |
-| 簡體中文 | 简体中文 |
-| 日文 | 日本語 |
-| 韓文 | 한국어 |
-| 其他 | English |
+| System language | Display |
+|----------------|---------|
+| Traditional Chinese | 繁體中文 |
+| Simplified Chinese | 简体中文 |
+| Japanese | 日本語 |
+| Korean | 한국어 |
+| Any other | English |
 
-開發或測試時可用環境變數強制指定：
+To force a specific language during development or testing:
 
 ```bash
-USAGE_LANG=en python3 main.py      # 英文
-USAGE_LANG=ja python3 main.py      # 日文
-USAGE_LANG=ko python3 main.py      # 韓文
-USAGE_LANG=zh-CN python3 main.py   # 簡體中文
+USAGE_LANG=en python3 main.py      # English
+USAGE_LANG=ja python3 main.py      # Japanese
+USAGE_LANG=ko python3 main.py      # Korean
+USAGE_LANG=zh-CN python3 main.py   # Simplified Chinese
 ```
 
-## 一些行為說明
+## Behaviour notes
 
-- usage 只讀 `~/.claude/usage-status.json`、v0.1.x 留下的 `~/.claude/usag-status.json`、`~/.claude/tt-status.json`，以及 Codex 的 session 檔。不呼叫 Anthropic / OpenAI API、不讀 Keychain。會連網的情況有兩個：(a) 首次估算 Codex 成本時下載 LiteLLM 價格表（快取 7 天，離線也能用 fallback）；(b) v0.11.0 起每天最多一次到 GitHub Releases API 查有沒有新版（可在「更換面板」選單關閉）。
-- Claude Code 沒在跑的時候，狀態檔不會更新；但因為實際用量也不會變（除非重置時間到了），所以顯示的數字仍然是有效的；重置時間過了會自動歸零。
-- 如果狀態檔超過 6 小時沒被更新過，會在狀態訊息標註 `⚠ usage stale Nm`（N 為實際分鐘數），提示資料可能過時。
+- usage only reads `~/.claude/usage-status.json`, the v0.1.x legacy `~/.claude/usag-status.json`, `~/.claude/tt-status.json`, and Codex's session files. It does not call the Anthropic / OpenAI API and does not read the Keychain. Network activity is limited to two things: (a) a one-time download of the LiteLLM pricing table for Codex cost estimates (cached for 7 days; offline fallback available); (b) starting in v0.11.0, an at-most-daily ping to the GitHub Releases API to check for new versions (toggleable from the "Switch Panel" menu).
+- When Claude Code isn't running, the status file isn't updated — but actual usage isn't changing either (until reset time), so the displayed value is still accurate. After reset time passes, it auto-resets to zero.
+- If the status file hasn't been updated for more than 6 hours, the status message shows `⚠ usage stale Nm` (where N is the actual minute count) to flag potentially out-of-date numbers.
 
-## 打包成 .app（不開終端機就能跑）
+## Build a .app bundle (optional)
 
-想要雙擊圖示就跑、不開終端機，可以打包成 macOS 原生 App（.app 就是 macOS 看到的圖示，本質是一個目錄，裡面把程式跟資源打包在一起）：
+If you want to launch usage by double-clicking instead of opening a terminal, build a native macOS app bundle:
 
 ```bash
 ./scripts/build_app.sh
 ```
 
-跑完產物會在 `dist/usage.app`。雙擊或 `open dist/usage.app` 就能跑。
+The output is `dist/usage.app`. Double-click it or run `open dist/usage.app`.
 
-> **打包環境提醒**：本機打包 `.app` 請使用 `uv`（不要用 conda 的 Python）。conda 自帶的 `libffi` / `libsqlite3`（動態程式庫，程式跑時需要載入的共用程式碼）不會被 py2app 自動帶進 `.app`，會導致打出來的 `.app` 一啟動就閃退。CI 打包流程使用 `uv`，已通過測試。
+> **Build environment**: Please use `uv` (not conda Python) when building the `.app` locally. Conda bundles its own `libffi` / `libsqlite3` that py2app does not auto-include, which causes the resulting `.app` to crash on startup. CI builds use `uv` and are tested.
 
-每次發 GitHub Release（push 一個 `v*` 開頭的 tag 時），CI 會自動 build 並把 `usage.app.zip` 附加到 Release 頁面。
+Each GitHub Release build (push a `v*` tag) automatically builds the app in CI and attaches `usage.app.zip` to the Release page.
