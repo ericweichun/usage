@@ -5,6 +5,11 @@
 All notable changes to usage are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.16.3] - 2026-06-10
+
+### Changed
+- **Cleaner project list on more panels**: removed the redundant row separators on the Matrix, Newspaper, and Windows 95 panels — each already shows a per-project usage bar, so projects are now divided by that bar alone, matching the default panel. (Panels that rely on separators instead of a usage bar are unchanged.)
+
 ## [0.16.2] - 2026-06-10
 
 ### Changed
