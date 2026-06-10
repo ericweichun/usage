@@ -1,6 +1,6 @@
 [project]
 name = "usage"
-version = "0.17.1"
+version = "0.18.0"
 description = "usage — 在 macOS menu bar 顯示 Claude Code 用量的繁中小工具（也提供終端機 TUI）"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -71,6 +71,8 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 # usage_statusline.py 設計成可以用系統 python3 跑（macOS 內建是 3.9），
 # 必須避開 3.11+ 才有的 datetime.UTC，用 timezone.utc 取代。
 "usage_statusline.py" = ["UP017"]
+# usage_session_resume.py 同樣裝進 ~/.claude/ 給系統 python3 (3.9) 跑，同一條限制。
+"usage_session_resume.py" = ["UP017"]
 # Imported analytics source is kept with minimal path fixes; keep formatting
 # stable for this integration commit.
 "adapters/**/*.py" = ["E501", "I001", "SIM108", "UP015", "UP017"]

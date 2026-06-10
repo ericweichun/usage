@@ -21,6 +21,7 @@ from adapters.types import AgentInfo, UsageEntry
 from pricing import calculate_cost
 
 from .aggregator import aggregate_sessions
+from . import diagnoser
 
 AGENT_LOADERS = {"claude-code": claude, "codex": codex}
 AGENT_NAMES = {"claude-code": "Claude Code", "codex": "Codex"}
@@ -126,6 +127,7 @@ def _parse_claude_file(path: Path, base: Path, cutoff: datetime) -> list[UsageEn
     claude.parse_jsonl(path, fallback_project, parsed, local_seen, cutoff)
     return parsed
 
+
 def _load_codex_entries(hours_back: int) -> list[UsageEntry]:
     return [
         UsageEntry(
@@ -223,6 +225,48 @@ def _top_project(project_tokens: dict[str, int]) -> str | None:
     if not project_tokens:
         return None
     return max(project_tokens.items(), key=lambda item: item[1])[0]
+
+
+def serialize_diagnosis(
+    result: diagnoser.DiagnosisResult,
+    *,
+    total_corpus_tokens: int,
+) -> dict[str, Any]:
+    waste_pct = (
+        result.total_waste_tokens / total_corpus_tokens * 100
+        if total_corpus_tokens
+        else 0.0
+    )
+    fixable_pct = (
+        result.fixable_waste_tokens / total_corpus_tokens * 100
+        if total_corpus_tokens
+        else 0.0
+    )
+    return {
+        "has_data": result.has_data,
+        "total_waste_usd": _round_cost(result.total_waste_usd),
+        "monthly_savings_estimate_usd": _round_cost(
+            result.monthly_savings_estimate_usd
+        ),
+        "total_waste_tokens": int(result.total_waste_tokens),
+        "fixable_waste_tokens": int(result.fixable_waste_tokens),
+        "total_corpus_tokens": int(total_corpus_tokens),
+        "waste_pct": round(waste_pct, 1),
+        "fixable_pct": round(fixable_pct, 1),
+        "findings": [
+            {
+                "severity": finding.severity,
+                "kind": finding.kind,
+                "headline_plain": finding.headline_plain,
+                "headline_detail": finding.headline_detail,
+                "estimated_waste_usd": _round_cost(finding.estimated_waste_usd),
+                "estimated_waste_tokens": int(finding.estimated_waste_tokens),
+                "items": finding.items,
+            }
+            for finding in result.findings
+        ],
+        "suggested_claudeignore": result.suggested_claudeignore,
+    }
 
 
 def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[str, Any]:
