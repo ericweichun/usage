@@ -18,6 +18,9 @@ from adapters import claude
 from adapters.types import UsageEntry
 
 TOOLS = {"Read", "Edit", "Bash", "Grep", "Glob", "LS"}
+# Below this estimated waste a finding stays "info": cents must not outrank
+# dollar-sized findings when the session-start reminder picks what to mention.
+CRITICAL_WASTE_USD = 1.0
 POLLUTER_DIRS = (
     "node_modules",
     "dist",
@@ -383,7 +386,7 @@ def _find_repeated_reads(tool_calls: list[ToolCall]) -> DiagnosisFinding | None:
     if not candidates:
         return None
     return DiagnosisFinding(
-        severity="critical",
+        severity="critical" if total_cost >= CRITICAL_WASTE_USD else "info",
         kind="repeated_reads",
         headline_plain="diag_kind_repeated_reads",
         headline_detail="diag_kind_repeated_reads_d",
@@ -426,7 +429,7 @@ def _find_polluter_dirs(tool_calls: list[ToolCall]) -> tuple[DiagnosisFinding | 
     total_tokens = sum(values["chars"] // 4 for values in stats.values())
     return (
         DiagnosisFinding(
-            severity="critical",
+            severity="critical" if total_cost >= CRITICAL_WASTE_USD else "info",
             kind="polluter_dirs",
             headline_plain="diag_kind_polluter_dirs",
             headline_detail="diag_kind_polluter_dirs_d",

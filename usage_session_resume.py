@@ -114,6 +114,10 @@ _DEFAULT_TEMPLATES: dict[str, dict[str, Any]] = {
             'Health check: about {waste_pct}% waste from {cause}. Say "fix it" '
             "and I'll read the full diagnosis at {path}."
         ),
+        "diagnosis_reminder_explain": (
+            'Health check: about {waste_pct}% waste from {cause}. Say "show me" '
+            "and I'll walk you through the full diagnosis at {path}."
+        ),
         "diagnosis_default_cause": "avoidable context waste",
         "diagnosis_causes": {
             "repeated_reads": "re-reading the same files",
@@ -274,6 +278,7 @@ def _build_prompt(payload: dict[str, Any]) -> str:
         empty,
         uncommitted_template,
         diagnosis_reminder,
+        diagnosis_reminder_explain,
         diagnosis_default_cause,
         diagnosis_causes,
     ) = _load_template(_detect_lang())
@@ -294,6 +299,7 @@ def _build_prompt(payload: dict[str, Any]) -> str:
     prompt = report or empty
     diagnosis_instruction = _build_diagnosis_instruction(
         diagnosis_reminder=diagnosis_reminder,
+        diagnosis_reminder_explain=diagnosis_reminder_explain,
         diagnosis_default_cause=diagnosis_default_cause,
         diagnosis_causes=diagnosis_causes,
     )
@@ -591,6 +597,7 @@ def _parse_timestamp(value: object) -> datetime | None:
 def _build_diagnosis_instruction(
     *,
     diagnosis_reminder: str,
+    diagnosis_reminder_explain: str,
     diagnosis_default_cause: str,
     diagnosis_causes: Mapping[str, str],
 ) -> str:
@@ -626,7 +633,10 @@ def _build_diagnosis_instruction(
     primary = _pick_primary_finding(findings)
     kind = primary.get("kind") if isinstance(primary, dict) else None
     cause = diagnosis_causes.get(str(kind), diagnosis_default_cause)
-    reminder_line = diagnosis_reminder.format(
+    # When nothing is auto-fixable, don't promise a fix: invite a walkthrough instead.
+    fixable_tokens = _coerce_float(snapshot.get("fixable_waste_tokens"))
+    template = diagnosis_reminder if fixable_tokens > 0 else diagnosis_reminder_explain
+    reminder_line = template.format(
         waste_pct=_format_percent_number(waste_pct),
         cause=cause,
         path=str(DIAGNOSIS_SNAPSHOT),
@@ -667,8 +677,8 @@ def _pick_primary_finding(findings: object) -> dict[str, Any]:
         return {}
     candidates.sort(
         key=lambda finding: (
-            0 if finding.get("severity") == "critical" else 1,
             -int(finding.get("estimated_waste_tokens") or 0),
+            0 if finding.get("severity") == "critical" else 1,
             str(finding.get("kind") or ""),
         )
     )
@@ -766,6 +776,7 @@ def _load_template(lang: str) -> tuple[
     str,
     str,
     str,
+    str,
     dict[str, str],
 ]:
     """Return (lead, prompt, none, empty, uncommitted). ``lead`` is a short instruction prepended to
@@ -787,8 +798,8 @@ def _load_template(lang: str) -> tuple[
 
 def _template_from_entry(
     entry: Mapping[str, object],
-    fallback: tuple[str, str, str, str, str, str, str, dict[str, str]] | None = None,
-) -> tuple[str, str, str, str, str, str, str, dict[str, str]]:
+    fallback: tuple[str, str, str, str, str, str, str, str, dict[str, str]] | None = None,
+) -> tuple[str, str, str, str, str, str, str, str, dict[str, str]]:
     if fallback is None:
         fallback = (
             "",
@@ -797,6 +808,7 @@ def _template_from_entry(
             _DEFAULT_EMPTY,
             _DEFAULT_TEMPLATES["en"]["uncommitted"],
             _DEFAULT_TEMPLATES["en"]["diagnosis_reminder"],
+            _DEFAULT_TEMPLATES["en"]["diagnosis_reminder_explain"],
             _DEFAULT_TEMPLATES["en"]["diagnosis_default_cause"],
             _DEFAULT_TEMPLATES["en"]["diagnosis_causes"],
         )
@@ -806,9 +818,10 @@ def _template_from_entry(
     empty = entry.get("empty")
     uncommitted = entry.get("uncommitted")
     diagnosis_reminder = entry.get("diagnosis_reminder")
+    diagnosis_reminder_explain = entry.get("diagnosis_reminder_explain")
     diagnosis_default_cause = entry.get("diagnosis_default_cause")
     raw_causes = entry.get("diagnosis_causes")
-    causes = dict(fallback[7])
+    causes = dict(fallback[8])
     if isinstance(raw_causes, Mapping):
         for key in _DIAGNOSIS_CAUSE_KEYS:
             value = raw_causes.get(key)
@@ -826,9 +839,14 @@ def _template_from_entry(
             else fallback[5]
         ),
         (
+            diagnosis_reminder_explain
+            if isinstance(diagnosis_reminder_explain, str) and diagnosis_reminder_explain
+            else fallback[6]
+        ),
+        (
             diagnosis_default_cause
             if isinstance(diagnosis_default_cause, str) and diagnosis_default_cause
-            else fallback[6]
+            else fallback[7]
         ),
         causes,
     )

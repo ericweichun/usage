@@ -72,6 +72,10 @@ def _sidecar(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
                         'Health check: about {waste_pct}% waste came from {cause}. '
                         'If you say "修", the full diagnosis is at {path}.'
                     ),
+                    "diagnosis_reminder_explain": (
+                        'Health check: about {waste_pct}% waste came from {cause}. '
+                        'If you say "看", I will walk you through {path}.'
+                    ),
                     "diagnosis_default_cause": "avoidable context waste",
                     "diagnosis_causes": {
                         "repeated_reads": "re-reading the same files",
@@ -125,6 +129,7 @@ def _write_diagnosis_snapshot(
     severity: str = "info",
     kind: str = "polluter_dirs",
     estimated_waste_tokens: int = 100,
+    fixable_waste_tokens: int = 100,
 ) -> None:
     path.write_text(
         json.dumps(
@@ -132,6 +137,7 @@ def _write_diagnosis_snapshot(
                 "generated_at": generated_at.astimezone().isoformat().replace("+00:00", "Z"),
                 "has_data": has_data,
                 "waste_pct": waste_pct,
+                "fixable_waste_tokens": fixable_waste_tokens,
                 "findings_fingerprint": fingerprint,
                 "findings": [
                     {
@@ -786,6 +792,41 @@ def test_build_prompt_injects_diagnosis_reminder_when_fingerprint_changes(
     )
 
     assert "Health check: about 2% waste came from scanning generated folders." in prompt
+    assert "修" in prompt
+
+
+def test_build_prompt_uses_explain_reminder_when_nothing_fixable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("LANG", "en_US.UTF-8")
+    _sidecar(tmp_path, monkeypatch)
+    snapshot, state = _diagnosis_paths(tmp_path, monkeypatch)
+    now = datetime.now().astimezone()
+    _write_diagnosis_snapshot(
+        snapshot,
+        generated_at=now,
+        waste_pct=2.0,
+        fingerprint="fp-new",
+        severity="critical",
+        fixable_waste_tokens=0,
+    )
+    _write_diagnosis_state(state, fingerprint="fp-old", reminded_at=now - timedelta(days=1))
+    project = _project_dir(tmp_path)
+    _write_session(
+        project / "prev.jsonl",
+        when=now - timedelta(hours=1),
+        request="finish the parser cleanup",
+    )
+    current = project / "current.jsonl"
+    current.write_text("", encoding="utf-8")
+
+    prompt = mod._build_prompt(
+        {"transcript_path": str(current), "cwd": "/Users/me/Developer/myproj"}
+    )
+
+    assert "Health check: about 2% waste came from scanning generated folders." in prompt
+    assert "看" in prompt
+    assert "修" not in prompt
     assert str(snapshot) in prompt
     state_data = json.loads(state.read_text(encoding="utf-8"))
     assert state_data["last_fingerprint"] == "fp-new"

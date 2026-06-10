@@ -562,6 +562,11 @@ def _write_resume_sidecar() -> None:
             or en.get("report_rw_diagnosis_reminder")
             or ""
         )
+        diagnosis_reminder_explain = (
+            table.get("report_rw_diagnosis_reminder_explain")
+            or en.get("report_rw_diagnosis_reminder_explain")
+            or ""
+        )
         diagnosis_default_cause = (
             table.get("report_rw_diagnosis_cause_default")
             or en.get("report_rw_diagnosis_cause_default")
@@ -583,6 +588,7 @@ def _write_resume_sidecar() -> None:
                 "empty": empty,
                 "uncommitted": uncommitted,
                 "diagnosis_reminder": diagnosis_reminder,
+                "diagnosis_reminder_explain": diagnosis_reminder_explain,
                 "diagnosis_default_cause": diagnosis_default_cause,
                 "diagnosis_causes": diagnosis_causes,
             }
