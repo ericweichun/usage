@@ -245,6 +245,111 @@ def test_anomaly_session_has_project_and_start_time(
     assert item["session_start_iso"] == "2026-05-09T18:23:00+08:00"
 
 
+def test_noisy_bash_flags_large_single_bash_output(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    base = tmp_path / "projects"
+    records: list[dict[str, Any] | str] = [
+        _assistant(
+            session_id="s1",
+            tool_id="bash-large",
+            name="Bash",
+            tool_input={"command": "find . -type f"},
+        ),
+        _user_result("bash-large", 20_001),
+    ]
+    _write_jsonl(base / "repo" / "session.jsonl", records)
+    _patch_claude_dirs(monkeypatch, base)
+
+    result = diagnoser.analyze(date(2026, 5, 1), date(2026, 5, 31), 100.0)
+
+    findings = [finding for finding in result.findings if finding.kind == "noisy_bash"]
+    assert findings
+    assert findings[0].severity == "info"
+    assert findings[0].items[0]["label"] == "find . -type f"
+    assert findings[0].items[0]["size_bytes"] == 20_001
+
+
+def test_noisy_bash_ignores_output_at_or_below_threshold(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    base = tmp_path / "projects"
+    records: list[dict[str, Any] | str] = [
+        _assistant(
+            session_id="s1",
+            tool_id="bash-threshold",
+            name="Bash",
+            tool_input={"command": "find . -type f"},
+        ),
+        _user_result("bash-threshold", 20_000),
+    ]
+    _write_jsonl(base / "repo" / "session.jsonl", records)
+    _patch_claude_dirs(monkeypatch, base)
+
+    result = diagnoser.analyze(date(2026, 5, 1), date(2026, 5, 31), 100.0)
+
+    findings = [finding for finding in result.findings if finding.kind == "noisy_bash"]
+    assert findings == []
+
+
+def test_repeated_bash_flags_same_command_run_15_times(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    base = tmp_path / "projects"
+    records: list[dict[str, Any] | str] = []
+    for index in range(15):
+        tool_id = f"bash-repeat-{index}"
+        records.append(
+            _assistant(
+                session_id=f"s{index}",
+                tool_id=tool_id,
+                name="Bash",
+                tool_input={"command": "pytest -q"},
+            )
+        )
+        records.append(_user_result(tool_id, 100))
+    _write_jsonl(base / "repo" / "session.jsonl", records)
+    _patch_claude_dirs(monkeypatch, base)
+
+    result = diagnoser.analyze(date(2026, 5, 1), date(2026, 5, 31), 100.0)
+
+    findings = [finding for finding in result.findings if finding.kind == "repeated_bash"]
+    assert findings
+    assert findings[0].severity == "info"
+    assert findings[0].items[0]["label"] == "pytest -q"
+    assert findings[0].items[0]["n"] == 15
+    assert findings[0].items[0]["estimated_waste_tokens"] == 7_500
+
+
+def test_repeated_bash_ignores_command_below_threshold(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    base = tmp_path / "projects"
+    records: list[dict[str, Any] | str] = []
+    for index in range(14):
+        tool_id = f"bash-repeat-{index}"
+        records.append(
+            _assistant(
+                session_id=f"s{index}",
+                tool_id=tool_id,
+                name="Bash",
+                tool_input={"command": "pytest -q"},
+            )
+        )
+        records.append(_user_result(tool_id, 100))
+    _write_jsonl(base / "repo" / "session.jsonl", records)
+    _patch_claude_dirs(monkeypatch, base)
+
+    result = diagnoser.analyze(date(2026, 5, 1), date(2026, 5, 31), 100.0)
+
+    findings = [finding for finding in result.findings if finding.kind == "repeated_bash"]
+    assert findings == []
+
+
 def test_reporter_injects_diagnosis_payload_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -118,9 +118,11 @@ def analyze_loaded_records(
     repeated = _find_repeated_reads(tool_calls)
     polluters, ignored_dirs = _find_polluter_dirs(tool_calls)
     anomalies = _find_anomaly_sessions(sessions)
+    noisy = _find_noisy_bash(tool_calls)
+    repeated_bash = _find_repeated_bash(tool_calls)
     findings = [
         finding
-        for finding in (repeated, polluters, anomalies)
+        for finding in (repeated, polluters, anomalies, noisy, repeated_bash)
         if finding is not None
     ]
 
@@ -494,6 +496,82 @@ def _find_anomaly_sessions(sessions: list[_SessionUsage]) -> DiagnosisFinding | 
         estimated_waste_usd=estimated_waste_usd,
         estimated_waste_tokens=estimated_waste_tokens,
         items=items,
+    )
+
+
+def _find_noisy_bash(tool_calls: list[ToolCall]) -> DiagnosisFinding | None:
+    calls = [
+        call
+        for call in tool_calls
+        if call.tool_name == "Bash" and call.result_size_chars > 20_000
+    ]
+    calls.sort(key=lambda call: call.result_size_chars, reverse=True)
+    items: list[dict[str, object]] = []
+    estimated_waste_usd = 0.0
+    estimated_waste_tokens = 0
+    for call in calls[:5]:
+        cost = round(_tokens_to_usd(call.result_size_chars // 4), 4)
+        tokens = call.result_size_chars // 4
+        items.append(
+            {
+                "label": call.target_path[:80],
+                "n": call.result_size_chars,
+                "size_bytes": call.result_size_chars,
+                "cost": cost,
+                "estimated_waste_tokens": tokens,
+            }
+        )
+        estimated_waste_usd += cost
+        estimated_waste_tokens += tokens
+    if not items:
+        return None
+    return DiagnosisFinding(
+        severity="info",
+        kind="noisy_bash",
+        headline_plain="diag_kind_noisy_bash",
+        headline_detail="diag_kind_noisy_bash_d",
+        estimated_waste_usd=estimated_waste_usd,
+        estimated_waste_tokens=estimated_waste_tokens,
+        items=items,
+    )
+
+
+def _find_repeated_bash(tool_calls: list[ToolCall]) -> DiagnosisFinding | None:
+    grouped: dict[str, list[ToolCall]] = defaultdict(list)
+    for call in tool_calls:
+        if call.tool_name == "Bash":
+            grouped[call.target_path].append(call)
+
+    candidates: list[dict[str, object]] = []
+    total_cost = 0.0
+    total_tokens = 0
+    for command, calls in sorted(grouped.items(), key=lambda item: len(item[1]), reverse=True):
+        if len(calls) < 15:
+            continue
+        estimated_waste_tokens = len(calls) * 500
+        cost = _tokens_to_usd(estimated_waste_tokens)
+        total_cost += cost
+        total_tokens += estimated_waste_tokens
+        candidates.append(
+            {
+                "label": command[:100],
+                "stat": "diag_item_read_times",
+                "n": len(calls),
+                "cost": round(cost, 4),
+                "estimated_waste_tokens": estimated_waste_tokens,
+            }
+        )
+
+    if not candidates:
+        return None
+    return DiagnosisFinding(
+        severity="info",
+        kind="repeated_bash",
+        headline_plain="diag_kind_repeated_bash",
+        headline_detail="diag_kind_repeated_bash_d",
+        estimated_waste_usd=total_cost,
+        estimated_waste_tokens=total_tokens,
+        items=candidates[:5],
     )
 
 
