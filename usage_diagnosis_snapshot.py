@@ -13,7 +13,7 @@ import json
 import os
 import tempfile
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +27,7 @@ _refresh_in_flight = False
 
 
 def maybe_schedule_refresh() -> None:
-    if not _needs_refresh(_read_snapshot(), now=datetime.now(timezone.utc)):
+    if not _needs_refresh(_read_snapshot(), now=datetime.now(UTC)):
         return
 
     global _refresh_in_flight
@@ -50,7 +50,7 @@ def _refresh_in_background() -> None:
 
 
 def refresh_snapshot(now: datetime | None = None) -> bool:
-    current_time = now or datetime.now(timezone.utc)
+    current_time = now or datetime.now(UTC)
     existing = _read_snapshot()
     if not _needs_refresh(existing, now=current_time):
         return False
@@ -101,7 +101,9 @@ def _findings_fingerprint(findings: object) -> str:
         item_hash = ""
         if isinstance(items, list) and items:
             first_item = items[0]
-            encoded = json.dumps(first_item, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            encoded = json.dumps(
+                first_item, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
             item_hash = hashlib.sha256(encoded.encode("utf-8")).hexdigest()[:12]
         parts.append(f"{kind}:{item_hash}")
     parts.sort()
@@ -124,12 +126,12 @@ def _parse_timestamp(value: object) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _format_timestamp(value: datetime) -> str:
-    return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return value.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:

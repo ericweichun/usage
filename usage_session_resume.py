@@ -34,6 +34,7 @@ failure exits 0 with no output.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -89,7 +90,7 @@ _DEFAULT_EMPTY = (
     '"🐾 Welcome back — nothing to pick up on this project yet.", '
     "then respond normally.)"
 )
-_DEFAULT_TEMPLATES = {
+_DEFAULT_TEMPLATES: dict[str, dict[str, Any]] = {
     "en": {
         "prompt": _DEFAULT_PROMPT,
         "none": _DEFAULT_NONE,
@@ -110,8 +111,8 @@ _DEFAULT_TEMPLATES = {
             "Left uncommitted last time: {count} changed file(s) on branch {branch} ({files})"
         ),
         "diagnosis_reminder": (
-            'Health check: about {waste_pct}% waste from {cause}. If you say "修", '
-            "read the full diagnosis at {path}."
+            'Health check: about {waste_pct}% waste from {cause}. Say "fix it" '
+            "and I'll read the full diagnosis at {path}."
         ),
         "diagnosis_default_cause": "avoidable context waste",
         "diagnosis_causes": {
@@ -606,12 +607,12 @@ def _build_diagnosis_instruction(
     if snapshot.get("has_data") is not True:
         return ""
 
-    findings = snapshot.get("findings")
+    raw_findings = snapshot.get("findings")
+    findings = raw_findings if isinstance(raw_findings, list) else []
     waste_pct = _coerce_float(snapshot.get("waste_pct"))
     has_critical = any(
         isinstance(finding, dict) and finding.get("severity") == "critical"
         for finding in findings
-        if isinstance(findings, list)
     )
     if waste_pct < 5.0 and not has_critical:
         return ""
@@ -706,10 +707,8 @@ def _write_diagnosis_state(data: Mapping[str, object]) -> None:
         tmp_path = None
     finally:
         if tmp_path and os.path.exists(tmp_path):
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp_path)
-            except OSError:
-                pass
 
 
 def _format_utc_timestamp(value: datetime) -> str:

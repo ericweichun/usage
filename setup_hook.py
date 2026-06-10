@@ -548,7 +548,7 @@ def _write_resume_sidecar() -> None:
         return
     en_raw = bundle.get("en")
     en: dict[str, Any] = en_raw if isinstance(en_raw, dict) else {}
-    out: dict[str, dict[str, str]] = {}
+    out: dict[str, dict[str, Any]] = {}
     for lang in RESUME_LANGS:
         table_raw = bundle.get(lang)
         table: dict[str, Any] = table_raw if isinstance(table_raw, dict) else {}

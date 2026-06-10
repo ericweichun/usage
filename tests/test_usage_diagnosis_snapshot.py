@@ -7,14 +7,14 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from analyzer import diagnoser
 import usage_diagnosis_snapshot as mod
+from analyzer import diagnoser
 
 
 def test_refresh_snapshot_writes_payload_with_generated_at_and_fingerprint(
@@ -53,7 +53,7 @@ def test_refresh_snapshot_writes_payload_with_generated_at_and_fingerprint(
             has_data=True,
         ),
     )
-    now = datetime(2026, 6, 11, 1, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 6, 11, 1, 0, tzinfo=UTC)
 
     assert mod.refresh_snapshot(now=now) is True
 
@@ -79,6 +79,6 @@ def test_refresh_snapshot_skips_when_snapshot_is_younger_than_one_day(
     monkeypatch.setattr(diagnoser, "_load_records", fail)
 
     assert (
-        mod.refresh_snapshot(now=datetime(2026, 6, 11, 12, 0, tzinfo=timezone.utc))
+        mod.refresh_snapshot(now=datetime(2026, 6, 11, 12, 0, tzinfo=UTC))
         is False
     )
