@@ -189,7 +189,6 @@
       z-index: 1;
       display: flex;
       flex-direction: column;
-      justify-content: center;
       gap: 10px;
       height: 100%;
     }
@@ -323,6 +322,10 @@
     .card[data-card="claude"] .brand h1 { color: #9fd2ff; }
     .card[data-card="codex"] .brand h1 { color: #84e0ea; }
     .card[data-card="projects"] .brand h1 { color: #c6e2f5; }
+
+    .card[data-card="projects"] {
+      flex: 1;
+    }
 
     .card[data-card="projects"] .brand {
       display: grid;

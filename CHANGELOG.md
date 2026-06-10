@@ -5,6 +5,11 @@
 All notable changes to usage are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.17.1] - 2026-06-10
+
+### Fixed
+- **Lepidoptera panel no longer shifts when the project list is empty**: the panel was vertically centered, so with no project data the cards floated to the middle of the popover and jumped when projects appeared. It now top-aligns like the other panels, with the project card absorbing the extra height, so the layout stays stable whether or not projects are listed.
+
 ## [0.17.0] - 2026-06-10
 
 ### Added
