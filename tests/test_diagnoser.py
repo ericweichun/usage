@@ -7,15 +7,14 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from adapters import claude
-from adapters.types import AgentInfo, UsageEntry
-from analyzer import diagnoser, reporter
+from analyzer import diagnoser
 
 
 def _write_jsonl(path: Path, records: list[dict[str, Any] | str]) -> None:
@@ -349,107 +348,3 @@ def test_repeated_bash_ignores_command_below_threshold(
     findings = [finding for finding in result.findings if finding.kind == "repeated_bash"]
     assert findings == []
 
-
-def test_reporter_injects_diagnosis_payload_contract(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    entry = UsageEntry(
-        timestamp=datetime(2026, 5, 10, 12, 0, tzinfo=UTC),
-        session_id="s1",
-        message_id="m1",
-        request_id="r1",
-        model="claude-sonnet",
-        input_tokens=1000,
-        output_tokens=0,
-        cache_creation_tokens=0,
-        cache_read_tokens=0,
-        cost_usd=0.0,
-        project="usage",
-        agent_id="claude-code",
-    )
-    agent = AgentInfo(id="claude-code", name="Claude Code", data_dir="", installed=True)
-    monkeypatch.setattr(reporter, "_load_claude_report_inputs", lambda **_kwargs: ([entry], []))
-    monkeypatch.setattr(reporter, "aggregate_sessions", lambda entries: [])
-    monkeypatch.setattr(
-        reporter,
-        "_load_persona_for_period",
-        lambda period: {"hour_histogram": [0] * 24, "recent_titles": [period]},
-    )
-    monkeypatch.setattr("analyzer.reporter.subscription.load_subscriptions", lambda: [])
-    monkeypatch.setattr(
-        diagnoser,
-        "analyze_loaded_records",
-        lambda **_kwargs: diagnoser.DiagnosisResult(
-            total_waste_usd=0.125,
-            monthly_savings_estimate_usd=0.125,
-            total_waste_tokens=250,
-            fixable_waste_tokens=100,
-            findings=[
-                diagnoser.DiagnosisFinding(
-                    severity="critical",
-                    kind="polluter_dirs",
-                    headline_plain="diag_kind_polluter_dirs",
-                    headline_detail="diag_kind_polluter_dirs_d",
-                    estimated_waste_usd=0.05,
-                    estimated_waste_tokens=100,
-                    items=[
-                        {
-                            "label": "node_modules",
-                            "n": 2,
-                            "size_bytes": 4096,
-                            "cost": 0.05,
-                            "estimated_waste_tokens": 100,
-                        }
-                    ],
-                )
-            ],
-            suggested_claudeignore="node_modules/",
-            has_data=True,
-        ),
-    )
-
-    data = reporter.build_report_data([agent], period="all")
-
-    assert data["comparison"] == {
-        "period": "all",
-        "has_prev": False,
-        "prev_tokens": 0,
-        "prev_cost": 0.0,
-        "prev_projects": [],
-        "prev_model_share": {},
-    }
-    assert data["subscriptions"] == []
-    assert data["persona"] == {
-        "hour_histogram": [0] * 24,
-        "recent_titles": ["all"],
-    }
-    assert data["diagnosis"] == {
-        "has_data": True,
-        "total_waste_usd": 0.125,
-        "monthly_savings_estimate_usd": 0.125,
-        "total_waste_tokens": 250,
-        "fixable_waste_tokens": 100,
-        "total_corpus_tokens": 1000,
-        "waste_pct": 25.0,
-        "fixable_pct": 10.0,
-        "findings": [
-            {
-                "severity": "critical",
-                "kind": "polluter_dirs",
-                "headline_plain": "diag_kind_polluter_dirs",
-                "headline_detail": "diag_kind_polluter_dirs_d",
-                "estimated_waste_usd": 0.05,
-                "estimated_waste_tokens": 100,
-                "items": [
-                    {
-                        "label": "node_modules",
-                        "n": 2,
-                        "size_bytes": 4096,
-                        "cost": 0.05,
-                        "estimated_waste_tokens": 100,
-                    }
-                ],
-            }
-        ],
-        "suggested_claudeignore": "node_modules/",
-    }

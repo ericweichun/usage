@@ -10,7 +10,6 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-import logging
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +25,6 @@ from . import diagnoser
 
 AGENT_LOADERS = {"claude-code": claude, "codex": codex}
 AGENT_NAMES = {"claude-code": "Claude Code", "codex": "Codex"}
-logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class _PeriodSpec:
     persona_days: int
@@ -122,59 +120,6 @@ def _load_recent_claude_entries(hours_back: int) -> list[UsageEntry]:
     return entries
 
 
-def _load_claude_report_inputs(
-    *,
-    hours_back: int,
-    diagnosis_date_from: date,
-    diagnosis_date_to: date,
-) -> tuple[list[UsageEntry], list[diagnoser.ToolCall]]:
-    entries: list[UsageEntry] = []
-    tool_calls: list[diagnoser.ToolCall] = []
-    seen: set[str] = set()
-    cutoff = None
-    cutoff_ts = 0.0
-    if hours_back > 0:
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
-        cutoff_ts = cutoff.timestamp()
-
-    jobs: list[tuple[Path, Path]] = []
-    for base_dir in claude.get_claude_dirs():
-        base = Path(base_dir)
-        if not base.is_dir():
-            continue
-        for jsonl_path in base.rglob("*.jsonl"):
-            if cutoff is not None:
-                try:
-                    if jsonl_path.stat().st_mtime < cutoff_ts:
-                        continue
-                except OSError:
-                    continue
-            jobs.append((jsonl_path, base))
-
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        results = executor.map(
-            lambda job: _scan_claude_report_file(
-                job[0],
-                job[1],
-                cutoff,
-                diagnosis_date_from,
-                diagnosis_date_to,
-            ),
-            jobs,
-        )
-        for parsed_entries, parsed_tool_calls in results:
-            for entry in parsed_entries:
-                if entry.dedup_key in seen:
-                    continue
-                seen.add(entry.dedup_key)
-                entries.append(entry)
-            tool_calls.extend(parsed_tool_calls)
-
-    entries.sort(key=lambda entry: entry.timestamp)
-    tool_calls.sort(key=lambda call: call.timestamp)
-    return entries, tool_calls
-
-
 def _parse_claude_file(path: Path, base: Path, cutoff: datetime) -> list[UsageEntry]:
     parsed: list[UsageEntry] = []
     local_seen: set[str] = set()
@@ -182,25 +127,6 @@ def _parse_claude_file(path: Path, base: Path, cutoff: datetime) -> list[UsageEn
     claude.parse_jsonl(path, fallback_project, parsed, local_seen, cutoff)
     return parsed
 
-
-def _scan_claude_report_file(
-    path: Path,
-    base: Path,
-    cutoff: datetime | None,
-    diagnosis_date_from: date,
-    diagnosis_date_to: date,
-) -> tuple[list[UsageEntry], list[diagnoser.ToolCall]]:
-    parsed_entries: list[UsageEntry] = []
-    local_seen: set[str] = set()
-    fallback_project = claude.extract_project_from_dir(path, base)
-    claude.parse_jsonl(path, fallback_project, parsed_entries, local_seen, cutoff)
-    tool_calls = diagnoser.parse_tool_calls(
-        path,
-        fallback_project,
-        diagnosis_date_from,
-        diagnosis_date_to,
-    )
-    return parsed_entries, tool_calls
 
 def _load_codex_entries(hours_back: int) -> list[UsageEntry]:
     return [
@@ -366,20 +292,7 @@ def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[st
         hours_back = ((date_to - prev_date_from).days + 2) * 24
 
     raw_entries: list[UsageEntry] = []
-    claude_entries: list[UsageEntry] = []
-    claude_tool_calls: list[diagnoser.ToolCall] = []
-    diagnosis_date_from = date.min if date_from is None else date_from
     for agent in agents:
-        if agent.id == "claude-code":
-            loaded_entries, loaded_tool_calls = _load_claude_report_inputs(
-                hours_back=hours_back,
-                diagnosis_date_from=diagnosis_date_from,
-                diagnosis_date_to=date_to,
-            )
-            raw_entries.extend(loaded_entries)
-            claude_entries.extend(loaded_entries)
-            claude_tool_calls.extend(loaded_tool_calls)
-            continue
         raw_entries.extend(_load_agent_entries(agent, hours_back))
 
     if date_from is None and raw_entries:
@@ -492,22 +405,6 @@ def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[st
             "cost": _round_cost(session.cost_usd),
         })
 
-    try:
-        diagnosis_result = diagnoser.analyze_loaded_records(
-            date_from=date_from,
-            date_to=date_to,
-            total_cost_usd=total_cost,
-            tool_calls=claude_tool_calls,
-            entries=claude_entries,
-        )
-        diagnosis = serialize_diagnosis(
-            diagnosis_result,
-            total_corpus_tokens=total_tokens,
-        )
-    except Exception:
-        logger.warning("failed to build diagnosis section", exc_info=True)
-        diagnosis = {"has_data": False}
-
     return {
         "period": period,
         "period_label": f"{date_from.isoformat()} -> {date_to.isoformat()}",
@@ -529,5 +426,4 @@ def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[st
         "comparison": comparison,
         "subscriptions": subscription.load_subscriptions(),
         "persona": _load_persona_for_period(period),
-        "diagnosis": diagnosis,
     }

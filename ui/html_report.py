@@ -52,19 +52,6 @@ def _fmt_duration(minutes: float) -> str:
     return f"{int(minutes)}m"
 
 
-def _humanize_bytes(num_bytes: int, lang: str) -> str:
-    """把位元組換成日常物件比喻：短影片 / 小說 / 照片。"""
-    short_video_mb = 6
-    novel_mb = 1.2
-    photo_mb = 3
-    mb = num_bytes / (1024 * 1024)
-    if mb >= short_video_mb:
-        return _t(lang, "diag_unit_videos", n=round(mb / short_video_mb))
-    if mb >= novel_mb:
-        return _t(lang, "diag_unit_novels", n=round(mb / novel_mb))
-    return _t(lang, "diag_unit_photos", n=max(1, round(mb / photo_mb)))
-
-
 def _version() -> str:
     try:
         return version("usage")
@@ -529,238 +516,6 @@ def _render_tools_section(data: dict[str, Any], lang: str) -> str:
     return _section(_t(lang, "tools_section"), tools_body, "tools-section")
 
 
-_DIAG_CARD_STAT_KEYS = {
-    "repeated_reads": "diag_card_stat_repeated_reads",
-    "polluter_dirs": "diag_card_stat_polluter_dirs",
-    "anomaly_session": "diag_card_stat_anomaly_session",
-    "noisy_bash": "diag_card_stat_noisy_bash",
-    "repeated_bash": "diag_card_stat_repeated_bash",
-}
-
-
-def _diagnosis_card_scale_stat(kind: str, items: list[dict[str, Any]], lang: str) -> str:
-    if kind in ("repeated_reads", "repeated_bash"):
-        total_repeats = sum(int(item.get("n", 0)) for item in items)
-        return _t(lang, "diag_card_total_repeats", n=total_repeats)
-    if kind == "polluter_dirs":
-        total_size = sum(int(item.get("size_bytes", 0)) for item in items)
-        return _t(lang, "diag_item_size_total", size=_humanize_bytes(total_size, lang))
-    if kind == "anomaly_session":
-        max_ratio = max((float(item.get("ratio", 0)) for item in items), default=0.0)
-        return _t(lang, "diag_card_max_ratio", n=f"{max_ratio:.1f}".rstrip("0").rstrip("."))
-    if kind == "noisy_bash":
-        total_chars = sum(int(item.get("size_bytes", 0)) for item in items)
-        # 文案以「萬字 / 0k chars」為單位（1 單位 = 10,000 字元）。
-        return _t(lang, "diag_card_chars_total", n=max(1, total_chars // 10_000))
-    return ""
-
-
-def _diagnosis_card(finding: dict[str, Any], lang: str, total_corpus_tokens: int) -> str:
-    severity = str(finding.get("severity") or "info")
-    kind = str(finding.get("kind") or "")
-    raw_items = finding.get("items")
-    items = [item for item in raw_items if isinstance(item, dict)] if isinstance(raw_items, list) else []
-    is_one_click = kind == "polluter_dirs"
-    badge_key = "diag_tier_a_badge" if is_one_click else "diag_tier_b_badge"
-    waste_tokens = int(finding.get("estimated_waste_tokens", 0))
-    pct = (waste_tokens / total_corpus_tokens * 100) if total_corpus_tokens else 0.0
-    explain = ""
-    if not is_one_click:
-        explain = f"""<div class="diag-card-explain">
-        <div><strong>{html.escape(_t(lang, "diag_why_label"))}</strong> {html.escape(_t(lang, f"diag_why_{kind}"))}</div>
-        <div><strong>{html.escape(_t(lang, "diag_try_label"))}</strong> {html.escape(_t(lang, f"diag_try_{kind}"))}</div>
-      </div>"""
-    stat_key = _DIAG_CARD_STAT_KEYS.get(kind, "diag_item_read_times")
-    return f"""<article class="diag-card diag-{html.escape(severity)}">
-      <div class="diag-card-top">
-        <strong>{html.escape(_t(lang, str(finding.get("headline_plain") or "diag_empty_state")))}</strong>
-        <span>{html.escape(_t(lang, badge_key))}</span>
-      </div>
-      <div class="diag-card-stats">
-        <span>{html.escape(_t(lang, stat_key, n=len(items)))}</span>
-        <span>{html.escape(_diagnosis_card_scale_stat(kind, items, lang))}</span>
-        <span>{html.escape(_t(lang, "diag_item_card_pct", pct=f"{pct:.1f}"))}</span>
-      </div>
-      {explain}
-    </article>"""
-
-
-def _format_session_label(item: dict[str, Any], lang: str) -> str:
-    raw = str(item.get("session_start_iso") or "")
-    project = str(item.get("project") or "unknown")
-    try:
-        parsed = datetime.fromisoformat(raw)
-        if parsed.tzinfo is not None:
-            parsed = parsed.astimezone()
-        date_label = f"{parsed.month}/{parsed.day} {parsed.hour:02d}:{parsed.minute:02d}"
-    except ValueError:
-        date_label = raw or _t(lang, "unknown")
-    if project and project != "unknown":
-        return _t(lang, "diag_item_session_label", date=date_label, project=project)
-    return _t(lang, "diag_item_session_label_no_proj", date=date_label)
-
-
-def _diagnosis_detail_row(item: dict[str, Any], kind: str, lang: str) -> str:
-    if kind in ("repeated_reads", "repeated_bash"):
-        label = f"<code>{html.escape(str(item.get('label', '')))}</code>"
-        stat_text = _t(lang, "diag_item_read_times", n=item.get("n", 0))
-        if kind == "repeated_reads" and item.get("size_bytes"):
-            size_text = _humanize_bytes(int(item.get("size_bytes", 0)), lang)
-            stat_text += f" · {_t(lang, 'diag_item_size_total', size=size_text)}"
-    elif kind == "polluter_dirs":
-        label = f"<code>{html.escape(str(item.get('label', '')))}/</code>"
-        size_text = _humanize_bytes(int(item.get("size_bytes", 0)), lang)
-        stat_text = (
-            _t(lang, "diag_item_read_times", n=item.get("n", 0))
-            + f" · {_t(lang, 'diag_item_size_total', size=size_text)}"
-        )
-    elif kind == "anomaly_session":
-        label = html.escape(_format_session_label(item, lang))
-        stat_text = _t(
-            lang,
-            "diag_item_session_excess",
-            ratio=f"{float(item.get('ratio', 0.0)):.1f}".rstrip("0").rstrip("."),
-            tokens=f"{int(item.get('tokens', 0)):,}",
-        )
-    elif kind == "noisy_bash":
-        label = f"<code>{html.escape(str(item.get('label', '')))}</code>"
-        chars = int(item.get("n", 0))
-        stat_text = _t(lang, "diag_item_bash_output", n=f"{chars:,}", lines=chars // 80)
-    else:
-        label = f"<code>{html.escape(str(item.get('label', '')))}</code>"
-        stat_text = ""
-    return f"<li>{label} · {html.escape(stat_text)}</li>"
-
-
-def _diagnosis_details(findings: list[dict[str, Any]], suggested: str, lang: str) -> str:
-    finding_blocks = []
-    for finding in findings:
-        kind = str(finding.get("kind") or "")
-        raw_items = finding.get("items")
-        items = [item for item in raw_items if isinstance(item, dict)] if isinstance(raw_items, list) else []
-        rows = "".join(_diagnosis_detail_row(item, kind, lang) for item in items)
-        finding_blocks.append(
-            '<div class="diag-detail-finding">'
-            f"<h3>{html.escape(_t(lang, str(finding.get('headline_detail') or 'diag_empty_state')))}</h3>"
-            f"<ul>{rows}</ul>"
-            "</div>"
-        )
-    suggested_block = ""
-    if suggested.strip():
-        suggested_block = (
-            f"<h3>{html.escape(_t(lang, 'diag_claudeignore_preview'))}</h3>"
-            f"<pre><code>{html.escape(suggested)}</code></pre>"
-            f"<h3>{html.escape(_t(lang, 'diag_install_steps_title'))}</h3>"
-            "<ol>"
-            + "".join(
-                f"<li>{html.escape(_t(lang, f'diag_install_step_{step}'))}</li>"
-                for step in (1, 2, 3, 4)
-            )
-            + "</ol>"
-        )
-    return (
-        f"<p>{html.escape(_t(lang, 'diag_detail_intro'))}</p>"
-        f"{''.join(finding_blocks)}{suggested_block}"
-    )
-
-
-def _diagnosis_copy_prompt(
-    diagnosis: Mapping[str, Any], findings: list[dict[str, Any]], lang: str
-) -> str:
-    """組出「貼給使用者自己的 AI」的 prompt：模板進 i18n，{report} 是純事實摘要。"""
-    waste_pct = float(diagnosis.get("waste_pct", 0.0))
-    total_waste_tokens = int(diagnosis.get("total_waste_tokens", 0))
-    lines = [f"waste: {waste_pct:.1f}% (~{total_waste_tokens:,} tokens)"]
-    for finding in findings:
-        kind = str(finding.get("kind") or "")
-        title = _t(lang, str(finding.get("headline_plain") or ""))
-        lines.append(f"\n[{kind}] {title}")
-        raw_items = finding.get("items")
-        items = [item for item in raw_items if isinstance(item, dict)] if isinstance(raw_items, list) else []
-        for item in items[:5]:
-            label = str(item.get("label", ""))
-            count = item.get("n", item.get("ratio", ""))
-            lines.append(f"- {label} (n={count})")
-    suggested = str(diagnosis.get("suggested_claudeignore") or "")
-    if suggested.strip():
-        lines.append("\nsuggested .claudeignore:\n" + suggested)
-    return _t(lang, "diag_copy_prompt", report="\n".join(lines))
-
-
-def _render_diagnosis_section(data: dict[str, Any], lang: str) -> str:
-    diagnosis = data.get("diagnosis")
-    if not isinstance(diagnosis, dict) or not diagnosis.get("has_data"):
-        return ""
-    raw_findings = diagnosis.get("findings")
-    findings = (
-        [finding for finding in raw_findings if isinstance(finding, dict)]
-        if isinstance(raw_findings, list)
-        else []
-    )
-    if not findings:
-        return _section(
-            _t(lang, "diag_section_title"),
-            _empty_line(_t(lang, "diag_empty_state")),
-            "diagnosis-section",
-        )
-
-    total_corpus_tokens = int(diagnosis.get("total_corpus_tokens", 0))
-    total_waste_tokens = int(diagnosis.get("total_waste_tokens", 0))
-    waste_pct = float(diagnosis.get("waste_pct", 0.0))
-    fixable_pct = float(diagnosis.get("fixable_pct", 0.0))
-    suggested = str(diagnosis.get("suggested_claudeignore") or "")
-    has_fixable = any(finding.get("kind") == "polluter_dirs" for finding in findings)
-
-    subtitle = _t(
-        lang,
-        "diag_subtitle_tokens",
-        tokens=f"{total_waste_tokens:,}",
-        n=max(1, round(total_waste_tokens / 100_000)),
-    )
-    fixable_class = "diag-fixable-ok" if has_fixable and fixable_pct > 0.5 else "diag-fixable-none"
-    fixable_text = (
-        _t(lang, "diag_fixable_pct", pct=f"{fixable_pct:.1f}")
-        if fixable_class == "diag-fixable-ok"
-        else _t(lang, "diag_no_fixable")
-    )
-    headline = f"""<div class="diag-headline">
-        <div class="diag-pct">{waste_pct:.1f}%</div>
-        <div class="diag-headline-text">
-          <h3>{html.escape(_t(lang, "diag_headline_pct"))}</h3>
-          <p>{html.escape(subtitle)}</p>
-          <div class="{fixable_class}">{html.escape(fixable_text)}</div>
-        </div>
-      </div>"""
-
-    cards = "".join(_diagnosis_card(finding, lang, total_corpus_tokens) for finding in findings)
-
-    download_btn = ""
-    help_hint = ""
-    if suggested.strip():
-        suggested_attr = html.escape(suggested, quote=True)
-        download_btn = (
-            f'<button class="diag-btn" type="button" data-claudeignore="{suggested_attr}">'
-            f"{html.escape(_t(lang, 'diag_download_btn'))}</button>"
-        )
-        help_hint = f'<p class="diag-help">{html.escape(_t(lang, "diag_help_hint"))}</p>'
-    copy_prompt_attr = html.escape(_diagnosis_copy_prompt(diagnosis, findings, lang), quote=True)
-    copy_btn = (
-        f'<button class="diag-btn" type="button" data-diag-copy="{copy_prompt_attr}" '
-        f'data-copied="{html.escape(_t(lang, "diag_copy_done"), quote=True)}">'
-        f"{html.escape(_t(lang, 'diag_copy_btn'))}</button>"
-    )
-
-    body = f"""{headline}
-      <div class="diag-findings">{cards}</div>
-      <div class="diag-actions">{download_btn}{copy_btn}</div>
-      <details class="diag-detail-toggle">
-        <summary>{html.escape(_t(lang, "diag_detail_toggle"))}</summary>
-        <div class="diag-detail-body">{_diagnosis_details(findings, suggested, lang)}</div>
-      </details>
-      {help_hint}"""
-    return _section(_t(lang, "diag_section_title"), body, "diagnosis-section")
-
-
 def _render_insight_note(component: dict[str, Any], lang: str) -> str:
     return (
         '<div class="insight-note">'
@@ -950,37 +705,6 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
 .tip-copy{{background:transparent;border:1px solid #30363d;color:#8b949e;padding:2px 10px;margin-left:8px;border-radius:4px;cursor:pointer;font-size:12px;font-family:inherit;transition:color 0.15s,border-color 0.15s}}
 .tip-copy:hover{{color:#e6edf3;border-color:#58a6ff}}
 .tip-copy.copied{{color:#56d364;border-color:#56d364}}
-.diag-headline{{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-bottom:16px}}
-.diag-pct{{font-size:clamp(2.2rem,6vw,3.2rem);font-weight:800;color:var(--warn);letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}}
-.diag-headline-text h3{{margin:0 0 4px;color:#f0f6fc;font-size:.95rem;font-weight:700;letter-spacing:0}}
-.diag-headline-text p{{margin:0 0 6px;color:var(--muted);font-size:.84rem}}
-.diag-fixable-ok{{color:var(--cost);font-size:.86rem}}
-.diag-fixable-none{{color:var(--muted);font-size:.86rem}}
-.diag-findings{{display:grid;gap:10px;margin-bottom:14px}}
-.diag-card{{border:1px solid #30363d;border-left:3px solid var(--faint);border-radius:7px;background:#090b0e;padding:13px 14px}}
-.diag-card.diag-critical{{border-left-color:#f85149}}
-.diag-card.diag-warning{{border-left-color:var(--warn)}}
-.diag-card.diag-info{{border-left-color:var(--token)}}
-.diag-card-top{{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}}
-.diag-card-top strong{{color:#f0f6fc}}
-.diag-card-top span{{color:var(--muted);font-size:.72rem;border:1px solid #30363d;border-radius:999px;padding:2px 9px;white-space:nowrap}}
-.diag-card-stats{{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:.82rem}}
-.diag-card-explain{{display:grid;gap:6px;color:#dce2ea;font-size:.84rem;line-height:1.55;border-top:1px dashed #30363d;padding-top:9px;margin-top:9px}}
-.diag-card-explain strong{{color:#f0f6fc;font-weight:700}}
-.diag-actions{{display:flex;gap:8px;flex-wrap:wrap;align-items:center}}
-.diag-btn{{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 13px;border:1px solid #30363d;border-radius:4px;background:#161b22;color:#f0f6fc;cursor:pointer;font:inherit;font-size:.78rem;line-height:1.2;white-space:nowrap;transition:border-color .15s,color .15s,transform .15s}}
-.diag-btn:hover{{border-color:#58a6ff;color:#58a6ff;transform:translateY(-1px)}}
-.diag-btn:focus-visible{{outline:2px solid #58a6ff;outline-offset:2px}}
-.diag-btn.copied{{color:#56d364;border-color:#56d364}}
-.diag-detail-toggle{{margin-top:12px;color:var(--muted);font-size:.84rem}}
-.diag-detail-toggle summary{{cursor:pointer;user-select:none}}
-.diag-detail-toggle summary:hover{{color:#58a6ff}}
-.diag-detail-body{{margin-top:10px;border:1px solid #30363d;border-radius:7px;background:#090b0e;padding:12px 14px;color:#dce2ea}}
-.diag-detail-body h3{{margin:12px 0 6px;color:#f0f6fc;font-size:.86rem;letter-spacing:0}}
-.diag-detail-body ul,.diag-detail-body ol{{margin:0;padding-left:20px;display:grid;gap:4px;font-size:.83rem}}
-.diag-detail-body pre{{margin:0;background:#0d0f12;border:1px solid #30363d;border-radius:5px;padding:10px 12px;overflow-x:auto}}
-.diag-detail-body code{{color:#58a6ff;font-size:.82rem;overflow-wrap:anywhere}}
-.diag-help{{margin:10px 0 0;color:var(--muted);font-size:.8rem}}
 .trend{{display:grid;gap:6px}}
 .trend-row{{display:grid;grid-template-columns:58px minmax(0,1fr) 72px 82px;gap:12px;align-items:center}}
 .trend-row .week{{color:var(--muted)}}.trend-row b{{color:var(--token);font-weight:400;white-space:nowrap;overflow:hidden}}.trend-row em{{font-style:normal;text-align:right;color:#dce2ea}}.delta{{color:var(--muted);white-space:nowrap}}.delta.up{{color:var(--cost)}}.delta.down{{color:var(--warn)}}.delta.flat{{color:var(--muted)}}.trend-summary{{color:#dce2ea;margin-top:8px}}
@@ -1146,28 +870,6 @@ document.addEventListener('click', async (e) => {{
     }}, 2000);
   }}
 }});
-
-document.addEventListener('click', (e) => {{
-  const dl = e.target.closest('[data-claudeignore]');
-  if (!dl) return;
-  const blob = new Blob([dl.dataset.claudeignore + '\\n'], {{type: 'text/plain'}});
-  downloadBlob(blob, '.claudeignore');
-}});
-
-document.addEventListener('click', async (e) => {{
-  const btn = e.target.closest('[data-diag-copy]');
-  if (!btn) return;
-  const success = await copyText(btn.dataset.diagCopy);
-  if (success) {{
-    const original = btn.textContent;
-    btn.classList.add('copied');
-    btn.textContent = '✓ ' + btn.dataset.copied;
-    setTimeout(() => {{
-      btn.classList.remove('copied');
-      btn.textContent = original;
-    }}, 2200);
-  }}
-}});
 """
 
 
@@ -1194,7 +896,6 @@ def generate_html(data: dict[str, Any], language: str | None = None) -> str:
   {_render_header(data, lang, title, generated_at)}
   {_render_share_dialog(lang)}
   {_render_cards_section(cards)}
-  {_render_diagnosis_section(data, lang)}
 {insight_surface}  {_render_tools_section(data, lang)}
   {_render_project_section(data, lang)}
   {_render_model_section(data, lang)}

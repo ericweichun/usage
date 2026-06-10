@@ -78,37 +78,6 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
 .tip-copy{background:transparent;border:1px solid #30363d;color:#8b949e;padding:2px 10px;margin-left:8px;border-radius:4px;cursor:pointer;font-size:12px;font-family:inherit;transition:color 0.15s,border-color 0.15s}
 .tip-copy:hover{color:#e6edf3;border-color:#58a6ff}
 .tip-copy.copied{color:#56d364;border-color:#56d364}
-.diag-headline{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-bottom:16px}
-.diag-pct{font-size:clamp(2.2rem,6vw,3.2rem);font-weight:800;color:var(--warn);letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
-.diag-headline-text h3{margin:0 0 4px;color:#f0f6fc;font-size:.95rem;font-weight:700;letter-spacing:0}
-.diag-headline-text p{margin:0 0 6px;color:var(--muted);font-size:.84rem}
-.diag-fixable-ok{color:var(--cost);font-size:.86rem}
-.diag-fixable-none{color:var(--muted);font-size:.86rem}
-.diag-findings{display:grid;gap:10px;margin-bottom:14px}
-.diag-card{border:1px solid #30363d;border-left:3px solid var(--faint);border-radius:7px;background:#090b0e;padding:13px 14px}
-.diag-card.diag-critical{border-left-color:#f85149}
-.diag-card.diag-warning{border-left-color:var(--warn)}
-.diag-card.diag-info{border-left-color:var(--token)}
-.diag-card-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
-.diag-card-top strong{color:#f0f6fc}
-.diag-card-top span{color:var(--muted);font-size:.72rem;border:1px solid #30363d;border-radius:999px;padding:2px 9px;white-space:nowrap}
-.diag-card-stats{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:.82rem}
-.diag-card-explain{display:grid;gap:6px;color:#dce2ea;font-size:.84rem;line-height:1.55;border-top:1px dashed #30363d;padding-top:9px;margin-top:9px}
-.diag-card-explain strong{color:#f0f6fc;font-weight:700}
-.diag-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.diag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 13px;border:1px solid #30363d;border-radius:4px;background:#161b22;color:#f0f6fc;cursor:pointer;font:inherit;font-size:.78rem;line-height:1.2;white-space:nowrap;transition:border-color .15s,color .15s,transform .15s}
-.diag-btn:hover{border-color:#58a6ff;color:#58a6ff;transform:translateY(-1px)}
-.diag-btn:focus-visible{outline:2px solid #58a6ff;outline-offset:2px}
-.diag-btn.copied{color:#56d364;border-color:#56d364}
-.diag-detail-toggle{margin-top:12px;color:var(--muted);font-size:.84rem}
-.diag-detail-toggle summary{cursor:pointer;user-select:none}
-.diag-detail-toggle summary:hover{color:#58a6ff}
-.diag-detail-body{margin-top:10px;border:1px solid #30363d;border-radius:7px;background:#090b0e;padding:12px 14px;color:#dce2ea}
-.diag-detail-body h3{margin:12px 0 6px;color:#f0f6fc;font-size:.86rem;letter-spacing:0}
-.diag-detail-body ul,.diag-detail-body ol{margin:0;padding-left:20px;display:grid;gap:4px;font-size:.83rem}
-.diag-detail-body pre{margin:0;background:#0d0f12;border:1px solid #30363d;border-radius:5px;padding:10px 12px;overflow-x:auto}
-.diag-detail-body code{color:#58a6ff;font-size:.82rem;overflow-wrap:anywhere}
-.diag-help{margin:10px 0 0;color:var(--muted);font-size:.8rem}
 .trend{display:grid;gap:6px}
 .trend-row{display:grid;grid-template-columns:58px minmax(0,1fr) 72px 82px;gap:12px;align-items:center}
 .trend-row .week{color:var(--muted)}.trend-row b{color:var(--token);font-weight:400;white-space:nowrap;overflow:hidden}.trend-row em{font-style:normal;text-align:right;color:#dce2ea}.delta{color:var(--muted);white-space:nowrap}.delta.up{color:var(--cost)}.delta.down{color:var(--warn)}.delta.flat{color:var(--muted)}.trend-summary{color:#dce2ea;margin-top:8px}
@@ -166,7 +135,6 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
     </div>
   </dialog>
   <section class="cards"><div class="card"><span>燒掉 Tokens</span><b>0</b><i>≈ 0</i></div><div class="card"><span>燒掉成本</span><b>$0.00</b><i>≈ NT$0</i></div><div class="card"><span>會話</span><b>0</b></div><div class="card"><span>訊息</span><b>0</b></div><div class="card"><span>活躍日</span><b>0/7</b></div></section>
-  
   
     <section class="section tools-section">
       <div class="prompt"><span>[usage]&gt;</span> 你的工具</div>
@@ -359,28 +327,6 @@ document.addEventListener('click', async (e) => {
       btn.classList.remove('copied');
       btn.textContent = '📋 ' + label;
     }, 2000);
-  }
-});
-
-document.addEventListener('click', (e) => {
-  const dl = e.target.closest('[data-claudeignore]');
-  if (!dl) return;
-  const blob = new Blob([dl.dataset.claudeignore + '\n'], {type: 'text/plain'});
-  downloadBlob(blob, '.claudeignore');
-});
-
-document.addEventListener('click', async (e) => {
-  const btn = e.target.closest('[data-diag-copy]');
-  if (!btn) return;
-  const success = await copyText(btn.dataset.diagCopy);
-  if (success) {
-    const original = btn.textContent;
-    btn.classList.add('copied');
-    btn.textContent = '✓ ' + btn.dataset.copied;
-    setTimeout(() => {
-      btn.classList.remove('copied');
-      btn.textContent = original;
-    }, 2200);
   }
 });
 
