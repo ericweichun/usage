@@ -28,6 +28,9 @@ class _FixedTipDate:
 
 
 class _FixedDateTime:
+    # fromisoformat 是確定性的，直接透傳真實實作（診斷區塊的 session 標籤會用到）。
+    fromisoformat = staticmethod(datetime.fromisoformat)
+
     @staticmethod
     def now(tz: tzinfo | None = None) -> datetime:
         fixed = datetime(2026, 5, 24, 10, 30, 45, tzinfo=UTC)
@@ -127,6 +130,58 @@ def _full_report_data() -> dict[str, Any]:
                 "cost": 4.56,
             },
         ],
+        "diagnosis": {
+            "has_data": True,
+            "total_waste_usd": 3.21,
+            "monthly_savings_estimate_usd": 2.5,
+            "total_waste_tokens": 250000,
+            "fixable_waste_tokens": 160000,
+            "total_corpus_tokens": 2345678,
+            "waste_pct": 10.7,
+            "fixable_pct": 6.8,
+            "findings": [
+                {
+                    "severity": "critical",
+                    "kind": "repeated_reads",
+                    "headline_plain": "diag_kind_repeated_reads",
+                    "headline_detail": "diag_kind_repeated_reads_d",
+                    "estimated_waste_usd": 1.2,
+                    "estimated_waste_tokens": 90000,
+                    "items": [
+                        {"label": "client<portal>/SESSION.md", "n": 11, "size_bytes": 2400000},
+                    ],
+                },
+                {
+                    "severity": "critical",
+                    "kind": "polluter_dirs",
+                    "headline_plain": "diag_kind_polluter_dirs",
+                    "headline_detail": "diag_kind_polluter_dirs_d",
+                    "estimated_waste_usd": 1.6,
+                    "estimated_waste_tokens": 160000,
+                    "items": [
+                        {"label": "node_modules", "n": 7, "size_bytes": 900000000},
+                    ],
+                },
+                {
+                    "severity": "warning",
+                    "kind": "anomaly_session",
+                    "headline_plain": "diag_kind_anomaly_session",
+                    "headline_detail": "diag_kind_anomaly_session_d",
+                    "estimated_waste_usd": 0.3,
+                    "estimated_waste_tokens": 30000,
+                    "items": [
+                        {
+                            "label": "abc12345",
+                            "tokens": 500000,
+                            "ratio": 5.2,
+                            "session_start_iso": "2026-05-18T14:00:00+00:00",
+                            "project": "usage",
+                        },
+                    ],
+                },
+            ],
+            "suggested_claudeignore": "node_modules/\ndist/",
+        },
     }
 
 

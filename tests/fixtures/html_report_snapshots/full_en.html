@@ -78,6 +78,37 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
 .tip-copy{background:transparent;border:1px solid #30363d;color:#8b949e;padding:2px 10px;margin-left:8px;border-radius:4px;cursor:pointer;font-size:12px;font-family:inherit;transition:color 0.15s,border-color 0.15s}
 .tip-copy:hover{color:#e6edf3;border-color:#58a6ff}
 .tip-copy.copied{color:#56d364;border-color:#56d364}
+.diag-headline{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-bottom:16px}
+.diag-pct{font-size:clamp(2.2rem,6vw,3.2rem);font-weight:800;color:var(--warn);letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.diag-headline-text h3{margin:0 0 4px;color:#f0f6fc;font-size:.95rem;font-weight:700;letter-spacing:0}
+.diag-headline-text p{margin:0 0 6px;color:var(--muted);font-size:.84rem}
+.diag-fixable-ok{color:var(--cost);font-size:.86rem}
+.diag-fixable-none{color:var(--muted);font-size:.86rem}
+.diag-findings{display:grid;gap:10px;margin-bottom:14px}
+.diag-card{border:1px solid #30363d;border-left:3px solid var(--faint);border-radius:7px;background:#090b0e;padding:13px 14px}
+.diag-card.diag-critical{border-left-color:#f85149}
+.diag-card.diag-warning{border-left-color:var(--warn)}
+.diag-card.diag-info{border-left-color:var(--token)}
+.diag-card-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.diag-card-top strong{color:#f0f6fc}
+.diag-card-top span{color:var(--muted);font-size:.72rem;border:1px solid #30363d;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.diag-card-stats{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:.82rem}
+.diag-card-explain{display:grid;gap:6px;color:#dce2ea;font-size:.84rem;line-height:1.55;border-top:1px dashed #30363d;padding-top:9px;margin-top:9px}
+.diag-card-explain strong{color:#f0f6fc;font-weight:700}
+.diag-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.diag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 13px;border:1px solid #30363d;border-radius:4px;background:#161b22;color:#f0f6fc;cursor:pointer;font:inherit;font-size:.78rem;line-height:1.2;white-space:nowrap;transition:border-color .15s,color .15s,transform .15s}
+.diag-btn:hover{border-color:#58a6ff;color:#58a6ff;transform:translateY(-1px)}
+.diag-btn:focus-visible{outline:2px solid #58a6ff;outline-offset:2px}
+.diag-btn.copied{color:#56d364;border-color:#56d364}
+.diag-detail-toggle{margin-top:12px;color:var(--muted);font-size:.84rem}
+.diag-detail-toggle summary{cursor:pointer;user-select:none}
+.diag-detail-toggle summary:hover{color:#58a6ff}
+.diag-detail-body{margin-top:10px;border:1px solid #30363d;border-radius:7px;background:#090b0e;padding:12px 14px;color:#dce2ea}
+.diag-detail-body h3{margin:12px 0 6px;color:#f0f6fc;font-size:.86rem;letter-spacing:0}
+.diag-detail-body ul,.diag-detail-body ol{margin:0;padding-left:20px;display:grid;gap:4px;font-size:.83rem}
+.diag-detail-body pre{margin:0;background:#0d0f12;border:1px solid #30363d;border-radius:5px;padding:10px 12px;overflow-x:auto}
+.diag-detail-body code{color:#58a6ff;font-size:.82rem;overflow-wrap:anywhere}
+.diag-help{margin:10px 0 0;color:var(--muted);font-size:.8rem}
 .trend{display:grid;gap:6px}
 .trend-row{display:grid;grid-template-columns:58px minmax(0,1fr) 72px 82px;gap:12px;align-items:center}
 .trend-row .week{color:var(--muted)}.trend-row b{color:var(--token);font-weight:400;white-space:nowrap;overflow:hidden}.trend-row em{font-style:normal;text-align:right;color:#dce2ea}.delta{color:var(--muted);white-space:nowrap}.delta.up{color:var(--cost)}.delta.down{color:var(--warn)}.delta.flat{color:var(--muted)}.trend-summary{color:#dce2ea;margin-top:8px}
@@ -135,6 +166,83 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
     </div>
   </dialog>
   <section class="cards"><div class="card"><span>Burned Tokens</span><b>2,345,678</b><i>≈ 2.3M</i></div><div class="card"><span>Burned Cost</span><b>$45.68</b></div><div class="card"><span>Sessions</span><b>252</b></div><div class="card"><span>Messages</span><b>314</b></div><div class="card"><span>Active Days</span><b>18/23</b></div></section>
+  
+    <section class="section diagnosis-section">
+      <div class="prompt"><span>[usage]&gt;</span> Diagnosis</div>
+      <div class="rule" aria-hidden="true">────────────────────────────────────────────────────────</div>
+      <div class="diag-headline">
+        <div class="diag-pct">10.7%</div>
+        <div class="diag-headline-text">
+          <h3>Wasted chat budget this period</h3>
+          <p>≈ 250,000 tokens · about 2 novels worth of text</p>
+          <div class="diag-fixable-ok">✅ 6.8% of this can be fixed in one click</div>
+        </div>
+      </div>
+      <div class="diag-findings"><article class="diag-card diag-critical">
+      <div class="diag-card-top">
+        <strong>🔁 Your AI got stuck in a loop</strong>
+        <span>For awareness</span>
+      </div>
+      <div class="diag-card-stats">
+        <span>1 files read repeatedly</span>
+        <span>11 repeat reads</span>
+        <span>3.8% of your budget wasted</span>
+      </div>
+      <div class="diag-card-explain">
+        <div><strong>ℹ️  Why does this happen?</strong> Claude doesn&#x27;t remember files across separate chats. The same file gets re-read every time you start a new conversation, and it adds up.</div>
+        <div><strong>💡 You can try</strong> If you start new chats often, write the key points of frequently-used files into CLAUDE.md. The AI reads CLAUDE.md automatically at the start of every chat, so it won&#x27;t need to re-read the full file.</div>
+      </div>
+    </article><article class="diag-card diag-critical">
+      <div class="diag-card-top">
+        <strong>📦 Your AI peeked at stuff it should skip</strong>
+        <span>One-click fix</span>
+      </div>
+      <div class="diag-card-stats">
+        <span>1 folders repeatedly pulled in</span>
+        <span>About like 143 short videos</span>
+        <span>6.8% of your budget wasted</span>
+      </div>
+      
+    </article><article class="diag-card diag-warning">
+      <div class="diag-card-top">
+        <strong>💥 One chat got wildly bigger than usual</strong>
+        <span>For awareness</span>
+      </div>
+      <div class="diag-card-stats">
+        <span>1 chats burned unusually hard</span>
+        <span>Peaked at 5.2x normal</span>
+        <span>1.3% of your budget wasted</span>
+      </div>
+      <div class="diag-card-explain">
+        <div><strong>ℹ️  Why does this happen?</strong> Longer chats tempt the AI to do extra things and pull in extra context. A big task crammed into a single chat tends to blow up token use.</div>
+        <div><strong>💡 You can try</strong> Try splitting big tasks across several smaller chats. Long chats accumulate unnecessary context.</div>
+      </div>
+    </article></div>
+      <div class="diag-actions"><button class="diag-btn" type="button" data-claudeignore="node_modules/
+dist/">📥 Download fix file</button><button class="diag-btn" type="button" data-diag-copy="This is a local, offline diagnosis of my recent AI usage produced by usage (raw facts only). In my language, explain where the waste comes from and why, and propose concrete fixes for my current project. For anything you can do directly (create .claudeignore, move stable context into CLAUDE.md), list what you plan to do first, then do it.
+
+waste: 10.7% (~250,000 tokens)
+
+[repeated_reads] 🔁 Your AI got stuck in a loop
+- client&lt;portal&gt;/SESSION.md (n=11)
+
+[polluter_dirs] 📦 Your AI peeked at stuff it should skip
+- node_modules (n=7)
+
+[anomaly_session] 💥 One chat got wildly bigger than usual
+- abc12345 (n=5.2)
+
+suggested .claudeignore:
+node_modules/
+dist/" data-copied="Copied — paste it to your AI">📋 Copy diagnosis for your AI</button></div>
+      <details class="diag-detail-toggle">
+        <summary>👀 Show exactly how to fix it (engineer view)</summary>
+        <div class="diag-detail-body"><p>Here are the technical details for people comfortable reading code.</p><div class="diag-detail-finding"><h3>Repeated reads of the same file (cache miss)</h3><ul><li><code>client&lt;portal&gt;/SESSION.md</code> · Read 11 times · About like 2 novels</li></ul></div><div class="diag-detail-finding"><h3>Read folders that should be added to .claudeignore</h3><ul><li><code>node_modules/</code> · Read 7 times · About like 143 short videos</li></ul></div><div class="diag-detail-finding"><h3>Session token usage is far above baseline</h3><ul><li>That chat on 5/18 14:00 (project: usage) · 5.2x above normal · about 500,000 tokens</li></ul></div><h3>Suggested .claudeignore contents:</h3><pre><code>node_modules/
+dist/</code></pre><h3>How do I install this file?</h3><ol><li>1. Click the download button above. You will get a file named .claudeignore.</li><li>2. Find the folder for the thing you are building, the one you use when chatting with AI.</li><li>3. Drag the downloaded .claudeignore file into that folder.</li><li>4. Claude Code will use it automatically the next time it starts.</li></ol></div>
+      </details>
+      <p class="diag-help">After downloading, drop that file into the folder for the thing you are building.</p>
+    </section>
+    
 
     <section class="section insights-section">
       <div class="prompt"><span>[usage]&gt;</span> Insights</div>
@@ -358,6 +466,28 @@ document.addEventListener('click', async (e) => {
       btn.classList.remove('copied');
       btn.textContent = '📋 ' + label;
     }, 2000);
+  }
+});
+
+document.addEventListener('click', (e) => {
+  const dl = e.target.closest('[data-claudeignore]');
+  if (!dl) return;
+  const blob = new Blob([dl.dataset.claudeignore + '\n'], {type: 'text/plain'});
+  downloadBlob(blob, '.claudeignore');
+});
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-diag-copy]');
+  if (!btn) return;
+  const success = await copyText(btn.dataset.diagCopy);
+  if (success) {
+    const original = btn.textContent;
+    btn.classList.add('copied');
+    btn.textContent = '✓ ' + btn.dataset.copied;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.textContent = original;
+    }, 2200);
   }
 });
 

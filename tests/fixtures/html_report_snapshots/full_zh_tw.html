@@ -78,6 +78,37 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
 .tip-copy{background:transparent;border:1px solid #30363d;color:#8b949e;padding:2px 10px;margin-left:8px;border-radius:4px;cursor:pointer;font-size:12px;font-family:inherit;transition:color 0.15s,border-color 0.15s}
 .tip-copy:hover{color:#e6edf3;border-color:#58a6ff}
 .tip-copy.copied{color:#56d364;border-color:#56d364}
+.diag-headline{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-bottom:16px}
+.diag-pct{font-size:clamp(2.2rem,6vw,3.2rem);font-weight:800;color:var(--warn);letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.diag-headline-text h3{margin:0 0 4px;color:#f0f6fc;font-size:.95rem;font-weight:700;letter-spacing:0}
+.diag-headline-text p{margin:0 0 6px;color:var(--muted);font-size:.84rem}
+.diag-fixable-ok{color:var(--cost);font-size:.86rem}
+.diag-fixable-none{color:var(--muted);font-size:.86rem}
+.diag-findings{display:grid;gap:10px;margin-bottom:14px}
+.diag-card{border:1px solid #30363d;border-left:3px solid var(--faint);border-radius:7px;background:#090b0e;padding:13px 14px}
+.diag-card.diag-critical{border-left-color:#f85149}
+.diag-card.diag-warning{border-left-color:var(--warn)}
+.diag-card.diag-info{border-left-color:var(--token)}
+.diag-card-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.diag-card-top strong{color:#f0f6fc}
+.diag-card-top span{color:var(--muted);font-size:.72rem;border:1px solid #30363d;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.diag-card-stats{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:.82rem}
+.diag-card-explain{display:grid;gap:6px;color:#dce2ea;font-size:.84rem;line-height:1.55;border-top:1px dashed #30363d;padding-top:9px;margin-top:9px}
+.diag-card-explain strong{color:#f0f6fc;font-weight:700}
+.diag-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.diag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 13px;border:1px solid #30363d;border-radius:4px;background:#161b22;color:#f0f6fc;cursor:pointer;font:inherit;font-size:.78rem;line-height:1.2;white-space:nowrap;transition:border-color .15s,color .15s,transform .15s}
+.diag-btn:hover{border-color:#58a6ff;color:#58a6ff;transform:translateY(-1px)}
+.diag-btn:focus-visible{outline:2px solid #58a6ff;outline-offset:2px}
+.diag-btn.copied{color:#56d364;border-color:#56d364}
+.diag-detail-toggle{margin-top:12px;color:var(--muted);font-size:.84rem}
+.diag-detail-toggle summary{cursor:pointer;user-select:none}
+.diag-detail-toggle summary:hover{color:#58a6ff}
+.diag-detail-body{margin-top:10px;border:1px solid #30363d;border-radius:7px;background:#090b0e;padding:12px 14px;color:#dce2ea}
+.diag-detail-body h3{margin:12px 0 6px;color:#f0f6fc;font-size:.86rem;letter-spacing:0}
+.diag-detail-body ul,.diag-detail-body ol{margin:0;padding-left:20px;display:grid;gap:4px;font-size:.83rem}
+.diag-detail-body pre{margin:0;background:#0d0f12;border:1px solid #30363d;border-radius:5px;padding:10px 12px;overflow-x:auto}
+.diag-detail-body code{color:#58a6ff;font-size:.82rem;overflow-wrap:anywhere}
+.diag-help{margin:10px 0 0;color:var(--muted);font-size:.8rem}
 .trend{display:grid;gap:6px}
 .trend-row{display:grid;grid-template-columns:58px minmax(0,1fr) 72px 82px;gap:12px;align-items:center}
 .trend-row .week{color:var(--muted)}.trend-row b{color:var(--token);font-weight:400;white-space:nowrap;overflow:hidden}.trend-row em{font-style:normal;text-align:right;color:#dce2ea}.delta{color:var(--muted);white-space:nowrap}.delta.up{color:var(--cost)}.delta.down{color:var(--warn)}.delta.flat{color:var(--muted)}.trend-summary{color:#dce2ea;margin-top:8px}
@@ -135,6 +166,83 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
     </div>
   </dialog>
   <section class="cards"><div class="card"><span>燒掉 Tokens</span><b>2,345,678</b><i>≈ 2.3M</i></div><div class="card"><span>燒掉成本</span><b>$45.68</b><i>≈ NT$1,462</i></div><div class="card"><span>會話</span><b>252</b></div><div class="card"><span>訊息</span><b>314</b></div><div class="card"><span>活躍日</span><b>18/23</b></div></section>
+  
+    <section class="section diagnosis-section">
+      <div class="prompt"><span>[usage]&gt;</span> 異常診斷</div>
+      <div class="rule" aria-hidden="true">────────────────────────────────────────────────────────</div>
+      <div class="diag-headline">
+        <div class="diag-pct">10.7%</div>
+        <div class="diag-headline-text">
+          <h3>這段期間有這麼多對話額度被浪費</h3>
+          <p>≈ 250,000 tokens · 約 2 本小說的字數</p>
+          <div class="diag-fixable-ok">✅ 其中 6.8% 可以一鍵修好</div>
+        </div>
+      </div>
+      <div class="diag-findings"><article class="diag-card diag-critical">
+      <div class="diag-card-top">
+        <strong>🔁 AI 在「鬼打牆」</strong>
+        <span>僅供觀察</span>
+      </div>
+      <div class="diag-card-stats">
+        <span>1 個檔案被反覆讀取</span>
+        <span>重複 11 次</span>
+        <span>浪費了 3.8% 額度</span>
+      </div>
+      <div class="diag-card-explain">
+        <div><strong>ℹ️  為什麼會這樣？</strong> Claude 在不同對話之間不會記憶。同一個檔案在多次新對話裡各被讀一次，累積起來就很可觀。</div>
+        <div><strong>💡 可以試試</strong> 如果你常開新對話，可以把常用檔案的重點內容寫進 CLAUDE.md——這個檔案 AI 每次新對話會自動看一眼，能避免反覆讀整個原始檔。</div>
+      </div>
+    </article><article class="diag-card diag-critical">
+      <div class="diag-card-top">
+        <strong>📦 AI 偷讀了不該讀的東西</strong>
+        <span>可一鍵修</span>
+      </div>
+      <div class="diag-card-stats">
+        <span>1 種資料夾被偷讀</span>
+        <span>累積 相當於 143 部短影片</span>
+        <span>浪費了 6.8% 額度</span>
+      </div>
+      
+    </article><article class="diag-card diag-warning">
+      <div class="diag-card-top">
+        <strong>💥 有一次特別誇張</strong>
+        <span>僅供觀察</span>
+      </div>
+      <div class="diag-card-stats">
+        <span>1 場對話異常燒錢</span>
+        <span>最高超出平常 5.2 倍</span>
+        <span>浪費了 1.3% 額度</span>
+      </div>
+      <div class="diag-card-explain">
+        <div><strong>ℹ️  為什麼會這樣？</strong> 對話越長，AI 越容易做出多餘的動作或讀進不必要的內容。一次大任務塞滿一個對話，token 容易爆衝。</div>
+        <div><strong>💡 可以試試</strong> 大任務試著拆成幾個小對話做。Claude 對話越長越累積不必要的內容。</div>
+      </div>
+    </article></div>
+      <div class="diag-actions"><button class="diag-btn" type="button" data-claudeignore="node_modules/
+dist/">📥 下載修復檔</button><button class="diag-btn" type="button" data-diag-copy="這是 usage 在我電腦本機算出的 AI 用量診斷（純事實數據，未連網）。請用我使用的語言解釋：哪裡在浪費、為什麼會這樣，並針對我目前的專案給出具體修法。可以直接動手的（例如建立 .claudeignore、把固定內容寫進 CLAUDE.md），先列出你打算做的事再執行。
+
+waste: 10.7% (~250,000 tokens)
+
+[repeated_reads] 🔁 AI 在「鬼打牆」
+- client&lt;portal&gt;/SESSION.md (n=11)
+
+[polluter_dirs] 📦 AI 偷讀了不該讀的東西
+- node_modules (n=7)
+
+[anomaly_session] 💥 有一次特別誇張
+- abc12345 (n=5.2)
+
+suggested .claudeignore:
+node_modules/
+dist/" data-copied="已複製，貼給你的 AI 即可">📋 複製診斷給你的 AI</button></div>
+      <details class="diag-detail-toggle">
+        <summary>👀 看詳細怎麼修（工程師版）</summary>
+        <div class="diag-detail-body"><p>以下是技術細節，給看得懂程式碼的人</p><div class="diag-detail-finding"><h3>重複讀取相同檔案（cache 未命中）</h3><ul><li><code>client&lt;portal&gt;/SESSION.md</code> · 被讀了 11 次 · 累積 相當於 2 本小說</li></ul></div><div class="diag-detail-finding"><h3>讀取了應加入 .claudeignore 的目錄</h3><ul><li><code>node_modules/</code> · 被讀了 7 次 · 累積 相當於 143 部短影片</li></ul></div><div class="diag-detail-finding"><h3>Session token 用量異常高出 baseline</h3><ul><li>5/18 14:00 那次對話（專案: usage） · 超出平常 5.2 倍 · 約 500,000 tokens</li></ul></div><h3>建議的 .claudeignore 內容：</h3><pre><code>node_modules/
+dist/</code></pre><h3>怎麼安裝這個檔案？</h3><ol><li>1. 點上面的下載按鈕，會得到一個叫 .claudeignore 的檔案</li><li>2. 找到你做這個東西的資料夾（你跟 AI 對話時所在的那個）</li><li>3. 把下載的 .claudeignore 拖進那個資料夾</li><li>4. 下次 Claude Code 啟動時就會自動套用</li></ol></div>
+      </details>
+      <p class="diag-help">下載完，把那個檔案拖到你做的東西的資料夾就好</p>
+    </section>
+    
 
     <section class="section insights-section">
       <div class="prompt"><span>[usage]&gt;</span> 洞察</div>
@@ -358,6 +466,28 @@ document.addEventListener('click', async (e) => {
       btn.classList.remove('copied');
       btn.textContent = '📋 ' + label;
     }, 2000);
+  }
+});
+
+document.addEventListener('click', (e) => {
+  const dl = e.target.closest('[data-claudeignore]');
+  if (!dl) return;
+  const blob = new Blob([dl.dataset.claudeignore + '\n'], {type: 'text/plain'});
+  downloadBlob(blob, '.claudeignore');
+});
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-diag-copy]');
+  if (!btn) return;
+  const success = await copyText(btn.dataset.diagCopy);
+  if (success) {
+    const original = btn.textContent;
+    btn.classList.add('copied');
+    btn.textContent = '✓ ' + btn.dataset.copied;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.textContent = original;
+    }, 2200);
   }
 });
 
