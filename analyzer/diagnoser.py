@@ -91,6 +91,27 @@ def analyze(
     total_cost_usd: float,
 ) -> DiagnosisResult:
     tool_calls, sessions = _load_records(date_from, date_to)
+    return _analyze_loaded_records(
+        date_from=date_from,
+        date_to=date_to,
+        total_cost_usd=total_cost_usd,
+        tool_calls=tool_calls,
+        entries=None,
+        sessions=sessions,
+    )
+
+
+def _analyze_loaded_records(
+    *,
+    date_from: date,
+    date_to: date,
+    total_cost_usd: float,
+    tool_calls: list[ToolCall],
+    entries: list[UsageEntry] | None = None,
+    sessions: list[_SessionUsage] | None = None,
+) -> DiagnosisResult:
+    if sessions is None:
+        sessions = _aggregate_sessions(entries or [], date_from, date_to)
     if not tool_calls and not sessions:
         return DiagnosisResult(0.0, 0.0, 0, 0, [], "", False)
 
