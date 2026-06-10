@@ -25,6 +25,13 @@ PANELS: tuple[Panel, ...] = (
     HTMLPanel("aquarium", "panel_aquarium", "aquarium.html", codex_card_height=211.0),
     HTMLPanel("prism_arcade", "panel_prism_arcade", "prism_arcade.html", codex_card_height=211.0),
     HTMLPanel("black_hole", "panel_black_hole", "black_hole.html", codex_card_height=211.0),
+    HTMLPanel(
+        "lepidoptera",
+        "panel_lepidoptera",
+        "lepidoptera.html",
+        height=862.0,
+        codex_card_height=208.0,
+    ),
     HTMLPanel("world_cup", "panel_world_cup", "world_cup.html", codex_card_height=0.0),
 )
 

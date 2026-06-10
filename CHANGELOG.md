@@ -5,6 +5,11 @@
 All notable changes to usage are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.17.0] - 2026-06-10
+
+### Added
+- **New "Lepidoptera" panel theme**: a cyanotype blueprint plate inspired by the Fable 5 launch — deep Prussian-blue ground with a cyan engineering grid, the Claude Code and Codex logos mounted in cyan registration frames, monospace engineering readouts, corner crop marks, and white technical line-art butterflies drawn as schematics (construction circles, centerlines, wingspan dimensions) that drift and beat their wings across the panel. Pick it from "Switch Panel". Honors `prefers-reduced-motion`.
+
 ## [0.16.3] - 2026-06-10
 
 ### Changed

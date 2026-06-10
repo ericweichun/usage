@@ -44,7 +44,7 @@ It lands in your Applications folder automatically → right-click **Open** once
 - **Never re-explain your progress again.** Open a new Claude Code session and usage hands your last progress straight to the AI — no `/resume`, no recap, and no dragging a bloated old conversation back just to continue. Fully local, off by default. [Learn more](https://aqua5230.github.io/usage/#resume).
 - **Warned before the wall, not at it.** A system notification when you're nearing a threshold, run out, or recover — so you wrap up on your terms instead of getting cut off mid-sentence. Fully local, off by default.
 - **Know where your tokens actually go.** HTML deep reports with token & cost trends and per-project rankings — shareable with your team.
-- **Make it yours.** 9 switchable panel themes, from a clean light card to a World Cup broadcast HUD.
+- **Make it yours.** 10 switchable panel themes, from a clean light card to a World Cup broadcast HUD.
 - **In your language, automatically.** UI in Traditional Chinese, Simplified Chinese, English, Japanese, and Korean, following your system setting.
 
 ## 🔒 Privacy & data sources
@@ -130,7 +130,7 @@ Table didn't solve it? If it's clearly a bug, open an [Issue](https://github.com
 
 ## 🎨 Panel themes
 
-The click-to-open popover ships with **9 switchable visual themes** — from a clean classic card to Matrix digital rain, a Windows 95 window, or a World Cup broadcast HUD:
+The click-to-open popover ships with **10 switchable visual themes** — from a clean classic card to Matrix digital rain, a Windows 95 window, a World Cup broadcast HUD, or a cyanotype blueprint plate:
 
 <p align="center">
   <img src="docs/matrix.en.png" width="32%" alt="Matrix theme" />
@@ -153,7 +153,7 @@ See all nine on the [landing page](https://aqua5230.github.io/usage/#screenshots
 | Codex usage | ✅ | — | ✅ |
 | HTML deep reports | ✅ | ✅ | — |
 | 5-language i18n | ✅ | — | — |
-| 9 visual panel themes | ✅ | — | — |
+| 10 visual panel themes | ✅ | — | — |
 | Progress Concierge (session resume) | ✅ | — | — |
 | Zero API calls | ✅ | ✅ | ✅ |
 | Open-source license | AGPL-3.0 | MIT | — |

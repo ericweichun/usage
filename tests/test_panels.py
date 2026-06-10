@@ -47,6 +47,7 @@ def test_registered_panel_ids_are_unique() -> None:
         "aquarium",
         "prism_arcade",
         "black_hole",
+        "lepidoptera",
         "world_cup",
     )
     assert len(ids) == len(set(ids))
@@ -64,6 +65,7 @@ def test_registered_panel_i18n_keys() -> None:
         "panel_aquarium",
         "panel_prism_arcade",
         "panel_black_hole",
+        "panel_lepidoptera",
         "panel_world_cup",
     ]
 
