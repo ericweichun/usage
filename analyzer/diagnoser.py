@@ -91,7 +91,7 @@ def analyze(
     total_cost_usd: float,
 ) -> DiagnosisResult:
     tool_calls, sessions = _load_records(date_from, date_to)
-    return _analyze_loaded_records(
+    return analyze_loaded_records(
         date_from=date_from,
         date_to=date_to,
         total_cost_usd=total_cost_usd,
@@ -101,7 +101,7 @@ def analyze(
     )
 
 
-def _analyze_loaded_records(
+def analyze_loaded_records(
     *,
     date_from: date,
     date_to: date,
@@ -162,7 +162,7 @@ def _load_records(
         for jsonl_path in base.rglob("*.jsonl"):
             fallback_project = claude.extract_project_from_dir(jsonl_path, base)
             tool_calls.extend(
-                _parse_tool_calls(jsonl_path, fallback_project, date_from, date_to)
+                parse_tool_calls(jsonl_path, fallback_project, date_from, date_to)
             )
             claude.parse_jsonl(
                 jsonl_path,
@@ -176,7 +176,7 @@ def _load_records(
     return tool_calls, sessions
 
 
-def _parse_tool_calls(
+def parse_tool_calls(
     path: Path,
     fallback_project: str,
     date_from: date,

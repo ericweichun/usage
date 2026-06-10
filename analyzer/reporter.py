@@ -194,7 +194,7 @@ def _scan_claude_report_file(
     local_seen: set[str] = set()
     fallback_project = claude.extract_project_from_dir(path, base)
     claude.parse_jsonl(path, fallback_project, parsed_entries, local_seen, cutoff)
-    tool_calls = diagnoser._parse_tool_calls(
+    tool_calls = diagnoser.parse_tool_calls(
         path,
         fallback_project,
         diagnosis_date_from,
@@ -493,7 +493,7 @@ def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[st
         })
 
     try:
-        diagnosis_result = diagnoser._analyze_loaded_records(
+        diagnosis_result = diagnoser.analyze_loaded_records(
             date_from=date_from,
             date_to=date_to,
             total_cost_usd=total_cost,

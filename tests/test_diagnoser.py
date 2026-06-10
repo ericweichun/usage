@@ -273,7 +273,7 @@ def test_reporter_injects_diagnosis_payload_contract(
     monkeypatch.setattr("analyzer.reporter.subscription.load_subscriptions", lambda: [])
     monkeypatch.setattr(
         diagnoser,
-        "_analyze_loaded_records",
+        "analyze_loaded_records",
         lambda **_kwargs: diagnoser.DiagnosisResult(
             total_waste_usd=0.125,
             monthly_savings_estimate_usd=0.125,
