@@ -33,6 +33,7 @@ def _assistant(
     name: str,
     tool_input: dict[str, str],
     tokens: int = 1000,
+    cache_read_tokens: int = 0,
     timestamp: str = "2026-05-10T12:00:00Z",
     cwd: str = "/Users/tester/project",
 ) -> dict[str, Any]:
@@ -45,7 +46,11 @@ def _assistant(
         "message": {
             "id": f"message-{tool_id}",
             "model": "claude-3-5-sonnet-20241022",
-            "usage": {"input_tokens": tokens, "output_tokens": 0},
+            "usage": {
+                "input_tokens": tokens,
+                "output_tokens": 0,
+                "cache_read_input_tokens": cache_read_tokens,
+            },
             "content": [
                 {
                     "type": "tool_use",
@@ -199,7 +204,55 @@ def test_anomaly_session_detects_session_over_five_times_project_median(
 
     anomalies = [finding for finding in result.findings if finding.kind == "anomaly_session"]
     assert anomalies
-    assert anomalies[0].items[0]["tokens"] == 60_000
+    item = anomalies[0].items[0]
+    assert item["tokens"] == 60_000
+    # Waste is only the excess over the 1000-token baseline, not the whole session.
+    assert item["estimated_waste_tokens"] == 59_000
+    assert item["cost"] == pytest.approx(59_000 / 1_000_000 * 3, abs=1e-4)
+
+
+def test_anomaly_session_prices_cache_reads_at_cache_rate(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    base = tmp_path / "projects"
+    records: list[dict[str, Any] | str] = []
+    for index in range(4):
+        records.append(
+            _assistant(
+                session_id=f"s{index}",
+                tool_id=f"bash-{index}",
+                name="Bash",
+                tool_input={"command": "true"},
+                tokens=1000,
+            )
+        )
+        records.append(_user_result(f"bash-{index}", 10))
+    records.append(
+        _assistant(
+            session_id="burst",
+            tool_id="burst-1",
+            name="Bash",
+            tool_input={"command": "true"},
+            tokens=10_000,
+            cache_read_tokens=50_000,
+        )
+    )
+    records.append(_user_result("burst-1", 10))
+    _write_jsonl(base / "repo" / "session.jsonl", records)
+    _patch_claude_dirs(monkeypatch, base)
+
+    result = diagnoser.analyze(date(2026, 5, 1), date(2026, 5, 31), 100.0)
+
+    anomalies = [finding for finding in result.findings if finding.kind == "anomaly_session"]
+    assert anomalies
+    item = anomalies[0].items[0]
+    assert item["tokens"] == 60_000
+    assert item["estimated_waste_tokens"] == 59_000
+    # 10k tokens at $3/MTok + 50k cache reads at $0.30/MTok, scaled to the
+    # 59k/60k excess share — far below the $0.177 a flat rate would claim.
+    expected = (10_000 / 1_000_000 * 3 + 50_000 / 1_000_000 * 0.3) * (59_000 / 60_000)
+    assert item["cost"] == pytest.approx(expected, abs=1e-4)
 
 
 def test_anomaly_session_has_project_and_start_time(

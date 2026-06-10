@@ -21,6 +21,10 @@ TOOLS = {"Read", "Edit", "Bash", "Grep", "Glob", "LS"}
 # Below this estimated waste a finding stays "info": cents must not outrank
 # dollar-sized findings when the session-start reminder picks what to mention.
 CRITICAL_WASTE_USD = 1.0
+# Long sessions are dominated by cache reads, which the API bills at a tenth
+# of the input rate — pricing them at $3/MTok would inflate anomaly findings
+# several-fold and cost the diagnosis its credibility.
+CACHE_READ_USD_PER_MTOK = 0.3
 POLLUTER_DIRS = (
     "node_modules",
     "dist",
@@ -86,6 +90,7 @@ class _SessionUsage:
     project: str
     total_tokens: int
     start_time: datetime
+    cache_read_tokens: int = 0
 
 
 def analyze(
@@ -301,9 +306,11 @@ def _aggregate_sessions(
                 project=entry.project,
                 total_tokens=entry.total_tokens,
                 start_time=entry.timestamp,
+                cache_read_tokens=entry.cache_read_tokens,
             )
             continue
         current.total_tokens += entry.total_tokens
+        current.cache_read_tokens += entry.cache_read_tokens
         if entry.timestamp < current.start_time:
             current.start_time = entry.timestamp
 
@@ -469,13 +476,17 @@ def _find_anomaly_sessions(sessions: list[_SessionUsage]) -> DiagnosisFinding | 
     estimated_waste_usd = 0.0
     estimated_waste_tokens = 0
     for ratio, session, baseline in candidates[:3]:
-        cost = round(_tokens_to_usd(session.total_tokens), 4)
+        # Only the excess over the project baseline is waste: the baseline-sized
+        # part of an anomalous session is the work the user came to do.
+        excess_tokens = int(session.total_tokens - baseline)
+        excess_share = excess_tokens / session.total_tokens
+        cost = round(_session_cost_usd(session) * excess_share, 4)
         items.append(
             {
                 "label": session.session_id[:8] or "unknown",
                 "cost": cost,
                 "tokens": session.total_tokens,
-                "estimated_waste_tokens": session.total_tokens,
+                "estimated_waste_tokens": excess_tokens,
                 "baseline_tokens": int(baseline),
                 "ratio": round(ratio, 1),
                 "session_start_iso": (
@@ -487,7 +498,7 @@ def _find_anomaly_sessions(sessions: list[_SessionUsage]) -> DiagnosisFinding | 
             }
         )
         estimated_waste_usd += cost
-        estimated_waste_tokens += session.total_tokens
+        estimated_waste_tokens += excess_tokens
     if not items:
         return None
 
@@ -580,3 +591,10 @@ def _find_repeated_bash(tool_calls: list[ToolCall]) -> DiagnosisFinding | None:
 
 def _tokens_to_usd(tokens: int) -> float:
     return tokens / 1_000_000 * 3
+
+
+def _session_cost_usd(session: _SessionUsage) -> float:
+    other_tokens = session.total_tokens - session.cache_read_tokens
+    return _tokens_to_usd(other_tokens) + (
+        session.cache_read_tokens / 1_000_000 * CACHE_READ_USD_PER_MTOK
+    )
