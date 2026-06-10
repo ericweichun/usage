@@ -42,6 +42,7 @@ It lands in your Applications folder automatically → right-click **Open** once
 
 - **See it without looking for it.** Your quota lives in the menu bar, color-coded — green to red — so the warning level reads in a glance, no click required. Click only when you want the full breakdown.
 - **Never re-explain your progress again.** Open a new Claude Code session and usage hands your last progress straight to the AI — no `/resume`, no recap, and no dragging a bloated old conversation back just to continue. Fully local, off by default. [Learn more](https://aqua5230.github.io/usage/#resume).
+- **Find out where your tokens leak — without asking.** A daily background health check scans your local session logs for avoidable waste — the same files read over and over, bloated sessions, oversized command output. When it finds something worth fixing, the new-conversation handoff above gains a one-line heads-up; say "show me" and the AI walks you through the findings and how to fix them. Ships with the Progress Concierge, fully local.
 - **Warned before the wall, not at it.** A system notification when you're nearing a threshold, run out, or recover — so you wrap up on your terms instead of getting cut off mid-sentence. Fully local, off by default.
 - **Know where your tokens actually go.** HTML deep reports with token & cost trends and per-project rankings — shareable with your team.
 - **Make it yours.** 10 switchable panel themes, from a clean light card to a World Cup broadcast HUD.
@@ -141,7 +142,7 @@ The click-to-open popover ships with **10 switchable visual themes** — from a 
   <img src="docs/black_hole.en.png" width="32%" alt="Black Hole theme" />
 </p>
 
-See all nine on the [landing page](https://aqua5230.github.io/usage/#screenshots).
+See more on the [landing page](https://aqua5230.github.io/usage/#screenshots).
 
 ## Comparison
 
@@ -155,6 +156,7 @@ See all nine on the [landing page](https://aqua5230.github.io/usage/#screenshots
 | 5-language i18n | ✅ | — | — |
 | 10 visual panel themes | ✅ | — | — |
 | Progress Concierge (session resume) | ✅ | — | — |
+| Token-waste health check | ✅ | — | — |
 | Zero API calls | ✅ | ✅ | ✅ |
 | Open-source license | AGPL-3.0 | MIT | — |
 
