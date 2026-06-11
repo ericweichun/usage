@@ -9,22 +9,15 @@ from __future__ import annotations
 import os
 import time
 from collections.abc import Iterator
-from datetime import UTC, date, datetime, tzinfo
+from datetime import UTC, datetime, tzinfo
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-import tips_loader
 from ui import html_report
 
 SNAPSHOT_DIR = Path(__file__).resolve().parent / "fixtures" / "html_report_snapshots"
-
-
-class _FixedTipDate:
-    @staticmethod
-    def today() -> date:
-        return date(2026, 5, 24)
 
 
 class _FixedDateTime:
@@ -38,7 +31,6 @@ class _FixedDateTime:
 def _pin_nondeterministic_report_values(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[None]:
-    monkeypatch.setattr(tips_loader, "date", _FixedTipDate)
     monkeypatch.setattr(html_report, "datetime", _FixedDateTime)
     monkeypatch.setattr(html_report, "_version", lambda: "0.15.8")
     # generate_html renders the local timezone abbreviation via %Z, which varies

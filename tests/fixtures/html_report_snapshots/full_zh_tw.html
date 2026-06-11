@@ -73,11 +73,6 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
 .sponsor-link a:hover{opacity:1;color:var(--token)}
 @keyframes blink{0%,45%{opacity:1}46%,100%{opacity:0}}
 @keyframes sponsorWobble{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(-1px,-2px) rotate(-.8deg)}50%{transform:translate(0,-2.5px) rotate(0)}75%{transform:translate(1px,-2px) rotate(.8deg)}}
-.tip-cmd{background:rgba(56,139,253,0.15);color:#58a6ff;padding:2px 10px;border-radius:4px;font-family:ui-monospace,'SF Mono',monospace;font-size:0.95em}
-.tip-cmd-inline{background:rgba(56,139,253,0.10);color:#58a6ff;padding:1px 5px;border-radius:3px;font-size:0.92em}
-.tip-copy{background:transparent;border:1px solid #30363d;color:#8b949e;padding:2px 10px;margin-left:8px;border-radius:4px;cursor:pointer;font-size:12px;font-family:inherit;transition:color 0.15s,border-color 0.15s}
-.tip-copy:hover{color:#e6edf3;border-color:#58a6ff}
-.tip-copy.copied{color:#56d364;border-color:#56d364}
 .trend{display:grid;gap:6px}
 .trend-row{display:grid;grid-template-columns:58px minmax(0,1fr) 72px 82px;gap:12px;align-items:center}
 .trend-row .week{color:var(--muted)}.trend-row b{color:var(--token);font-weight:400;white-space:nowrap;overflow:hidden}.trend-row em{font-style:normal;text-align:right;color:#dce2ea}.delta{color:var(--muted);white-space:nowrap}.delta.up{color:var(--cost)}.delta.down{color:var(--warn)}.delta.flat{color:var(--muted)}.trend-summary{color:#dce2ea;margin-top:8px}
@@ -208,13 +203,6 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
         
     </section>
     
-  
-    <section class="section">
-      <div class="prompt"><span>[usage]&gt;</span> 💡 本期 Claude 進階指令</div>
-      <div class="rule" aria-hidden="true">────────────────────────────────────────────────────────</div>
-      <div class="prompt"><code class="tip-cmd">/compact</code><button class="tip-copy" type="button" data-cmd="/compact" data-label="複製" data-copied="已複製">📋 複製</button> ← 壓縮對話節省 token</div><div class="rank-list"><p><strong>這個指令做什麼？</strong></p><p>把你目前跟 Claude 的對話『壓縮』成一份摘要。重要的決定、討論結論、寫過的 code 重點都會保留；中間 debug 走過的歪路、改了又改的提示則被刪掉。</p></div><div class="rank-list"><p><strong>什麼時候用？</strong></p><p>對話超過 100 輪、或你發現 Claude 回應變慢、開始忘事的時候。Claude Code 視窗左下角會顯示 context 剩餘比例，剩 20% 以下就建議壓一次。</p></div><div class="rank-list"><p><strong>怎麼用？</strong></p><p>在 Claude Code 對話框直接打 <code class="tip-cmd-inline">/compact</code> 按 Enter。Claude 會花幾秒讀完所有對話、產出一份摘要，然後用摘要取代原對話——你下一句話送過去時，Claude 看到的只剩摘要 + 你的新問題。</p></div><div class="rank-list"><p><strong>保留 / 丟掉</strong></p><p><strong>保留</strong>：你正在做什麼專案、架構決定、上次修過哪些 bug 的結論。<strong>丟掉</strong>：中間試錯的對話、重複的指令、debug 過程的細節。</p></div><div class="rank-list"><p><strong>實際情境</strong></p><p>你跟 Claude 討論架構 3 小時、寫了 500 行 code、解了 5 個 bug。對話累積到 80 輪、context 剩 25%。這時打 <code class="tip-cmd-inline">/compact</code>——下次問『我們之前討論的 X 函式怎麼寫的？』Claude 仍答得出來，但那 5 個 debug 過程不會再吃 context。</p></div>
-    </section>
-    
   <p class="sponsor">
     <a href="https://ko-fi.com/lollapalooza" target="_blank" rel="noopener" aria-label="Buy me a coffee on Ko-fi"><img src="https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&amp;logoColor=white" alt="Ko-fi"></a>
     <span class="tagline">No cloud. No tracking. Just yours.</span>
@@ -341,23 +329,6 @@ document.addEventListener('click', async (e) => {
     const path = window.location.protocol === 'file:' ? decodeURIComponent(window.location.href) : decodeURIComponent(window.location.pathname);
     const copied = await copyText(path);
     if (copied) showShareToast(shareConfig.pathCopied);
-  }
-});
-
-document.addEventListener('click', async (e) => {
-  const btn = e.target.closest('.tip-copy');
-  if (!btn) return;
-  const cmd = btn.dataset.cmd;
-  const ok = btn.dataset.copied;
-  const label = btn.dataset.label;
-  const success = await copyText(cmd);
-  if (success) {
-    btn.classList.add('copied');
-    btn.textContent = '✓ ' + ok;
-    setTimeout(() => {
-      btn.classList.remove('copied');
-      btn.textContent = '📋 ' + label;
-    }, 2000);
   }
 });
 

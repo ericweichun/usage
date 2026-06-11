@@ -73,11 +73,6 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
 .sponsor-link a:hover{opacity:1;color:var(--token)}
 @keyframes blink{0%,45%{opacity:1}46%,100%{opacity:0}}
 @keyframes sponsorWobble{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(-1px,-2px) rotate(-.8deg)}50%{transform:translate(0,-2.5px) rotate(0)}75%{transform:translate(1px,-2px) rotate(.8deg)}}
-.tip-cmd{background:rgba(56,139,253,0.15);color:#58a6ff;padding:2px 10px;border-radius:4px;font-family:ui-monospace,'SF Mono',monospace;font-size:0.95em}
-.tip-cmd-inline{background:rgba(56,139,253,0.10);color:#58a6ff;padding:1px 5px;border-radius:3px;font-size:0.92em}
-.tip-copy{background:transparent;border:1px solid #30363d;color:#8b949e;padding:2px 10px;margin-left:8px;border-radius:4px;cursor:pointer;font-size:12px;font-family:inherit;transition:color 0.15s,border-color 0.15s}
-.tip-copy:hover{color:#e6edf3;border-color:#58a6ff}
-.tip-copy.copied{color:#56d364;border-color:#56d364}
 .trend{display:grid;gap:6px}
 .trend-row{display:grid;grid-template-columns:58px minmax(0,1fr) 72px 82px;gap:12px;align-items:center}
 .trend-row .week{color:var(--muted)}.trend-row b{color:var(--token);font-weight:400;white-space:nowrap;overflow:hidden}.trend-row em{font-style:normal;text-align:right;color:#dce2ea}.delta{color:var(--muted);white-space:nowrap}.delta.up{color:var(--cost)}.delta.down{color:var(--warn)}.delta.flat{color:var(--muted)}.trend-summary{color:#dce2ea;margin-top:8px}
@@ -208,13 +203,6 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
         
     </section>
     
-  
-    <section class="section">
-      <div class="prompt"><span>[usage]&gt;</span> 💡 This issue&#x27;s Claude tip</div>
-      <div class="rule" aria-hidden="true">────────────────────────────────────────────────────────</div>
-      <div class="prompt"><code class="tip-cmd">/compact</code><button class="tip-copy" type="button" data-cmd="/compact" data-label="Copy" data-copied="Copied">📋 Copy</button> ← Compress the chat to save tokens</div><div class="rank-list"><p><strong>What does this command do?</strong></p><p>This turns your current conversation with Claude into a shorter summary. The important decisions, final conclusions, and key code you wrote stay in place; the messy debugging detours and prompts you kept rewriting get dropped.</p></div><div class="rank-list"><p><strong>When should I use it?</strong></p><p>Use it when your chat goes past 100 turns, or when Claude starts replying more slowly and forgetting earlier details. In Claude Code, the lower-left corner shows how much context is left. If it drops under 20%, it is a good time to compact.</p></div><div class="rank-list"><p><strong>How do I use it?</strong></p><p>Type <code class="tip-cmd-inline">/compact</code> directly in the Claude Code chat box and press Enter. Claude will spend a few seconds reading the whole conversation, create a summary, and replace the original chat with that summary. When you send your next message, Claude only sees the summary plus your new question.</p></div><div class="rank-list"><p><strong>Keep / Drop</strong></p><p><strong>Keep</strong>: what project you are working on, architecture decisions, and the conclusions from bugs you already fixed. <strong>Drop</strong>: trial-and-error chat, repeated commands, and the detailed step-by-step debugging process.</p></div><div class="rank-list"><p><strong>Real example</strong></p><p>You spent 3 hours discussing architecture with Claude, wrote 500 lines of code, and fixed 5 bugs. The conversation is now 80 turns long, and your remaining context is down to 25%. You run <code class="tip-cmd-inline">/compact</code>. Later, if you ask, “How did we say that X function should work?”, Claude can still answer, but those 5 debugging detours no longer take up context.</p></div>
-    </section>
-    
   <p class="sponsor">
     <a href="https://ko-fi.com/lollapalooza" target="_blank" rel="noopener" aria-label="Buy me a coffee on Ko-fi"><img src="https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&amp;logoColor=white" alt="Ko-fi"></a>
     <span class="tagline">No cloud. No tracking. Just yours.</span>
@@ -341,23 +329,6 @@ document.addEventListener('click', async (e) => {
     const path = window.location.protocol === 'file:' ? decodeURIComponent(window.location.href) : decodeURIComponent(window.location.pathname);
     const copied = await copyText(path);
     if (copied) showShareToast(shareConfig.pathCopied);
-  }
-});
-
-document.addEventListener('click', async (e) => {
-  const btn = e.target.closest('.tip-copy');
-  if (!btn) return;
-  const cmd = btn.dataset.cmd;
-  const ok = btn.dataset.copied;
-  const label = btn.dataset.label;
-  const success = await copyText(cmd);
-  if (success) {
-    btn.classList.add('copied');
-    btn.textContent = '✓ ' + ok;
-    setTimeout(() => {
-      btn.classList.remove('copied');
-      btn.textContent = '📋 ' + label;
-    }, 2000);
   }
 });
 

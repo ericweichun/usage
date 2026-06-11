@@ -59,7 +59,6 @@ if __name__ == "__main__":
             "assets/panels",
             "i18n.json",
             "pyproject.toml",
-            "tips/commands.json",
             "usage_statusline.py",
             "usage_statusline_forwarder.py",
             "usage_session_resume.py",

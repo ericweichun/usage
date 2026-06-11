@@ -38,7 +38,6 @@ py-modules = [
     "usage_cli",
     "burn_rate",
     "update_checker",
-    "tips_loader",
     "usage_lang",
     "usage_statusline_forwarder",
     "usage_session_resume",

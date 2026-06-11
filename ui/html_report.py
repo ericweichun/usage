@@ -10,7 +10,6 @@ import html
 import json
 import math
 import os
-import re
 import subprocess
 import sys
 import webbrowser
@@ -20,7 +19,6 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from i18n import _t as _i18n_t
-from tips_loader import Tip, load_tip
 from usage_lang import detect_lang
 
 
@@ -66,39 +64,6 @@ def _detect_lang(env: Mapping[str, str] | None = None) -> str:
 
 def _escape(value: object) -> str:
     return html.escape(str(value))
-
-
-def _highlight_commands(escaped_text: str) -> str:
-    """Wrap slash commands, CLI flags, and standalone @ in inline code tags.
-
-    Must be called **after** html.escape() so we don't double-escape.
-    Uses an alternation that matches HTML tags first (group 1) to skip them.
-    """
-    _CMD_RE = re.compile(
-        r"(<[^>]+>)"  # group 1: HTML tag — preserve as-is
-        r"|"
-        r"(\/[a-z][a-z0-9-]*"  # group 2: slash command
-        r"|claude\s+--?[a-z-]+"  # CLI flag
-        r"|(?<!\w)@(?!\w))",  # standalone @
-    )
-
-    def _repl(m: re.Match[str]) -> str:
-        if m.group(1):
-            return m.group(1)
-        return f'<code class="tip-cmd-inline">{m.group(2)}</code>'
-
-    return _CMD_RE.sub(_repl, escaped_text)
-
-
-def _format_tip_text(value: str) -> str:
-    parts = re.split(r"(\*\*.*?\*\*)", value)
-    formatted: list[str] = []
-    for part in parts:
-        if part.startswith("**") and part.endswith("**") and len(part) >= 4:
-            formatted.append(f"<strong>{html.escape(part[2:-2])}</strong>")
-        else:
-            formatted.append(html.escape(part))
-    return _highlight_commands("".join(formatted))
 
 
 def _display_name(value: object, lang: str) -> str:
@@ -369,30 +334,6 @@ def _tools_body(subs: list[dict[str, Any]], agents: list[dict[str, Any]], lang: 
     return f'<div class="tools">{head}{"".join(rows)}</div>'
 
 
-def _tip_section(tip: Tip, lang: str) -> str:
-    escaped_command = html.escape(tip.command)
-    escaped_title = html.escape(tip.title)
-    heading_html = (
-        f'<code class="tip-cmd">{escaped_command}</code>'
-        f'<button class="tip-copy" type="button"'
-        f' data-cmd="{escaped_command}"'
-        f' data-label="{html.escape(_t(lang, "tip_copy_btn"))}"'
-        f' data-copied="{html.escape(_t(lang, "tip_copied"))}"'
-        f'>📋 {html.escape(_t(lang, "tip_copy_btn"))}</button>'
-        f' ← {escaped_title}'
-    )
-    body = "".join(
-        (
-            f'<div class="rank-list"><p><strong>{_escape(_t(lang, "tip_what"))}</strong></p><p>{_format_tip_text(tip.what)}</p></div>',
-            f'<div class="rank-list"><p><strong>{_escape(_t(lang, "tip_when"))}</strong></p><p>{_format_tip_text(tip.when)}</p></div>',
-            f'<div class="rank-list"><p><strong>{_escape(_t(lang, "tip_how"))}</strong></p><p>{_format_tip_text(tip.how)}</p></div>',
-            f'<div class="rank-list"><p><strong>{_escape(_t(lang, "tip_note"))}</strong></p><p>{_format_tip_text(tip.note)}</p></div>',
-            f'<div class="rank-list"><p><strong>{_escape(_t(lang, "tip_scenario"))}</strong></p><p>{_format_tip_text(tip.scenario)}</p></div>',
-        )
-    )
-    return _section(_t(lang, "tip_section_title"), f'<div class="prompt">{heading_html}</div>{body}')
-
-
 def _narrative(data: dict[str, Any], lang: str) -> str:
     summary = data["summary"]
     daily = data.get("daily_trend", [])
@@ -609,10 +550,6 @@ def _render_session_section(data: dict[str, Any], lang: str) -> str:
     return _section(_t(lang, "session_section"), session_body, "session-section")
 
 
-def _render_tip_section(tip: Tip | None, lang: str) -> str:
-    return _tip_section(tip, lang) if tip else ""
-
-
 def _share_config_json(lang: str) -> str:
     share_config = {
         "copied": _t(lang, "share_copied"),
@@ -700,11 +637,6 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
 .sponsor-link a:hover{{opacity:1;color:var(--token)}}
 @keyframes blink{{0%,45%{{opacity:1}}46%,100%{{opacity:0}}}}
 @keyframes sponsorWobble{{0%,100%{{transform:translate(0,0) rotate(0)}}25%{{transform:translate(-1px,-2px) rotate(-.8deg)}}50%{{transform:translate(0,-2.5px) rotate(0)}}75%{{transform:translate(1px,-2px) rotate(.8deg)}}}}
-.tip-cmd{{background:rgba(56,139,253,0.15);color:#58a6ff;padding:2px 10px;border-radius:4px;font-family:ui-monospace,'SF Mono',monospace;font-size:0.95em}}
-.tip-cmd-inline{{background:rgba(56,139,253,0.10);color:#58a6ff;padding:1px 5px;border-radius:3px;font-size:0.92em}}
-.tip-copy{{background:transparent;border:1px solid #30363d;color:#8b949e;padding:2px 10px;margin-left:8px;border-radius:4px;cursor:pointer;font-size:12px;font-family:inherit;transition:color 0.15s,border-color 0.15s}}
-.tip-copy:hover{{color:#e6edf3;border-color:#58a6ff}}
-.tip-copy.copied{{color:#56d364;border-color:#56d364}}
 .trend{{display:grid;gap:6px}}
 .trend-row{{display:grid;grid-template-columns:58px minmax(0,1fr) 72px 82px;gap:12px;align-items:center}}
 .trend-row .week{{color:var(--muted)}}.trend-row b{{color:var(--token);font-weight:400;white-space:nowrap;overflow:hidden}}.trend-row em{{font-style:normal;text-align:right;color:#dce2ea}}.delta{{color:var(--muted);white-space:nowrap}}.delta.up{{color:var(--cost)}}.delta.down{{color:var(--warn)}}.delta.flat{{color:var(--muted)}}.trend-summary{{color:#dce2ea;margin-top:8px}}
@@ -853,29 +785,11 @@ document.addEventListener('click', async (e) => {{
     if (copied) showShareToast(shareConfig.pathCopied);
   }}
 }});
-
-document.addEventListener('click', async (e) => {{
-  const btn = e.target.closest('.tip-copy');
-  if (!btn) return;
-  const cmd = btn.dataset.cmd;
-  const ok = btn.dataset.copied;
-  const label = btn.dataset.label;
-  const success = await copyText(cmd);
-  if (success) {{
-    btn.classList.add('copied');
-    btn.textContent = '✓ ' + ok;
-    setTimeout(() => {{
-      btn.classList.remove('copied');
-      btn.textContent = '📋 ' + label;
-    }}, 2000);
-  }}
-}});
 """
 
 
 def generate_html(data: dict[str, Any], language: str | None = None) -> str:
     lang = language or _detect_lang()
-    tip = load_tip(lang)
     generated_at = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
     cards = _summary_cards(data["summary"], lang)
     share_config_json = _share_config_json(lang)
@@ -902,7 +816,6 @@ def generate_html(data: dict[str, Any], language: str | None = None) -> str:
   {_render_trend_section(data, lang)}
   {_render_persona_section(data, lang)}
   {_render_session_section(data, lang)}
-  {_render_tip_section(tip, lang)}
   {_render_sponsor_section(lang)}
 </main>
 <script>

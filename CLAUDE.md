@@ -70,7 +70,6 @@ Claude Code ──stdin──> usage_statusline.py (hook) ──write──> ~/.
 | `burn_rate.py` | Burn-rate prediction core used by `menubar.py`. |
 | `menubar.py` | PyObjC menu bar + popover UI. `# mypy: disable-error-code="import-untyped,misc"` is intentional (PyObjC has no stubs). UI layout constants near the top of the file are part of the visual design — don't tweak casually. |
 | `tui.py`, `tui_sprite.py` | `rich`-based terminal renderer. |
-| `tips_loader.py` | Loads tips for the TUI. |
 | `usage_lang.py` | Detects `USAGE_LANG` / system locale. |
 | `setup_hook.py` | Idempotent install/uninstall of the Claude Code statusLine hook, including migration of v0.1.x `usag-*` artifacts. Backs up any pre-existing `statusLine` under `settings["usage"]["previousStatusLine"]`. |
 | `usage_statusline.py` | The hook itself. **Stdlib-only** so it can run under macOS's bundled `/usr/bin/python3` (3.9) — that's why `tool.ruff.lint.per-file-ignores` excludes `UP017` (`datetime.UTC`) for this one file; use `timezone.utc` here. |
