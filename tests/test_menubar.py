@@ -365,27 +365,41 @@ def test_switch_panel_menu_contains_update_items(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(menubar, "NSMenuItem", _FakeMenuItem)
     monkeypatch.setattr("menubar.panels.all_panels", lambda: panels)
     monkeypatch.setattr("menubar.login_item.is_enabled", lambda: False)
-    monkeypatch.setattr(menubar, "_load_preferences", lambda: {"auto_update_check": True})
+    monkeypatch.setattr(menubar, "_load_preferences", lambda: {"hide_codex_section": True})
 
     _FakeMenu.instances = []
     menubar.AppDelegate.switchPanel_(delegate, object())
 
-    # Two menus are built: the main popup and the panel-themes submenu.
-    main_menu, panel_submenu = _FakeMenu.instances[0], _FakeMenu.instances[1]
+    # Three menus are built: the main popup, the panel-themes submenu, and the
+    # provider-visibility submenu.
+    main_menu, panel_submenu, hide_submenu = (
+        _FakeMenu.instances[0],
+        _FakeMenu.instances[1],
+        _FakeMenu.instances[2],
+    )
     main_titles = [item.title for item in main_menu.items]
 
-    # Settings still live on the main menu.
-    assert "Automatically Check for Updates" in main_titles
-    auto_item = next(
-        item for item in main_menu.items if item.title == "Automatically Check for Updates"
-    )
-    assert auto_item.state == 1
+    # The auto-update row is gone — update checks just stay on by default.
+    assert "Automatically Check for Updates" not in main_titles
+    assert "Usage Alert Notifications" in main_titles
 
     # Panel themes are collapsed into a submenu, not listed inline on the main menu.
     assert "Default" not in main_titles
     assert [item.title for item in panel_submenu.items] == ["Default", "Matrix"]
     parent = next(item for item in main_menu.items if item.submenu is panel_submenu)
     assert parent.submenu is panel_submenu
+
+    # Provider hide toggles are collapsed into one "Hide Sections" submenu, with
+    # the checkmark reflecting the stored preference.
+    assert "Hide Sections" in main_titles
+    assert [item.title for item in hide_submenu.items] == ["Claude Code", "Codex"]
+    hide_parent = next(item for item in main_menu.items if item.submenu is hide_submenu)
+    assert hide_parent.title == "Hide Sections"
+    claude_item, codex_item = hide_submenu.items
+    assert claude_item.action == "toggleHideClaude:"
+    assert claude_item.state == 0
+    assert codex_item.action == "toggleHideCodex:"
+    assert codex_item.state == 1
 
     # Resume Last Session is a single tooltip-backed toggle (no group header, no indent).
     butler = next(item for item in main_menu.items if item.action == "toggleSessionResume:")

@@ -616,31 +616,6 @@ class AppDelegate(NSObject):
         launch_item.setState_(1 if login_item.is_enabled() else 0)
         menu.addItem_(launch_item)
         menu.addItem_(NSMenuItem.separatorItem())
-        auto_update_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            _t(self.language, "auto_update_check"),
-            "toggleAutoUpdateCheck:",
-            "",
-        )
-        auto_update_item.setTarget_(self)
-        auto_update_item.setState_(1 if _auto_update_check_enabled() else 0)
-        menu.addItem_(auto_update_item)
-        menu.addItem_(NSMenuItem.separatorItem())
-        hide_claude_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            _t(self.language, "hide_claude_section"),
-            "toggleHideClaude:",
-            "",
-        )
-        hide_claude_item.setTarget_(self)
-        hide_claude_item.setState_(1 if _hide_claude_enabled() else 0)
-        menu.addItem_(hide_claude_item)
-        hide_codex_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            _t(self.language, "hide_codex_section"),
-            "toggleHideCodex:",
-            "",
-        )
-        hide_codex_item.setTarget_(self)
-        hide_codex_item.setState_(1 if _hide_codex_enabled() else 0)
-        menu.addItem_(hide_codex_item)
         quota_notifications_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
             _t(self.language, "quota_notifications_menu"),
             "toggleQuotaNotifications:",
@@ -649,6 +624,30 @@ class AppDelegate(NSObject):
         quota_notifications_item.setTarget_(self)
         quota_notifications_item.setState_(1 if _quota_notifications_enabled() else 0)
         menu.addItem_(quota_notifications_item)
+        # Provider visibility lives in one "Hide Sections ▸" submenu row so the
+        # menu stays short as providers grow.
+        hide_submenu = NSMenu.alloc().initWithTitle_(_t(self.language, "hide_sections_menu"))
+        hide_claude_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            _t(self.language, "claude_name"),
+            "toggleHideClaude:",
+            "",
+        )
+        hide_claude_item.setTarget_(self)
+        hide_claude_item.setState_(1 if _hide_claude_enabled() else 0)
+        hide_submenu.addItem_(hide_claude_item)
+        hide_codex_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            _t(self.language, "codex_name"),
+            "toggleHideCodex:",
+            "",
+        )
+        hide_codex_item.setTarget_(self)
+        hide_codex_item.setState_(1 if _hide_codex_enabled() else 0)
+        hide_submenu.addItem_(hide_codex_item)
+        hide_parent = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            _t(self.language, "hide_sections_menu"), "", ""
+        )
+        hide_parent.setSubmenu_(hide_submenu)
+        menu.addItem_(hide_parent)
         # Project Butler: one toggle that hands last session's progress to the next
         # one. Tooltip carries the full explanation so the menu line stays short.
         menu.addItem_(NSMenuItem.separatorItem())
@@ -683,22 +682,6 @@ class AppDelegate(NSObject):
         except Exception:
             if os.environ.get("USAGE_DEBUG") == "1":
                 logger.warning("toggle launch at login failed", exc_info=True)
-
-    def toggleAutoUpdateCheck_(self, sender: Any) -> None:
-        self._mark_switch_menu_action()
-        prefs = _load_preferences()
-        enabled = not _auto_update_check_enabled(prefs)
-        prefs["auto_update_check"] = enabled
-        _save_preferences(prefs)
-        if hasattr(sender, "setState_"):
-            sender.setState_(1 if enabled else 0)
-        if enabled:
-            thread = threading.Thread(
-                target=self._check_update_in_background,
-                kwargs={"manual": True, "ignore_cooldown": True, "ignore_skipped": True},
-                daemon=True,
-            )
-            thread.start()
 
     def toggleHideClaude_(self, sender: Any) -> None:
         self._mark_switch_menu_action()
