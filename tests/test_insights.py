@@ -174,24 +174,27 @@ def test_action_skips_without_quota_or_spike_signal() -> None:
     assert not any(component["type"] == "action" for component in build_insights(payload))
 
 
-def test_change_headline_emits_up_down_and_flat() -> None:
-    cases = [
-        (1100, "insights_change_up", 10),
-        (900, "insights_change_down", 10),
-        (1040, "insights_change_flat", 4),
-    ]
-    for tokens, key, pct in cases:
+def test_change_headline_only_emits_on_surge() -> None:
+    for tokens in (1100, 900, 1040, 1490):
         payload = _payload()
         payload["summary"]["total_tokens"] = tokens
 
-        change = build_insights(payload)[0]
+        assert not any(
+            component["type"] == "change_headline"
+            for component in build_insights(payload)
+        )
 
-        assert change["type"] == "change_headline"
-        assert change["key"] == key
-        assert change["pct"] == pct
+    payload = _payload()
+    payload["summary"]["total_tokens"] = 1500
+
+    change = build_insights(payload)[0]
+
+    assert change["type"] == "change_headline"
+    assert change["key"] == "insights_change_up"
+    assert change["pct"] == 50
 
 
-def test_shift_new_project_takes_priority_over_model_and_trend() -> None:
+def test_shift_new_project_takes_priority_over_model() -> None:
     shift = next(
         component for component in build_insights(_payload()) if component["type"] == "shift"
     )
@@ -199,7 +202,7 @@ def test_shift_new_project_takes_priority_over_model_and_trend() -> None:
     assert shift["key"] == "insights_shift_new_project"
 
 
-def test_shift_model_takes_priority_over_trend() -> None:
+def test_shift_model_up_when_no_new_project() -> None:
     payload = _payload()
     payload["by_project"] = [
         {"project": "usage", "tokens": 1800, "cost": 9.25, "sessions": 39, "pct": 100.0}
@@ -219,7 +222,7 @@ def test_shift_model_takes_priority_over_trend() -> None:
     }
 
 
-def test_shift_trend_up_and_down() -> None:
+def test_weekly_trend_alone_emits_no_shift() -> None:
     payload = _payload()
     payload["by_project"] = [
         {"project": "usage", "tokens": 1800, "cost": 9.25, "sessions": 39, "pct": 100.0}
@@ -233,16 +236,18 @@ def test_shift_trend_up_and_down() -> None:
         [100] * 7 + [200] * 7 + [300] * 7,
     )
 
-    shift = next(
-        component for component in build_insights(payload) if component["type"] == "shift"
-    )
-    assert shift == {"type": "shift", "key": "insights_shift_trend_up"}
+    assert not any(component["type"] == "shift" for component in build_insights(payload))
 
-    payload["daily_trend"] = _daily_from(date(2026, 5, 4), [200] * 7 + [100] * 7)
-    shift = next(
-        component for component in build_insights(payload) if component["type"] == "shift"
-    )
-    assert shift == {"type": "shift", "key": "insights_shift_trend_down"}
+
+def test_calm_period_yields_no_insights() -> None:
+    payload = _payload()
+    payload["summary"]["total_tokens"] = 1040
+    payload["comparison"]["prev_tokens"] = 1000
+    payload["comparison"]["prev_projects"] = ["usage", "new-work"]
+    payload["comparison"]["prev_model_share"] = {"gpt-5-codex": 65.0, "gpt-5-mini": 35.0}
+    payload["daily_trend"] = _daily([100, 110, 105, 100])
+
+    assert build_insights(payload) == []
 
 
 def test_action_spike_share_is_used_when_quota_watch_does_not_apply() -> None:

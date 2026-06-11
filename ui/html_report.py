@@ -493,8 +493,9 @@ def _render_insight_surface(data: dict[str, Any], lang: str) -> str:
     from analyzer.insights import build_insights
 
     components = build_insights(data)
+    quiet = f'<div class="insight-note">{_t(lang, "insights_quiet")}</div>'
     if not components:
-        return ""
+        return _section(_t(lang, "insights_section"), quiet, "insights-section")
 
     renderers = {
         "change_headline": _render_insight_note,
@@ -509,7 +510,7 @@ def _render_insight_surface(data: dict[str, Any], lang: str) -> str:
         if (renderer := renderers.get(str(component.get("type")))) is not None
     )
     if not body:
-        return ""
+        body = quiet
     return _section(_t(lang, "insights_section"), body, "insights-section")
 
 

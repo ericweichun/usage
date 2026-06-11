@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-from datetime import date
 from math import sqrt
 from typing import Any, cast
 
@@ -15,7 +14,11 @@ INSIGHT_SPIKE = "spike"
 INSIGHT_SHIFT = "shift"
 INSIGHT_ACTION = "action"
 
-_SPIKE_MULTIPLIER_THRESHOLD = 1.5
+# Insights are anomaly-only: every component below stays silent unless its
+# threshold trips, and an empty list is a valid (common) result — the report
+# renders a quiet "nothing unusual" line instead of padding with filler.
+_SPIKE_MULTIPLIER_THRESHOLD = 3.0
+_CHANGE_SURGE_PCT = 50
 
 
 def build_insights(data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -63,33 +66,22 @@ def _build_change_headline(data: dict[str, Any]) -> dict[str, Any] | None:
 
     cur_tokens = _int_value(summary.get("total_tokens"))
     delta_pct = round((cur_tokens - prev_tokens) / prev_tokens * 100)
-    if delta_pct >= 8:
-        key = "insights_change_up"
-        direction = "up"
-    elif delta_pct <= -8:
-        key = "insights_change_down"
-        direction = "down"
-    else:
-        key = "insights_change_flat"
-        direction = "flat"
+    if delta_pct < _CHANGE_SURGE_PCT:
+        return None
 
     return {
         "type": INSIGHT_CHANGE_HEADLINE,
-        "key": key,
+        "key": "insights_change_up",
         "tokens": cur_tokens,
         "cost_usd": _round_cost(_float_value(summary.get("cost_usd"))),
         "pct": abs(delta_pct),
-        "direction": direction,
+        "direction": "up",
         "delta_pct": delta_pct,
     }
 
 
 def _build_shift(data: dict[str, Any]) -> dict[str, Any] | None:
-    return (
-        _build_new_project_shift(data)
-        or _build_model_shift(data)
-        or _build_trend_shift(data)
-    )
+    return _build_new_project_shift(data) or _build_model_shift(data)
 
 
 def _build_new_project_shift(data: dict[str, Any]) -> dict[str, Any] | None:
@@ -150,18 +142,6 @@ def _build_model_shift(data: dict[str, Any]) -> dict[str, Any] | None:
         "prev_pct": _round_pct(prev_pct),
         "pct": _round_pct(pct),
     }
-
-
-def _build_trend_shift(data: dict[str, Any]) -> dict[str, Any] | None:
-    weekly = _weekly_token_totals(data.get("daily_trend"))
-    if len(weekly) < 2:
-        return None
-
-    if len(weekly) >= 3 and weekly[-3] < weekly[-2] < weekly[-1]:
-        return {"type": INSIGHT_SHIFT, "key": "insights_shift_trend_up"}
-    if weekly[-2] > 0 and weekly[-1] <= weekly[-2] * 0.75:
-        return {"type": INSIGHT_SHIFT, "key": "insights_shift_trend_down"}
-    return None
 
 
 def _build_action(
@@ -244,23 +224,6 @@ def _daily_points(raw_daily: object) -> list[dict[str, Any]]:
             }
         )
     return points
-
-
-def _weekly_token_totals(raw_daily: object) -> list[int]:
-    daily = _daily_points(raw_daily)
-    if not daily:
-        return []
-
-    weekly: dict[tuple[int, int], int] = {}
-    for point in daily:
-        try:
-            parsed = date.fromisoformat(point["date"][:10])
-        except ValueError:
-            continue
-        iso_year, iso_week, _weekday = parsed.isocalendar()
-        key = (iso_year, iso_week)
-        weekly[key] = weekly.get(key, 0) + point["tokens"]
-    return [weekly[key] for key in sorted(weekly)]
 
 
 def _first_mapping(value: object) -> dict[str, Any] | None:
