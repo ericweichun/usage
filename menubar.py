@@ -982,7 +982,9 @@ class AppDelegate(NSObject):
                 codex_model = codex_result.get("codex_model", "unknown")
                 codex_stale = codex_result.get("codex_stale")
                 show_install_button = (
-                    outcome.state == PollState.TOKEN_ERROR and self._statusline_setup_available()
+                    not hide_claude
+                    and outcome.state == PollState.TOKEN_ERROR
+                    and self._statusline_setup_available()
                 )
                 group = self.tracker.group()
                 state = menubar_state.build_popover_state(

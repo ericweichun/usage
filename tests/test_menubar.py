@@ -129,6 +129,7 @@ def _build_popover_state(
     outcome: PollOutcome,
     codex_rows: tuple[menubar_state.QuotaRowState, menubar_state.QuotaRowState],
 ) -> menubar_state.PopoverState:
+    hide_claude = menubar._hide_claude_enabled()
     return menubar_state.build_popover_state(
         outcome=outcome,
         codex_rows=codex_rows,
@@ -142,9 +143,11 @@ def _build_popover_state(
         today_text=menubar._today_title(delegate.mock, delegate.language),
         statusline=menubar._statusline_payload(delegate.language),
         show_install_button=(
-            outcome.state == PollState.TOKEN_ERROR and delegate._statusline_setup_available()
+            not hide_claude
+            and outcome.state == PollState.TOKEN_ERROR
+            and delegate._statusline_setup_available()
         ),
-        hide_claude=menubar._hide_claude_enabled(),
+        hide_claude=hide_claude,
         hide_codex=menubar._hide_codex_enabled(),
         codex_stale=None,
     )
@@ -1764,6 +1767,25 @@ def test_state_from_outcome_hides_setup_button_when_no_statusline_target_exists(
     )
 
     assert state.show_install_button is False
+
+
+def test_state_from_outcome_hides_claude_error_and_setup_button(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    delegate.language = "zh-TW"
+    monkeypatch.setattr(delegate, "_statusline_setup_available", lambda: True)
+    monkeypatch.setattr(menubar, "_hide_claude_enabled", lambda: True)
+
+    state = _build_popover_state(
+        delegate,
+        PollOutcome(state=PollState.TOKEN_ERROR, message="missing"),
+        _codex_rows(delegate)[0],
+    )
+
+    assert state.show_install_button is False
+    assert "--setup" not in state.status_text
+    assert state.status_text == "狀態：✓ 已同步"
 
 
 def test_state_from_outcome_shows_setup_button_for_codex_only(

@@ -336,11 +336,11 @@ def build_popover_state(
     else:
         claude_session = _missing_row("Session", CLAUDE_COLOR, language)
         claude_weekly = _missing_row("Weekly", CLAUDE_COLOR, language)
-        status_text = _t(
-            language,
-            "status_text",
-            value=_status_message_value(outcome, "status_no_data", language),
-        )
+        if hide_claude:
+            status_value = _t(language, "status_synced")
+        else:
+            status_value = _status_message_value(outcome, "status_no_data", language)
+        status_text = _t(language, "status_text", value=status_value)
 
     return PopoverState(
         language=language,
