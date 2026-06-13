@@ -5,6 +5,14 @@
 All notable changes to usage are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.20.0] - 2026-06-13
+
+### Added
+- **Status line nudges `/clear` when the context window goes heavy (≥80%)**: once a Claude Code conversation fills its context window past the red zone, the status line appends a one-line reminder. Past that point every turn resends a heavy context — pricier turns and a faster rate-limit burn, both of which `/clear` resets. The nudge shows the context % and, when available, the session cost, in all five languages.
+
+### Fixed
+- **Codex 5h quota no longer goes stale on long-lived sessions**: the rate-limit reader scanned Codex session files newest-date-directory first and stopped at a scan limit, which could skip the file that was *actually* modified most recently when a long session keeps appending to an older creation-date directory. It now sorts all visible session files by modification time, so the menu bar always reflects the newest snapshot. (#37, by @ericweichun)
+
 ## [0.19.1] - 2026-06-12
 
 ### Fixed
