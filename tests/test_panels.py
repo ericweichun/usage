@@ -102,6 +102,18 @@ def test_html_panels_place_analyze_and_cli_in_project_header() -> None:
         assert 'class="action" data-action="analyze"' not in html
 
 
+def test_html_panel_rows_are_initialized_once() -> None:
+    panel_dir = Path(__file__).resolve().parent.parent / "assets" / "panels"
+
+    for panel_path in sorted(panel_dir.glob("*.html")):
+        html = panel_path.read_text(encoding="utf-8")
+        if "function renderRow(" not in html:
+            continue
+
+        assert 'el.dataset.rowReady !== "true"' in html, panel_path.name
+        assert 'el.dataset.rowReady = "true"' in html, panel_path.name
+
+
 def test_classic_project_header_expands_for_action_row() -> None:
     panel_path = Path(__file__).resolve().parent.parent / "assets" / "panels" / "classic.html"
     html = panel_path.read_text(encoding="utf-8")
