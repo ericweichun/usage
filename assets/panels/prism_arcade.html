@@ -699,14 +699,17 @@
       const available = data.available === true && typeof data.percent === "number";
       const alertColor = colorFor(data.percent);
       el.dataset.available = available ? "true" : "false";
-      el.innerHTML = `
-        <div class="row-head">
-          <div class="row-title"></div>
-          <div class="percent"></div>
-        </div>
-        <div class="track"><div class="fill"></div></div>
-        <div class="reset"></div>
-      `;
+      if (el.dataset.rowReady !== "true") {
+        el.innerHTML = `
+          <div class="row-head">
+            <div class="row-title"></div>
+            <div class="percent"></div>
+          </div>
+          <div class="track"><div class="fill"></div></div>
+          <div class="reset"></div>
+        `;
+        el.dataset.rowReady = "true";
+      }
       const title = el.querySelector(".row-title");
       const percent = el.querySelector(".percent");
       const reset = el.querySelector(".reset");
