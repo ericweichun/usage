@@ -496,6 +496,7 @@ def _sort_recent_jsonl_files(paths: list[Path]) -> list[Path]:
 
 def _extract_rate_limits(path: Path, models: dict[str, str]) -> CodexRateLimits | None:
     session_id = ""
+    session_model = "unknown"
     last_rate_limits: tuple[dict[str, Any], str] | None = None
     try:
         with path.open(encoding="utf-8") as file:
@@ -505,6 +506,10 @@ def _extract_rate_limits(path: Path, models: dict[str, str]) -> CodexRateLimits 
                     continue
                 if data.get("type") == "session_meta":
                     session_id = _as_str(_as_dict(data.get("payload")).get("id"))
+                    session_model = _session_model(data.get("payload"), session_model)
+                    continue
+                if data.get("type") == "turn_context":
+                    session_model = _session_model(data.get("payload"), session_model)
                     continue
                 if data.get("type") != "event_msg":
                     continue
@@ -540,7 +545,7 @@ def _extract_rate_limits(path: Path, models: dict[str, str]) -> CodexRateLimits 
         five_hour_resets_at=five_reset,
         seven_day_pct=seven_pct,
         seven_day_resets_at=seven_reset,
-        model=models.get(session_id, "unknown"),
+        model=models.get(session_id, session_model),
         updated_at=updated_at,
     )
 
@@ -557,7 +562,8 @@ def _parse_jsonl(path: Path, models: dict[str, str], cutoff: datetime | None) ->
         _jsonl_cache.move_to_end(path)
         cached_entries = cache_entry[2]
         for entry in cached_entries:
-            entry.model = models.get(entry.session_id, "unknown")
+            if entry.session_id in models:
+                entry.model = models[entry.session_id]
         if cutoff is None:
             return cached_entries
         return [entry for entry in cached_entries if entry.timestamp >= cutoff]
@@ -565,6 +571,7 @@ def _parse_jsonl(path: Path, models: dict[str, str], cutoff: datetime | None) ->
     session_id = ""
     session_timestamp = ""
     project = "unknown"
+    session_model = "unknown"
     entries: list[UsageEntry] = []
     previous_usage: _TokenUsage | None = None
     token_count_index = 0
@@ -579,6 +586,10 @@ def _parse_jsonl(path: Path, models: dict[str, str], cutoff: datetime | None) ->
                     session_id = _as_str(payload.get("id"))
                     session_timestamp = _as_str(payload.get("timestamp"))
                     project = _project_from_cwd(_as_str(payload.get("cwd")))
+                    session_model = _session_model(payload, session_model)
+                    continue
+                if data.get("type") == "turn_context":
+                    session_model = _session_model(data.get("payload"), session_model)
                     continue
                 if data.get("type") != "event_msg":
                     continue
@@ -601,7 +612,7 @@ def _parse_jsonl(path: Path, models: dict[str, str], cutoff: datetime | None) ->
                         session_id=session_id,
                         message_id=f"{session_id}:{token_count_index}",
                         request_id="",
-                        model=models.get(session_id, "unknown"),
+                        model=models.get(session_id, session_model),
                         input_tokens=delta.input_tokens,
                         output_tokens=delta.output_tokens,
                         cache_creation_tokens=0,
@@ -688,6 +699,11 @@ def _project_from_cwd(cwd: str) -> str:
 
 def _as_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
+
+
+def _session_model(payload: Any, fallback: str) -> str:
+    model = _as_str(_as_dict(payload).get("model"))
+    return model or fallback
 
 
 def _as_int(value: Any) -> int:

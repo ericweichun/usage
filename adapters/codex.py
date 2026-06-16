@@ -69,6 +69,7 @@ def _load_thread_models() -> dict[str, str]:
 
 def _extract_rate_limits(path: Path, models: dict[str, str]) -> RateLimits | None:
     session_id = ""
+    session_model = "unknown"
     last_rl = None
     try:
         rows = _load_jsonl_rows(path)
@@ -78,7 +79,11 @@ def _extract_rate_limits(path: Path, models: dict[str, str]) -> RateLimits | Non
 
     for data in rows:
         if data.get("type") == "session_meta":
-            session_id = data.get("payload", {}).get("id", "")
+            payload = data.get("payload", {})
+            session_id = payload.get("id", "")
+            session_model = _session_model(payload, session_model)
+        if data.get("type") == "turn_context":
+            session_model = _session_model(data.get("payload"), session_model)
         if data.get("type") != "event_msg":
             continue
         payload = data.get("payload", {})
@@ -118,7 +123,7 @@ def _extract_rate_limits(path: Path, models: dict[str, str]) -> RateLimits | Non
         five_hour_resets_at=five_reset,
         seven_day_pct=seven_pct,
         seven_day_resets_at=seven_reset,
-        model=model_name,
+        model=model_name or session_model,
         updated_at=ts,
     )
 
@@ -163,7 +168,11 @@ def _parse_jsonl(
             cwd = payload.get("cwd", "")
             if cwd:
                 project = _project_from_cwd(cwd)
-            model = models.get(session_id, "unknown")
+            model = models.get(session_id) or _session_model(payload, model)
+            continue
+
+        if row_type == "turn_context":
+            model = models.get(session_id) or _session_model(data.get("payload"), model)
             continue
 
         if row_type != "event_msg":
@@ -253,6 +262,13 @@ def _as_optional_float(value: Any) -> float | None:
     if not math.isfinite(number):
         return None
     return number
+
+
+def _session_model(payload: Any, fallback: str) -> str:
+    model = payload.get("model") if isinstance(payload, dict) else ""
+    if not isinstance(model, str):
+        model = ""
+    return model or fallback
 
 
 def _as_int(value: Any) -> int:

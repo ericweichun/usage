@@ -53,6 +53,42 @@ def _write_session(
         os.utime(path, (mtime, mtime))
 
 
+def _write_session_with_turn_context_model(
+    path: Path,
+    *,
+    session_id: str,
+    timestamp: str,
+    model: str,
+    usage: dict[str, Any],
+    rate_limits: dict[str, Any] | None = None,
+    mtime: float | None = None,
+    cwd: str = "/tmp/demo",
+) -> None:
+    lines = [
+        {
+            "type": "session_meta",
+            "payload": {"id": session_id, "timestamp": timestamp, "cwd": cwd},
+        },
+        {
+            "type": "turn_context",
+            "payload": {"model": model, "cwd": cwd},
+        },
+        {
+            "type": "event_msg",
+            "timestamp": timestamp,
+            "payload": {
+                "type": "token_count",
+                "info": {"total_token_usage": usage},
+                "rate_limits": rate_limits,
+            },
+        },
+    ]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(json.dumps(line) for line in lines), encoding="utf-8")
+    if mtime is not None:
+        os.utime(path, (mtime, mtime))
+
+
 def test_loaders_skip_bad_utf8_jsonl_without_crashing(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -116,3 +152,74 @@ def test_load_entries_accepts_numeric_string_usage_fields(
     assert entries[0].input_tokens == 8
     assert entries[0].output_tokens == 7
     assert entries[0].cache_read_tokens == 2
+
+
+def test_load_entries_uses_turn_context_model_when_state_db_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    sessions_dir = tmp_path / "sessions"
+    timestamp = datetime.now(UTC).isoformat()
+    _write_session_with_turn_context_model(
+        sessions_dir / "turn-context.jsonl",
+        session_id="turn-context",
+        timestamp=timestamp,
+        model="gpt-5.4-mini",
+        usage={"input_tokens": 10, "cached_input_tokens": 2, "output_tokens": 3},
+    )
+    monkeypatch.setattr(codex, "SESSIONS_DIR", str(sessions_dir))
+    monkeypatch.setattr(codex, "_load_thread_models", lambda: {})
+
+    entries = codex.load_entries()
+
+    assert len(entries) == 1
+    assert entries[0].model == "gpt-5.4-mini"
+
+
+def test_load_entries_prefers_state_db_model_over_turn_context(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    sessions_dir = tmp_path / "sessions"
+    timestamp = datetime.now(UTC).isoformat()
+    _write_session_with_turn_context_model(
+        sessions_dir / "turn-context.jsonl",
+        session_id="turn-context",
+        timestamp=timestamp,
+        model="gpt-5.4-mini",
+        usage={"input_tokens": 10, "cached_input_tokens": 2, "output_tokens": 3},
+    )
+    monkeypatch.setattr(codex, "SESSIONS_DIR", str(sessions_dir))
+    monkeypatch.setattr(codex, "_load_thread_models", lambda: {"turn-context": "gpt-state"})
+
+    entries = codex.load_entries()
+
+    assert len(entries) == 1
+    assert entries[0].model == "gpt-state"
+
+
+def test_extract_rate_limits_uses_turn_context_model_when_state_db_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    sessions_dir = tmp_path / "sessions"
+    now = datetime.now(UTC)
+    _write_session_with_turn_context_model(
+        sessions_dir / "turn-context-rate.jsonl",
+        session_id="turn-context-rate",
+        timestamp=now.isoformat(),
+        model="gpt-5.4-mini",
+        usage={"input_tokens": 1},
+        rate_limits={
+            "primary": {"used_percent": 25, "resets_at": now.timestamp() + 60},
+            "secondary": {"used_percent": 70, "resets_at": now.timestamp() + 120},
+        },
+        mtime=now.timestamp(),
+    )
+    monkeypatch.setattr(codex, "SESSIONS_DIR", str(sessions_dir))
+    monkeypatch.setattr(codex, "_load_thread_models", lambda: {})
+
+    result = codex._extract_rate_limits(sessions_dir / "turn-context-rate.jsonl", {})
+
+    assert result is not None
+    assert result.model == "gpt-5.4-mini"
