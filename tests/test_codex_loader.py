@@ -84,6 +84,42 @@ def _write_session_with_usage_events(
     path.write_text("\n".join(json.dumps(line) for line in lines), encoding="utf-8")
 
 
+def _write_session_with_turn_context_model(
+    path: Path,
+    *,
+    session_id: str,
+    timestamp: str,
+    model: str,
+    usage: dict[str, Any],
+    rate_limits: dict[str, Any] | None = None,
+    mtime: float | None = None,
+    cwd: str = "/tmp/demo",
+) -> None:
+    lines = [
+        {
+            "type": "session_meta",
+            "payload": {"id": session_id, "timestamp": timestamp, "cwd": cwd},
+        },
+        {
+            "type": "turn_context",
+            "payload": {"model": model, "cwd": cwd},
+        },
+        {
+            "type": "event_msg",
+            "timestamp": timestamp,
+            "payload": {
+                "type": "token_count",
+                "info": {"total_token_usage": usage},
+                "rate_limits": rate_limits,
+            },
+        },
+    ]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(json.dumps(line) for line in lines), encoding="utf-8")
+    if mtime is not None:
+        os.utime(path, (mtime, mtime))
+
+
 def test_load_entries_returns_empty_list_when_sessions_dir_missing(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -1050,6 +1086,46 @@ def test_load_entries_accepts_numeric_string_usage_fields(
     assert entries[0].cache_read_tokens == 2
 
 
+def test_load_entries_uses_turn_context_model_when_state_db_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    sessions_dir = tmp_path / "sessions"
+    monkeypatch.setattr(codex_loader, "SESSIONS_DIR", sessions_dir)
+    monkeypatch.setattr(codex_loader, "_load_thread_models", lambda: {})
+    timestamp = datetime.now(UTC).isoformat()
+    _write_session_with_turn_context_model(
+        sessions_dir / "turn-context.jsonl",
+        session_id="turn-context",
+        timestamp=timestamp,
+        model="gpt-5.4-mini",
+        usage={"input_tokens": 10, "cached_input_tokens": 2, "output_tokens": 3},
+    )
+
+    entries = codex_loader.load_entries()
+
+    assert len(entries) == 1
+    assert entries[0].model == "gpt-5.4-mini"
+
+
+def test_load_entries_cache_keeps_turn_context_model_when_state_db_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    sessions_dir = tmp_path / "sessions"
+    monkeypatch.setattr(codex_loader, "SESSIONS_DIR", sessions_dir)
+    monkeypatch.setattr(codex_loader, "_load_thread_models", lambda: {})
+    timestamp = datetime.now(UTC).isoformat()
+    _write_session_with_turn_context_model(
+        sessions_dir / "turn-context.jsonl",
+        session_id="turn-context",
+        timestamp=timestamp,
+        model="gpt-5.4-mini",
+        usage={"input_tokens": 10, "cached_input_tokens": 2, "output_tokens": 3},
+    )
+
+    assert codex_loader.load_entries()[0].model == "gpt-5.4-mini"
+    assert codex_loader.load_entries()[0].model == "gpt-5.4-mini"
+
+
 def test_load_rate_limits_accepts_numeric_string_fields(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -1072,3 +1148,35 @@ def test_load_rate_limits_accepts_numeric_string_fields(
     assert result is not None
     assert result.five_hour_pct == 25.0
     assert result.seven_day_pct == 70.0
+
+
+def test_load_rate_limits_uses_turn_context_model_when_state_db_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    sessions_dir = tmp_path / "sessions"
+    monkeypatch.setattr(codex_loader, "SESSIONS_DIR", sessions_dir)
+    monkeypatch.setattr(codex_loader, "_load_thread_models", lambda: {})
+    now = datetime.now(UTC)
+    _write_session_with_turn_context_model(
+        sessions_dir / "turn-context-rate.jsonl",
+        session_id="turn-context-rate",
+        timestamp=now.isoformat(),
+        model="gpt-5.4-mini",
+        usage={"input_tokens": 1},
+        rate_limits={
+            "primary": {"used_percent": 25, "resets_at": now.timestamp() + 60},
+            "secondary": {"used_percent": 70, "resets_at": now.timestamp() + 120},
+        },
+        mtime=now.timestamp(),
+    )
+
+    result = codex_loader.load_rate_limits()
+
+    assert result == codex_loader.CodexRateLimits(
+        five_hour_pct=25.0,
+        five_hour_resets_at=now.timestamp() + 60,
+        seven_day_pct=70.0,
+        seven_day_resets_at=now.timestamp() + 120,
+        model="gpt-5.4-mini",
+        updated_at=now.isoformat(),
+    )
