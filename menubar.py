@@ -54,6 +54,7 @@ import login_item
 import menubar_state
 import panels
 import update_checker
+import update_gate
 import usage_diagnosis_snapshot
 from burn_rate import BurnRateTracker
 from fsevents_watch import cleanup_fsevents, setup_fsevents
@@ -766,18 +767,9 @@ class AppDelegate(NSObject):
         try:
             current_version = _current_version()
             prefs = _load_preferences()
-            cached = prefs.get("last_update_check")
-            if (
-                isinstance(cached, dict)
-                and isinstance(cached.get("latest_version"), str)
-                and cached.get("current_version") != current_version
-                and update_checker.compare_versions(current_version, cached["latest_version"]) >= 0
-            ):
-                prefs["last_update_check"] = {
-                    **cached,
-                    "current_version": current_version,
-                    "latest_version": current_version,
-                }
+            updated_cache = update_gate.stale_cache_reset(prefs, current_version)
+            if updated_cache is not None:
+                prefs["last_update_check"] = updated_cache
                 _save_preferences(prefs)
         except Exception:
             pass
@@ -828,12 +820,7 @@ class AppDelegate(NSObject):
             return
 
         release = check_result.release
-        prefs["last_update_check"] = {
-            "checked_at": time.time(),
-            "current_version": current_version,
-            "latest_version": release.version if release else current_version,
-            "release_url": release.html_url if release else None,
-        }
+        prefs["last_update_check"] = update_gate.build_check_cache_entry(current_version, release)
         _save_preferences(prefs)
 
         if release is None:
@@ -862,14 +849,14 @@ class AppDelegate(NSObject):
         alert.addButtonWithTitle_(_t(self.language, "update_btn_later"))
         alert.addButtonWithTitle_(_t(self.language, "update_btn_skip"))
         result = int(alert.runModal())
-        if result == 1000:
+        action, pref_updates = update_gate.resolve_alert_choice(result, release.version)
+        if action == "open":
             webbrowser.open(release.html_url)
             return
 
         prefs = _load_preferences()
-        if result == 1002:
-            prefs["update_skipped_version"] = release.version
-        else:
+        prefs.update(pref_updates)
+        if action == "dismiss":
             prefs["update_dismissed_at"] = time.time()
         _save_preferences(prefs)
 
