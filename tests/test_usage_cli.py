@@ -9,6 +9,7 @@ from __future__ import annotations
 import sys
 from datetime import UTC, datetime
 from importlib import import_module
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -237,6 +238,116 @@ def test_main_report_rejects_unknown_option(monkeypatch: pytest.MonkeyPatch) -> 
     assert any("unknown report option" in line for line in printed)
 
 
+def test_main_export_defaults_to_daily_stdout(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    agent = AgentInfo("codex", "Codex", "~/.codex", True)
+    entry = _entry()
+
+    monkeypatch.setattr(sys, "argv", ["usage", "export"])
+    monkeypatch.setattr(usage_cli, "detect_agents", lambda: [agent])
+    monkeypatch.setattr(usage_cli, "is_setup", lambda: False)
+    monkeypatch.setattr(usage_cli, "_load_entries", lambda agent_id: [entry])
+
+    usage_cli.main()
+
+    assert capsys.readouterr().out == (
+        "agent_id,date,input_tokens,output_tokens,cache_creation_tokens,"
+        "cache_read_tokens,total_tokens,cost_usd,session_count,message_count\n"
+        "codex,2026-01-01,10,5,2,3,20,0.01,1,1\n"
+    )
+
+
+def test_main_export_weekly_uses_weekly_aggregation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = AgentInfo("codex", "Codex", "~/.codex", True)
+    calls: list[str] = []
+
+    def fake_aggregate(agents: list[AgentInfo], agg_fn: Any) -> list[Any]:
+        calls.append(agg_fn.__name__)
+        return []
+
+    monkeypatch.setattr(sys, "argv", ["usage", "export", "--weekly"])
+    monkeypatch.setattr(usage_cli, "detect_agents", lambda: [agent])
+    monkeypatch.setattr(usage_cli, "is_setup", lambda: True)
+    monkeypatch.setattr(usage_cli, "_aggregate_per_agent", fake_aggregate)
+
+    usage_cli.main()
+
+    assert calls == ["aggregate_weekly"]
+
+
+def test_main_export_sessions_writes_csv_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    agent = AgentInfo("codex", "Codex", "~/.codex", True)
+    printed: list[str] = []
+    out_path = tmp_path / "sessions.csv"
+    first = _entry()
+    second = _entry()
+    second.timestamp = datetime(2026, 1, 1, 12, 30, tzinfo=UTC)
+    second.message_id = "message-2"
+    second.request_id = "request-2"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["usage", "export", "--sessions", "--out", str(out_path)],
+    )
+    monkeypatch.setattr(usage_cli, "detect_agents", lambda: [agent])
+    monkeypatch.setattr(usage_cli, "is_setup", lambda: True)
+    monkeypatch.setattr(usage_cli, "_load_entries", lambda agent_id: [first, second])
+    monkeypatch.setattr(usage_cli.console, "print", lambda value: printed.append(str(value)))
+
+    usage_cli.main()
+
+    assert out_path.read_text(encoding="utf-8") == (
+        "agent_id,session_id,project,model,start_time,end_time,duration_minutes,"
+        "input_tokens,output_tokens,cache_creation_tokens,cache_read_tokens,"
+        "total_tokens,cost_usd,message_count\n"
+        "codex,session-1,project,gpt-test,2026-01-01T12:00:00+00:00,"
+        "2026-01-01T12:30:00+00:00,30.0,20,10,4,6,40,0.02,2\n"
+    )
+    assert printed == [f"[green]✓[/green] Export saved: {out_path}"]
+
+
+def test_main_export_help_does_not_detect_agents(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    printed: list[str] = []
+
+    monkeypatch.setattr(sys, "argv", ["usage", "export", "--help"])
+    monkeypatch.setattr(
+        usage_cli,
+        "detect_agents",
+        lambda: pytest.fail("export help should not detect agents"),
+    )
+    monkeypatch.setattr(usage_cli.console, "print", lambda value: printed.append(str(value)))
+
+    usage_cli.main()
+
+    assert any("Usage: usage export" in line for line in printed)
+
+
+def test_main_export_rejects_unknown_option(monkeypatch: pytest.MonkeyPatch) -> None:
+    agent = AgentInfo("codex", "Codex", "~/.codex", True)
+    printed: list[str] = []
+
+    monkeypatch.setattr(sys, "argv", ["usage", "export", "--bogus"])
+    monkeypatch.setattr(usage_cli, "detect_agents", lambda: [agent])
+    monkeypatch.setattr(usage_cli, "is_setup", lambda: True)
+    monkeypatch.setattr(usage_cli.console, "print", lambda value: printed.append(str(value)))
+
+    with pytest.raises(SystemExit) as exc_info:
+        usage_cli.main()
+
+    assert exc_info.value.code == 1
+    assert any("unknown export option" in line for line in printed)
+
+
 def test_main_exits_when_no_agents_detected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "argv", ["usage", "dashboard"])
     monkeypatch.setattr(usage_cli, "detect_agents", lambda: [])
@@ -249,6 +360,10 @@ def test_main_exits_when_no_agents_detected(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_parse_report_args_defaults_to_last30() -> None:
     assert usage_cli._parse_report_args([]) == ("last30", None, False)
+
+
+def test_parse_export_args_defaults_to_daily() -> None:
+    assert usage_cli._parse_export_args([]) == ("daily", None, False)
 
 
 @pytest.mark.parametrize(
@@ -276,6 +391,31 @@ def test_parse_report_args_detects_help(flag: str) -> None:
 
 
 @pytest.mark.parametrize(
+    ("flag", "expected_export_type"),
+    [
+        ("--daily", "daily"),
+        ("--weekly", "weekly"),
+        ("--monthly", "monthly"),
+        ("--sessions", "sessions"),
+    ],
+)
+def test_parse_export_args_sets_export_type(
+    flag: str,
+    expected_export_type: str,
+) -> None:
+    export_type, out_path, show_help = usage_cli._parse_export_args([flag])
+
+    assert export_type == expected_export_type
+    assert out_path is None
+    assert show_help is False
+
+
+@pytest.mark.parametrize("flag", ["--help", "-h"])
+def test_parse_export_args_detects_help(flag: str) -> None:
+    assert usage_cli._parse_export_args([flag]) == ("daily", None, True)
+
+
+@pytest.mark.parametrize(
     ("args", "expected_path"),
     [
         (["--out=report.html"], "report.html"),
@@ -284,6 +424,17 @@ def test_parse_report_args_detects_help(flag: str) -> None:
 )
 def test_parse_report_args_sets_out_path(args: list[str], expected_path: str) -> None:
     assert usage_cli._parse_report_args(args) == ("last30", expected_path, False)
+
+
+@pytest.mark.parametrize(
+    ("args", "expected_path"),
+    [
+        (["--out=export.csv"], "export.csv"),
+        (["--out", "export.csv"], "export.csv"),
+    ],
+)
+def test_parse_export_args_sets_out_path(args: list[str], expected_path: str) -> None:
+    assert usage_cli._parse_export_args(args) == ("daily", expected_path, False)
 
 
 @pytest.mark.parametrize(
@@ -308,6 +459,27 @@ def test_parse_report_args_rejects_missing_out_path(
 
 
 @pytest.mark.parametrize(
+    "args",
+    [
+        ["--out"],
+        ["--out", "--daily"],
+    ],
+)
+def test_parse_export_args_rejects_missing_out_path(
+    monkeypatch: pytest.MonkeyPatch,
+    args: list[str],
+) -> None:
+    printed: list[str] = []
+    monkeypatch.setattr(usage_cli.console, "print", lambda value: printed.append(str(value)))
+
+    with pytest.raises(SystemExit) as exc_info:
+        usage_cli._parse_export_args(args)
+
+    assert exc_info.value.code == 1
+    assert any("--out requires a path" in line for line in printed)
+
+
+@pytest.mark.parametrize(
     ("args", "expected_message"),
     [
         (["--bogus"], "unknown report option"),
@@ -324,6 +496,28 @@ def test_parse_report_args_rejects_invalid_args(
 
     with pytest.raises(SystemExit) as exc_info:
         usage_cli._parse_report_args(args)
+
+    assert exc_info.value.code == 1
+    assert any(expected_message in line for line in printed)
+
+
+@pytest.mark.parametrize(
+    ("args", "expected_message"),
+    [
+        (["--bogus"], "unknown export option"),
+        (["random"], "unexpected export argument"),
+    ],
+)
+def test_parse_export_args_rejects_invalid_args(
+    monkeypatch: pytest.MonkeyPatch,
+    args: list[str],
+    expected_message: str,
+) -> None:
+    printed: list[str] = []
+    monkeypatch.setattr(usage_cli.console, "print", lambda value: printed.append(str(value)))
+
+    with pytest.raises(SystemExit) as exc_info:
+        usage_cli._parse_export_args(args)
 
     assert exc_info.value.code == 1
     assert any(expected_message in line for line in printed)

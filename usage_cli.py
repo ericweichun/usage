@@ -4,8 +4,10 @@
 # Part of "usage". Free software licensed under the GNU Affero General Public
 # License v3.0 only; see the LICENSE file for full terms and the warranty disclaimer.
 
+import csv
 import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import codex_loader
@@ -75,6 +77,43 @@ Options:
   -h, --help  Show this help
 """
 
+EXPORT_HELP = """Usage: usage export [--daily|--weekly|--monthly|--sessions] [--out PATH]
+
+Export aggregated usage data as CSV.
+
+Options:
+  --daily     Export daily usage (default)
+  --weekly    Export weekly usage
+  --monthly   Export monthly usage
+  --sessions  Export session usage
+  --out PATH  Save to a specific path
+  -h, --help  Show this help
+"""
+
+EXPORT_FIELDS: dict[str, list[str]] = {
+    "daily": [
+        "agent_id", "date", "input_tokens", "output_tokens",
+        "cache_creation_tokens", "cache_read_tokens", "total_tokens",
+        "cost_usd", "session_count", "message_count",
+    ],
+    "weekly": [
+        "agent_id", "week", "week_start", "week_end", "input_tokens",
+        "output_tokens", "cache_creation_tokens", "cache_read_tokens",
+        "total_tokens", "cost_usd", "session_count", "message_count",
+    ],
+    "monthly": [
+        "agent_id", "month", "input_tokens", "output_tokens",
+        "cache_creation_tokens", "cache_read_tokens", "total_tokens",
+        "cost_usd", "session_count", "message_count",
+    ],
+    "sessions": [
+        "agent_id", "session_id", "project", "model", "start_time",
+        "end_time", "duration_minutes", "input_tokens", "output_tokens",
+        "cache_creation_tokens", "cache_read_tokens", "total_tokens",
+        "cost_usd", "message_count",
+    ],
+}
+
 
 def _parse_sort_args(args: list[str]) -> tuple[list[str], str | None, bool]:
     """Extract --sort KEY and --asc from args, return (remaining, sort_key, descending)."""
@@ -135,6 +174,69 @@ def _parse_report_args(args: list[str]) -> tuple[str, str | None, bool]:
             sys.exit(1)
         i += 1
     return period, out_path, show_help
+
+
+def _parse_export_args(args: list[str]) -> tuple[str, str | None, bool]:
+    export_type = "daily"
+    out_path = None
+    show_help = False
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in {"-h", "--help"}:
+            show_help = True
+        elif arg == "--daily":
+            export_type = "daily"
+        elif arg == "--weekly":
+            export_type = "weekly"
+        elif arg == "--monthly":
+            export_type = "monthly"
+        elif arg == "--sessions":
+            export_type = "sessions"
+        elif arg.startswith("--out="):
+            out_path = arg[6:]
+        elif arg == "--out":
+            if i + 1 >= len(args) or args[i + 1].startswith("--"):
+                console.print("[red]Error:[/red] --out requires a path")
+                sys.exit(1)
+            out_path = args[i + 1]
+            i += 1
+        elif arg.startswith("-"):
+            console.print(f"[red]Error:[/red] unknown export option: {arg}")
+            sys.exit(1)
+        else:
+            console.print(f"[red]Error:[/red] unexpected export argument: {arg}")
+            sys.exit(1)
+        i += 1
+    return export_type, out_path, show_help
+
+
+def _csv_row(stat: Any, fields: list[str]) -> dict[str, Any]:
+    row: dict[str, Any] = {}
+    for field in fields:
+        value = getattr(stat, field)
+        if field in {"start_time", "end_time"}:
+            value = value.isoformat()
+        row[field] = value
+    return row
+
+
+def _write_export_csv(stats: list[Any], export_type: str, out_path: str | None) -> str | None:
+    fields = EXPORT_FIELDS[export_type]
+    if out_path:
+        path = Path(out_path)
+        with path.open("w", encoding="utf-8", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
+            writer.writeheader()
+            for stat in stats:
+                writer.writerow(_csv_row(stat, fields))
+        return str(path)
+
+    writer = csv.DictWriter(sys.stdout, fieldnames=fields, lineterminator="\n")
+    writer.writeheader()
+    for stat in stats:
+        writer.writerow(_csv_row(stat, fields))
+    return None
 
 
 def _apply_sort(stats: list[Any], sort_key: str | None, descending: bool, default_attr: str, default_reverse: bool) -> None:
@@ -458,6 +560,9 @@ def main() -> None:
     if command == "report" and any(arg in {"-h", "--help"} for arg in args[1:]):
         console.print(REPORT_HELP)
         return
+    if command == "export" and any(arg in {"-h", "--help"} for arg in args[1:]):
+        console.print(EXPORT_HELP)
+        return
     if command == "setup":
         setup()
         return
@@ -472,13 +577,13 @@ def main() -> None:
 
     agent_ids = {a.id for a in agents}
 
-    if command != "dashboard":
+    if command not in {"dashboard", "export"}:
         console.print(f"[dim]{t('detected', agents=', '.join(a.name + ' ✓' for a in agents))}[/dim]")
 
     hook_warning_needed = (
         (command == "claude" and not is_claude_setup())
         or (command == "codex" and not is_codex_setup())
-        or (command not in AGENT_ALIASES and not is_setup())
+        or (command not in AGENT_ALIASES and command != "export" and not is_setup())
     )
     if hook_warning_needed:
         console.print(f"[yellow]{t('hook_not_installed')}[/yellow]")
@@ -521,6 +626,27 @@ def main() -> None:
         data = build_report_data(agents, period)
         saved = save_and_open(data, out_path)
         console.print(f"[green]✓[/green] Report saved: {saved}")
+    elif command == "export":
+        export_type, out_path, show_help = _parse_export_args(args[1:])
+        if show_help:
+            console.print(EXPORT_HELP)
+            return
+        if export_type == "daily":
+            stats = _aggregate_per_agent(agents, aggregate_daily)
+            stats.sort(key=lambda s: s.date, reverse=True)
+        elif export_type == "weekly":
+            stats = _aggregate_per_agent(agents, aggregate_weekly)
+            stats.sort(key=lambda s: s.week, reverse=True)
+        elif export_type == "monthly":
+            stats = _aggregate_per_agent(agents, aggregate_monthly)
+            stats.sort(key=lambda s: s.month, reverse=True)
+        else:
+            stats = _aggregate_per_agent(agents, aggregate_sessions)
+            stats.sort(key=lambda s: s.start_time, reverse=True)
+
+        export_saved = _write_export_csv(stats, export_type, out_path)
+        if export_saved is not None:
+            console.print(f"[green]✓[/green] Export saved: {export_saved}")
     elif command == "daily":
         stats = _aggregate_per_agent(agents, aggregate_daily)
         default_attr = "date" if sort_key == "time" else "total_tokens"
