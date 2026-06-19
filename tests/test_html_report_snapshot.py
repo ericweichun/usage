@@ -160,3 +160,21 @@ def test_generate_html_matches_golden_snapshot(
     expected = (SNAPSHOT_DIR / f"{name}.html").read_text(encoding="utf-8")
 
     assert html_report.generate_html(data, language=language) == expected
+
+
+def test_build_csv_data_contains_projects_and_models() -> None:
+    csv_text = html_report._build_csv_data(_full_report_data(), "en")
+
+    assert "type,name,share_pct,tokens,cost_usd\r\n" in csv_text
+    assert "project,usage,70.2,1646859,32.07\r\n" in csv_text
+    assert "project,client<portal>,20.1,471482,9.18\r\n" in csv_text
+    assert "model,claude-sonnet-4,52.4,1229345,23.91\r\n" in csv_text
+
+
+def test_build_csv_data_masks_project_names() -> None:
+    csv_text = html_report._build_csv_data(_full_report_data(), "en", mask_projects=True)
+
+    assert "project,Project 1,70.2,1646859,32.07\r\n" in csv_text
+    assert "project,Project 2,20.1,471482,9.18\r\n" in csv_text
+    assert "model,claude-sonnet-4,52.4,1229345,23.91\r\n" in csv_text
+    assert "project,usage,70.2,1646859,32.07\r\n" not in csv_text

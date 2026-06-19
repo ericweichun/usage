@@ -58,6 +58,7 @@ if __name__ == "__main__":
             "assets/codex_color_menubar.png",
             "assets/panels",
             "i18n.json",
+            "pets.json",
             "pyproject.toml",
             "usage_statusline.py",
             "usage_statusline_forwarder.py",

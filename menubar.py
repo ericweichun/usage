@@ -30,6 +30,8 @@ from AppKit import (
     NSApplication,
     NSApplicationActivationPolicyAccessory,
     NSAttributedString,
+    NSBackingStoreBuffered,
+    NSFloatingWindowLevel,
     NSFont,
     NSFontAttributeName,
     NSImage,
@@ -42,10 +44,16 @@ from AppKit import (
     NSMutableAttributedString,
     NSPopover,
     NSPopoverBehaviorTransient,
+    NSScreen,
     NSStatusBar,
     NSTextAttachment,
     NSVariableStatusItemLength,
     NSViewController,
+    NSWindow,
+    NSWindowStyleMaskClosable,
+    NSWindowStyleMaskTitled,
+    NSWindowStyleMaskUtilityWindow,
+    NSWindowTitleHidden,
 )
 from Foundation import NSObject, NSRunLoop, NSRunLoopCommonModes, NSTimer
 
@@ -95,6 +103,7 @@ from menubar_state import (
 )
 from panels.base import Panel as UsagePanel
 from panels.base import load_active_panel_id, resolve_resource, save_active_panel_id
+from pet_gallery_html import render_html as render_pet_gallery_html
 from prefs import _load_preferences, _save_preferences
 from pricing import calculate_cost, warm_up_pricing
 from statusline_settings import (
@@ -129,6 +138,16 @@ from usage_lang import detect_lang
 from usage_notifications import NotificationEvent, QuotaNotifier
 from usage_rate import UsageRateTracker
 
+try:
+    from WebKit import WKWebView, WKWebViewConfiguration
+except ModuleNotFoundError:
+    with objc.autorelease_pool():
+        objc.loadBundle(
+            "WebKit",
+            globals(),
+            bundle_path="/System/Library/Frameworks/WebKit.framework",
+        )
+
 __all__ = [
     "CLAUDE_COLOR",
     "CODEX_COLOR",
@@ -151,6 +170,9 @@ BUTTON_HEIGHT = 32.0
 INSTALL_BUTTON_EXTRA_HEIGHT = BUTTON_HEIGHT + 10.0
 UPDATE_DISMISS_SECONDS = 24 * 3600
 UPDATE_ALERT_BODY_LIMIT = 2000
+PET_GALLERY_WIDTH = 380.0
+PET_GALLERY_HEIGHT = 520.0
+PET_GALLERY_MARGIN = 20.0
 
 logger = logging.getLogger(__name__)
 
@@ -468,6 +490,8 @@ class AppDelegate(NSObject):
     _history_entries_cache_fingerprint = objc.ivar()
     _quota_notifier = objc.ivar()
     _switch_menu_action_taken = objc.ivar()
+    pet_gallery_window = objc.ivar()
+    pet_gallery_view = objc.ivar()
     language = objc.ivar()
 
     def initWithMock_interval_(self, mock: bool, interval: int) -> AppDelegate:
@@ -495,6 +519,8 @@ class AppDelegate(NSObject):
         self._history_entries_cache = None
         self._history_entries_cache_fingerprint = None
         self._switch_menu_action_taken = False
+        self.pet_gallery_window = None
+        self.pet_gallery_view = None
         return self
 
     def applicationDidFinishLaunching_(self, notification: Any) -> None:
@@ -586,9 +612,18 @@ class AppDelegate(NSObject):
     def applicationWillTerminate_(self, notification: Any) -> None:
         cleanup_fsevents(self._fs_stream)
         self._fs_stream = None
+        self._close_pet_gallery_window()
 
     def switchPanel_(self, sender: Any) -> None:
         menu = NSMenu.alloc().initWithTitle_(_t(self.language, "switch_panel"))
+        summon_pets_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            _t(self.language, "summon_pets"),
+            "summonPets:",
+            "",
+        )
+        summon_pets_item.setTarget_(self)
+        menu.addItem_(summon_pets_item)
+        menu.addItem_(NSMenuItem.separatorItem())
         # Panel themes live in a submenu so the menu stays short — one "面板主題 ▸"
         # row that expands on demand instead of nine inline rows.
         panel_submenu = NSMenu.alloc().initWithTitle_(_t(self.language, "switch_panel"))
@@ -673,6 +708,13 @@ class AppDelegate(NSObject):
         self._mark_switch_menu_action()
         panel_id = str(sender.representedObject())
         self._set_active_panel_id(panel_id)
+
+    def summonPets_(self, sender: Any) -> None:
+        self._mark_switch_menu_action()
+        if self.pet_gallery_window is not None:
+            self._close_pet_gallery_window()
+            return
+        self._open_pet_gallery_window()
 
     def toggleLaunchAtLogin_(self, sender: Any) -> None:
         self._mark_switch_menu_action()
@@ -897,6 +939,68 @@ class AppDelegate(NSObject):
         if not self.popover.isShown():
             return
         self.popover.performClose_(None)
+
+    def _open_pet_gallery_window(self) -> None:
+        frame = self._pet_gallery_frame()
+        style_mask = (
+            NSWindowStyleMaskTitled
+            | NSWindowStyleMaskClosable
+            | NSWindowStyleMaskUtilityWindow
+        )
+        window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+            frame,
+            style_mask,
+            NSBackingStoreBuffered,
+            False,
+        )
+        if window is None:
+            raise RuntimeError("failed to create pet gallery window")
+        window.setDelegate_(self)
+        window.setTitle_(_t(self.language, "pet_gallery_title"))
+        window.setTitleVisibility_(NSWindowTitleHidden)
+        window.setTitlebarAppearsTransparent_(True)
+        window.setMovableByWindowBackground_(True)
+        window.setLevel_(NSFloatingWindowLevel)
+        window.setReleasedWhenClosed_(False)
+        window.setHidesOnDeactivate_(True)
+        window.setHasShadow_(True)
+        web_frame = NSMakeRect(0, 0, PET_GALLERY_WIDTH, PET_GALLERY_HEIGHT)
+        configuration = WKWebViewConfiguration.alloc().init()
+        web_view = WKWebView.alloc().initWithFrame_configuration_(web_frame, configuration)
+        web_view.setValue_forKey_(False, "drawsBackground")
+        window.setContentView_(web_view)
+        web_view.loadHTMLString_baseURL_(render_pet_gallery_html(self.language), None)
+        self.pet_gallery_window = window
+        self.pet_gallery_view = web_view
+        window.makeKeyAndOrderFront_(None)
+
+    def _close_pet_gallery_window(self) -> None:
+        window = self.pet_gallery_window
+        self.pet_gallery_window = None
+        self.pet_gallery_view = None
+        if window is not None:
+            window.setDelegate_(None)
+            window.close()
+
+    def _pet_gallery_frame(self) -> Any:
+        screen = NSScreen.mainScreen()
+        if screen is None:
+            return NSMakeRect(0, 0, PET_GALLERY_WIDTH, PET_GALLERY_HEIGHT)
+        visible_frame = screen.visibleFrame()
+        x = (
+            visible_frame.origin.x
+            + visible_frame.size.width
+            - PET_GALLERY_WIDTH
+            - PET_GALLERY_MARGIN
+        )
+        y = visible_frame.origin.y + PET_GALLERY_MARGIN
+        return NSMakeRect(x, y, PET_GALLERY_WIDTH, PET_GALLERY_HEIGHT)
+
+    def windowWillClose_(self, notification: Any) -> None:
+        window = notification.object() if notification is not None else None
+        if window is self.pet_gallery_window:
+            self.pet_gallery_window = None
+            self.pet_gallery_view = None
 
     def _resync_popover_after_menu(self) -> None:
         if not hasattr(self, "popover") or not hasattr(self, "popover_controller"):

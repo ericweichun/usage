@@ -1,0 +1,70 @@
+{
+  "_comment": "寵物物種圖鑑資料。art 為純 ASCII 多行字串，務必保留原樣空白與對齊，勿重排。stats 各 1~100。fantasy 批次回來後直接 append 進 pets 陣列即可。",
+  "pets": [
+    {
+      "id": "scissor_crab",
+      "name": "剪刀手螃蟹",
+      "theme": "ocean",
+      "blurb": "面對 bug 永遠繞道，或直接大螯剪斷（註解掉）。",
+      "art": " \\/     \\/\n  \\ .-. /\n /( · · )\\\n  / / \\ \\",
+      "stats": {"debugging": 60, "patience": 30, "chaos": 75, "wisdom": 20, "snark": 85}
+    },
+    {
+      "id": "raccoon",
+      "name": "浣熊",
+      "theme": "forest",
+      "blurb": "半夜三點翻 GitHub issues 垃圾桶找陳年 bug。",
+      "art": "  /|_|\\\n ( · · )\n =( - )=\n(\")_(\")_/",
+      "frames": ["  /|_|\\\n ( · · )\n =( - )=\n(\")_(\")_/", "  /|_|\\\n ( - - )\n =( - )=\n(\")_(\")_/", "  /|_|\\\n ( o o )\n =( o )=\n(\")_(\")_/"],
+      "stats": {"debugging": 85, "patience": 60, "chaos": 90, "wisdom": 40, "snark": 70}
+    },
+    {
+      "id": "squirrel",
+      "name": "松鼠",
+      "theme": "forest",
+      "blurb": "把 console.log 像堅果到處亂埋，發 PR 前忘記埋哪。",
+      "art": "   /|_|\\\n  ( · · )\n  (  v  )__\n  (\")_(\")_//",
+      "stats": {"debugging": 30, "patience": 80, "chaos": 75, "wisdom": 35, "snark": 60}
+    },
+    {
+      "id": "sloth",
+      "name": "樹懶",
+      "theme": "forest",
+      "blurb": "跑 npm install / 編 C++ 最佳陪伴，點頭跟進度條一樣慢。",
+      "art": "   _____\n  ( · · )\n ((  _  ))\n /\"\"\"\"\"\"\"\\",
+      "stats": {"debugging": 10, "patience": 100, "chaos": 5, "wisdom": 90, "snark": 20}
+    },
+    {
+      "id": "alpaca",
+      "name": "羊駝",
+      "theme": "forest",
+      "blurb": "看到縮排語法錯就朝終端機吐口水。",
+      "art": "   /^^^\\\n  ( · · )\n  (  _  )\n  /|| ||\\\n  \"\"  \"\"",
+      "stats": {"debugging": 70, "patience": 15, "chaos": 85, "wisdom": 60, "snark": 100}
+    },
+    {
+      "id": "terminal_chick",
+      "name": "終端小雞",
+      "theme": "bird",
+      "blurb": "只會複製貼上 Stack Overflow，但至少跑得動。",
+      "art": "   _   _\n  ( · · )\n  (  v  )\n   >   <\n  \"     \"",
+      "stats": {"debugging": 20, "patience": 80, "chaos": 40, "wisdom": 10, "snark": 5}
+    },
+    {
+      "id": "life_coffee",
+      "name": "續命黑咖啡",
+      "theme": "food",
+      "blurb": "杯子一空編譯器就丟 Segfault，直到你續杯。",
+      "art": "     ) (\n    (   )\n  |=======|\n  |( · · )|\n   -------",
+      "stats": {"debugging": 95, "patience": 10, "chaos": 85, "wisdom": 70, "snark": 90}
+    },
+    {
+      "id": "anxious_toast",
+      "name": "焦慮烤吐司",
+      "theme": "food",
+      "blurb": "你每按 git push --force 牠就嚇得掉滿地麵包屑。",
+      "art": "   _______\n  |       |\n  |( · · )|\n  |_______|",
+      "stats": {"debugging": 30, "patience": 40, "chaos": 60, "wisdom": 50, "snark": 75}
+    }
+  ]
+}

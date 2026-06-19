@@ -122,7 +122,7 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
         <label class="share-file-mask"><input type="checkbox" data-share-file-mask checked> Hide project names</label>
         <div class="share-file-actions">
           <button class="share-action" type="button" data-share-file="download"><span class="share-icon" aria-hidden="true">📥</span>Download .html</button>
-          <button class="share-action" type="button" data-share-file="path"><span class="share-icon" aria-hidden="true">📋</span>Copy file path</button>
+          <button class="share-action" type="button" data-share-file="csv"><span class="share-icon" aria-hidden="true">📊</span>Download .csv</button>
         </div>
         <p class="share-file-hint">Send via AirDrop / Mail / Slack / iMessage — opens in any browser, mobile or desktop</p>
       </section>
@@ -212,6 +212,8 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
 </main>
 <script>
 const shareConfig = {"copied": "Copied to clipboard ✓", "pathCopied": "Path copied ✓"};
+const csvData = "type,name,share_pct,tokens,cost_usd\r\nproject,usage,70.2,1646859,32.07\r\nproject,client<portal>,20.1,471482,9.18\r\nproject,unknown,9.7,227337,4.43\r\nmodel,claude-sonnet-4,52.4,1229345,23.91\r\nmodel,gpt-5-codex,36.6,858918,16.70\r\nmodel,unknown,11.0,258415,5.07\r\n";
+const maskedCsvData = "type,name,share_pct,tokens,cost_usd\r\nproject,Project 1,70.2,1646859,32.07\r\nproject,Project 2,20.1,471482,9.18\r\nproject,Project 3,9.7,227337,4.43\r\nmodel,claude-sonnet-4,52.4,1229345,23.91\r\nmodel,gpt-5-codex,36.6,858918,16.70\r\nmodel,unknown,11.0,258415,5.07\r\n";
 const shareDialog = document.querySelector('[data-share-dialog]');
 const shareFileMask = document.querySelector('[data-share-file-mask]');
 const shareToast = document.querySelector('[data-share-toast]');
@@ -299,6 +301,13 @@ function downloadHtml(maskProjects) {
   downloadBlob(blob, `usage-report-${new Date().toISOString().slice(0, 10)}.html`);
 }
 
+function downloadCsv(maskProjects) {
+  closeShareModal();
+  const csvText = maskProjects ? maskedCsvData : csvData;
+  const blob = new Blob([csvText], {type: 'text/csv;charset=utf-8'});
+  downloadBlob(blob, `usage-report-${new Date().toISOString().slice(0, 10)}.csv`);
+}
+
 document.querySelector('[data-share-open]')?.addEventListener('click', () => {
   shareFileMask.checked = true;
   if (typeof shareDialog.showModal === 'function') {
@@ -317,7 +326,7 @@ shareDialog?.addEventListener('click', (e) => {
   if (e.target === shareDialog) closeShareModal();
 });
 
-document.addEventListener('click', async (e) => {
+document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-share-file]');
   if (!btn) return;
   const action = btn.dataset.shareFile;
@@ -325,10 +334,8 @@ document.addEventListener('click', async (e) => {
     downloadHtml(Boolean(shareFileMask?.checked));
     return;
   }
-  if (action === 'path') {
-    const path = window.location.protocol === 'file:' ? decodeURIComponent(window.location.href) : decodeURIComponent(window.location.pathname);
-    const copied = await copyText(path);
-    if (copied) showShareToast(shareConfig.pathCopied);
+  if (action === 'csv') {
+    downloadCsv(Boolean(shareFileMask?.checked));
   }
 });
 

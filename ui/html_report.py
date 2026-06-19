@@ -10,11 +10,13 @@ import html
 import json
 import math
 import os
+import csv
 import subprocess
 import sys
 import webbrowser
 from datetime import date, datetime
 from importlib.metadata import PackageNotFoundError, version
+from io import StringIO
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -396,7 +398,7 @@ def _render_share_dialog(lang: str) -> str:
         <label class="share-file-mask"><input type="checkbox" data-share-file-mask checked> {html.escape(_t(lang, "share_file_mask_toggle"))}</label>
         <div class="share-file-actions">
           <button class="share-action" type="button" data-share-file="download"><span class="share-icon" aria-hidden="true">📥</span>{html.escape(_t(lang, "share_download_html"))}</button>
-          <button class="share-action" type="button" data-share-file="path"><span class="share-icon" aria-hidden="true">📋</span>{html.escape(_t(lang, "share_copy_path"))}</button>
+          <button class="share-action" type="button" data-share-file="csv"><span class="share-icon" aria-hidden="true">📊</span>{html.escape(_t(lang, "share_download_csv"))}</button>
         </div>
         <p class="share-file-hint">{html.escape(_t(lang, "share_file_hint"))}</p>
       </section>
@@ -559,6 +561,37 @@ def _share_config_json(lang: str) -> str:
     return json.dumps(share_config, ensure_ascii=False).replace("</", "<\\/")
 
 
+def _csv_cost(value: float) -> str:
+    return f"{value:.4f}" if 0 < value < 1 else f"{value:.2f}"
+
+
+def _build_csv_data(data: dict[str, Any], lang: str, *, mask_projects: bool = False) -> str:
+    out = StringIO()
+    writer = csv.writer(out, lineterminator="\r\n")
+    writer.writerow(["type", "name", "share_pct", "tokens", "cost_usd"])
+    for idx, item in enumerate(data.get("by_project", []), start=1):
+        writer.writerow(
+            [
+                "project",
+                f"Project {idx}" if mask_projects else _display_name(item.get("project"), lang),
+                f"{float(item.get('pct', 0.0)):.1f}",
+                str(int(item.get("tokens", 0))),
+                _csv_cost(float(item.get("cost", 0.0))),
+            ]
+        )
+    for item in data.get("by_model", []):
+        writer.writerow(
+            [
+                "model",
+                _display_name(item.get("model"), lang),
+                f"{float(item.get('pct', 0.0)):.1f}",
+                str(int(item.get("tokens", 0))),
+                _csv_cost(float(item.get("cost", 0.0))),
+            ]
+        )
+    return out.getvalue()
+
+
 def _render_sponsor_section(lang: str) -> str:
     return f"""<p class="sponsor">
     <a href="https://ko-fi.com/lollapalooza" target="_blank" rel="noopener" aria-label="Buy me a coffee on Ko-fi"><img src="https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&amp;logoColor=white" alt="Ko-fi"></a>
@@ -665,8 +698,10 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
 @media (max-width:480px){{.wrap{{padding:22px 12px 28px}}h1{{white-space:normal}}.cards{{grid-template-columns:repeat(2,1fr);gap:8px}}.card{{min-height:96px;padding:13px 11px}}.share-dialog{{width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;border:0;border-radius:0}}.share-modal{{min-height:100dvh;padding:16px 12px 18px}}.share-section{{padding:12px}}.share-action{{min-height:42px;font-size:.72rem;gap:4px;white-space:normal}}.share-file-actions{{grid-template-columns:1fr}}.section{{padding:16px 12px}}}}"""
 
 
-def _render_scripts(share_config_json: str) -> str:
+def _render_scripts(share_config_json: str, csv_data_json: str, masked_csv_data_json: str) -> str:
     return f"""const shareConfig = {share_config_json};
+const csvData = {csv_data_json};
+const maskedCsvData = {masked_csv_data_json};
 const shareDialog = document.querySelector('[data-share-dialog]');
 const shareFileMask = document.querySelector('[data-share-file-mask]');
 const shareToast = document.querySelector('[data-share-toast]');
@@ -754,6 +789,13 @@ function downloadHtml(maskProjects) {{
   downloadBlob(blob, `usage-report-${{new Date().toISOString().slice(0, 10)}}.html`);
 }}
 
+function downloadCsv(maskProjects) {{
+  closeShareModal();
+  const csvText = maskProjects ? maskedCsvData : csvData;
+  const blob = new Blob([csvText], {{type: 'text/csv;charset=utf-8'}});
+  downloadBlob(blob, `usage-report-${{new Date().toISOString().slice(0, 10)}}.csv`);
+}}
+
 document.querySelector('[data-share-open]')?.addEventListener('click', () => {{
   shareFileMask.checked = true;
   if (typeof shareDialog.showModal === 'function') {{
@@ -772,7 +814,7 @@ shareDialog?.addEventListener('click', (e) => {{
   if (e.target === shareDialog) closeShareModal();
 }});
 
-document.addEventListener('click', async (e) => {{
+document.addEventListener('click', (e) => {{
   const btn = e.target.closest('[data-share-file]');
   if (!btn) return;
   const action = btn.dataset.shareFile;
@@ -780,10 +822,8 @@ document.addEventListener('click', async (e) => {{
     downloadHtml(Boolean(shareFileMask?.checked));
     return;
   }}
-  if (action === 'path') {{
-    const path = window.location.protocol === 'file:' ? decodeURIComponent(window.location.href) : decodeURIComponent(window.location.pathname);
-    const copied = await copyText(path);
-    if (copied) showShareToast(shareConfig.pathCopied);
+  if (action === 'csv') {{
+    downloadCsv(Boolean(shareFileMask?.checked));
   }}
 }});
 """
@@ -794,6 +834,8 @@ def generate_html(data: dict[str, Any], language: str | None = None) -> str:
     generated_at = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
     cards = _summary_cards(data["summary"], lang)
     share_config_json = _share_config_json(lang)
+    csv_data_json = json.dumps(_build_csv_data(data, lang), ensure_ascii=False).replace("</", "<\\/")
+    masked_csv_data_json = json.dumps(_build_csv_data(data, lang, mask_projects=True), ensure_ascii=False).replace("</", "<\\/")
     title = _t(lang, "title")
     insight_surface = _render_insight_surface(data, lang)
     return f"""<!doctype html>
@@ -820,7 +862,7 @@ def generate_html(data: dict[str, Any], language: str | None = None) -> str:
   {_render_sponsor_section(lang)}
 </main>
 <script>
-{_render_scripts(share_config_json)}
+{_render_scripts(share_config_json, csv_data_json, masked_csv_data_json)}
 </script>
 </body>
 </html>
