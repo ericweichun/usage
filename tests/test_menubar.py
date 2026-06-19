@@ -359,6 +359,7 @@ def test_switch_panel_menu_contains_update_items(monkeypatch: pytest.MonkeyPatch
     delegate = menubar.AppDelegate.alloc().initWithMock_interval_(True, 60)
     delegate.language = "en"
     delegate.active_panel = SimpleNamespace(id="classic")
+    delegate.critters_enabled = False
     panels = [
         SimpleNamespace(id="classic", i18n_key="panel_default_name"),
         SimpleNamespace(id="matrix", i18n_key="panel_matrix"),
@@ -385,6 +386,9 @@ def test_switch_panel_menu_contains_update_items(monkeypatch: pytest.MonkeyPatch
     # The auto-update row is gone — update checks just stay on by default.
     assert "Automatically Check for Updates" not in main_titles
     assert "Usage Alert Notifications" in main_titles
+    critters = next(item for item in main_menu.items if item.action == "toggleCritters:")
+    assert critters.title == "Summon Spirits"
+    assert critters.state == 0
 
     # Panel themes are collapsed into a submenu, not listed inline on the main menu.
     assert "Default" not in main_titles

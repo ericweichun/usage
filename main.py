@@ -210,7 +210,6 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help=argparse.SUPPRESS,
     )
-    parser.add_argument("--pets", action="store_true", help="預覽寵物 ASCII 圖鑑")
     args = parser.parse_args()
     args.interval = max(30, args.interval)
     return args
@@ -291,11 +290,6 @@ def main() -> None:
         import doctor
 
         print(doctor.render(), end="")
-        raise SystemExit(0)
-    if args.pets:
-        import pet_gallery
-
-        print(pet_gallery.render(), end="")
         raise SystemExit(0)
     if args.setup:
         from setup_hook import setup

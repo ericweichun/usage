@@ -30,8 +30,6 @@ from AppKit import (
     NSApplication,
     NSApplicationActivationPolicyAccessory,
     NSAttributedString,
-    NSBackingStoreBuffered,
-    NSFloatingWindowLevel,
     NSFont,
     NSFontAttributeName,
     NSImage,
@@ -44,20 +42,15 @@ from AppKit import (
     NSMutableAttributedString,
     NSPopover,
     NSPopoverBehaviorTransient,
-    NSScreen,
     NSStatusBar,
     NSTextAttachment,
     NSVariableStatusItemLength,
     NSViewController,
-    NSWindow,
-    NSWindowStyleMaskClosable,
-    NSWindowStyleMaskTitled,
-    NSWindowStyleMaskUtilityWindow,
-    NSWindowTitleHidden,
 )
-from Foundation import NSObject, NSRunLoop, NSRunLoopCommonModes, NSTimer
+from Foundation import NSObject, NSRunLoop, NSRunLoopCommonModes, NSTimer, NSUserDefaults
 
 import codex_loader
+import critter_frames
 import login_item
 import menubar_state
 import panels
@@ -103,7 +96,6 @@ from menubar_state import (
 )
 from panels.base import Panel as UsagePanel
 from panels.base import load_active_panel_id, resolve_resource, save_active_panel_id
-from pet_gallery_html import render_html as render_pet_gallery_html
 from prefs import _load_preferences, _save_preferences
 from pricing import calculate_cost, warm_up_pricing
 from statusline_settings import (
@@ -138,16 +130,6 @@ from usage_lang import detect_lang
 from usage_notifications import NotificationEvent, QuotaNotifier
 from usage_rate import UsageRateTracker
 
-try:
-    from WebKit import WKWebView, WKWebViewConfiguration
-except ModuleNotFoundError:
-    with objc.autorelease_pool():
-        objc.loadBundle(
-            "WebKit",
-            globals(),
-            bundle_path="/System/Library/Frameworks/WebKit.framework",
-        )
-
 __all__ = [
     "CLAUDE_COLOR",
     "CODEX_COLOR",
@@ -170,9 +152,7 @@ BUTTON_HEIGHT = 32.0
 INSTALL_BUTTON_EXTRA_HEIGHT = BUTTON_HEIGHT + 10.0
 UPDATE_DISMISS_SECONDS = 24 * 3600
 UPDATE_ALERT_BODY_LIMIT = 2000
-PET_GALLERY_WIDTH = 380.0
-PET_GALLERY_HEIGHT = 520.0
-PET_GALLERY_MARGIN = 20.0
+CRITTERS_DEFAULTS_KEY = "usage.critters_enabled"
 
 logger = logging.getLogger(__name__)
 
@@ -233,6 +213,7 @@ _CLAUDE_MENUBAR_ICON: Any = None
 _CLAUDE_MENUBAR_ICON_LOADED = False
 _CODEX_MENUBAR_ICON: Any = None
 _CODEX_MENUBAR_ICON_LOADED = False
+_CRITTER_IMAGE_CACHE: dict[str, Any] = {}
 
 
 class _NoopAlert:
@@ -308,6 +289,37 @@ def _menubar_icon_attachment_string(image: Any) -> Any:
     attachment.setImage_(image)
     attachment.setBounds_(NSMakeRect(0, -2.5, 14, 14))
     return NSAttributedString.attributedStringWithAttachment_(attachment)
+
+
+def _critter_icon_attachment_string(image: Any) -> Any:
+    attachment = NSTextAttachment.alloc().init()
+    attachment.setImage_(image)
+    attachment.setBounds_(NSMakeRect(0, -4.0, 18, 18))
+    return NSAttributedString.attributedStringWithAttachment_(attachment)
+
+
+def _critter_frame_image(path: str) -> Any:
+    cached = _CRITTER_IMAGE_CACHE.get(path)
+    if cached is not None:
+        return cached
+    image = NSImage.alloc().initWithContentsOfFile_(resolve_resource(path))
+    if image is not None:
+        image.setTemplate_(True)
+        image.setSize_(NSMakeSize(18, 18))
+    _CRITTER_IMAGE_CACHE[path] = image
+    return image
+
+
+def _critters_enabled(defaults: Any | None = None) -> bool:
+    store = defaults if defaults is not None else NSUserDefaults.standardUserDefaults()
+    return bool(store.boolForKey_(CRITTERS_DEFAULTS_KEY))
+
+
+def _save_critters_enabled(enabled: bool, defaults: Any | None = None) -> None:
+    store = defaults if defaults is not None else NSUserDefaults.standardUserDefaults()
+    store.setBool_forKey_(enabled, CRITTERS_DEFAULTS_KEY)
+    if hasattr(store, "synchronize"):
+        store.synchronize()
 
 
 def _make_alert() -> Any:
@@ -490,8 +502,10 @@ class AppDelegate(NSObject):
     _history_entries_cache_fingerprint = objc.ivar()
     _quota_notifier = objc.ivar()
     _switch_menu_action_taken = objc.ivar()
-    pet_gallery_window = objc.ivar()
-    pet_gallery_view = objc.ivar()
+    critters_enabled = objc.ivar()
+    critter_timer = objc.ivar()
+    critter_frame = objc.ivar()
+    critter_interval = objc.ivar()
     language = objc.ivar()
 
     def initWithMock_interval_(self, mock: bool, interval: int) -> AppDelegate:
@@ -519,8 +533,10 @@ class AppDelegate(NSObject):
         self._history_entries_cache = None
         self._history_entries_cache_fingerprint = None
         self._switch_menu_action_taken = False
-        self.pet_gallery_window = None
-        self.pet_gallery_view = None
+        self.critters_enabled = _critters_enabled()
+        self.critter_timer = None
+        self.critter_frame = 0
+        self.critter_interval = 0.0
         return self
 
     def applicationDidFinishLaunching_(self, notification: Any) -> None:
@@ -612,17 +628,21 @@ class AppDelegate(NSObject):
     def applicationWillTerminate_(self, notification: Any) -> None:
         cleanup_fsevents(self._fs_stream)
         self._fs_stream = None
-        self._close_pet_gallery_window()
+        self._stop_critter_timer()
 
     def switchPanel_(self, sender: Any) -> None:
         menu = NSMenu.alloc().initWithTitle_(_t(self.language, "switch_panel"))
-        summon_pets_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            _t(self.language, "summon_pets"),
-            "summonPets:",
+        critters_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            _t(
+                self.language,
+                "dismiss_critters" if self.critters_enabled else "summon_critters",
+            ),
+            "toggleCritters:",
             "",
         )
-        summon_pets_item.setTarget_(self)
-        menu.addItem_(summon_pets_item)
+        critters_item.setTarget_(self)
+        critters_item.setState_(1 if self.critters_enabled else 0)
+        menu.addItem_(critters_item)
         menu.addItem_(NSMenuItem.separatorItem())
         # Panel themes live in a submenu so the menu stays short — one "面板主題 ▸"
         # row that expands on demand instead of nine inline rows.
@@ -709,12 +729,19 @@ class AppDelegate(NSObject):
         panel_id = str(sender.representedObject())
         self._set_active_panel_id(panel_id)
 
-    def summonPets_(self, sender: Any) -> None:
+    def toggleCritters_(self, sender: Any) -> None:
         self._mark_switch_menu_action()
-        if self.pet_gallery_window is not None:
-            self._close_pet_gallery_window()
-            return
-        self._open_pet_gallery_window()
+        enabled = not bool(self.critters_enabled)
+        self.critters_enabled = enabled
+        _save_critters_enabled(enabled)
+        self.critter_frame = 0
+        if hasattr(sender, "setState_"):
+            sender.setState_(1 if enabled else 0)
+        if hasattr(sender, "setTitle_"):
+            sender.setTitle_(
+                _t(self.language, "dismiss_critters" if enabled else "summon_critters")
+            )
+        self._set_button_title(self.latest_state)
 
     def toggleLaunchAtLogin_(self, sender: Any) -> None:
         self._mark_switch_menu_action()
@@ -940,68 +967,6 @@ class AppDelegate(NSObject):
             return
         self.popover.performClose_(None)
 
-    def _open_pet_gallery_window(self) -> None:
-        frame = self._pet_gallery_frame()
-        style_mask = (
-            NSWindowStyleMaskTitled
-            | NSWindowStyleMaskClosable
-            | NSWindowStyleMaskUtilityWindow
-        )
-        window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
-            frame,
-            style_mask,
-            NSBackingStoreBuffered,
-            False,
-        )
-        if window is None:
-            raise RuntimeError("failed to create pet gallery window")
-        window.setDelegate_(self)
-        window.setTitle_(_t(self.language, "pet_gallery_title"))
-        window.setTitleVisibility_(NSWindowTitleHidden)
-        window.setTitlebarAppearsTransparent_(True)
-        window.setMovableByWindowBackground_(True)
-        window.setLevel_(NSFloatingWindowLevel)
-        window.setReleasedWhenClosed_(False)
-        window.setHidesOnDeactivate_(True)
-        window.setHasShadow_(True)
-        web_frame = NSMakeRect(0, 0, PET_GALLERY_WIDTH, PET_GALLERY_HEIGHT)
-        configuration = WKWebViewConfiguration.alloc().init()
-        web_view = WKWebView.alloc().initWithFrame_configuration_(web_frame, configuration)
-        web_view.setValue_forKey_(False, "drawsBackground")
-        window.setContentView_(web_view)
-        web_view.loadHTMLString_baseURL_(render_pet_gallery_html(self.language), None)
-        self.pet_gallery_window = window
-        self.pet_gallery_view = web_view
-        window.makeKeyAndOrderFront_(None)
-
-    def _close_pet_gallery_window(self) -> None:
-        window = self.pet_gallery_window
-        self.pet_gallery_window = None
-        self.pet_gallery_view = None
-        if window is not None:
-            window.setDelegate_(None)
-            window.close()
-
-    def _pet_gallery_frame(self) -> Any:
-        screen = NSScreen.mainScreen()
-        if screen is None:
-            return NSMakeRect(0, 0, PET_GALLERY_WIDTH, PET_GALLERY_HEIGHT)
-        visible_frame = screen.visibleFrame()
-        x = (
-            visible_frame.origin.x
-            + visible_frame.size.width
-            - PET_GALLERY_WIDTH
-            - PET_GALLERY_MARGIN
-        )
-        y = visible_frame.origin.y + PET_GALLERY_MARGIN
-        return NSMakeRect(x, y, PET_GALLERY_WIDTH, PET_GALLERY_HEIGHT)
-
-    def windowWillClose_(self, notification: Any) -> None:
-        window = notification.object() if notification is not None else None
-        if window is self.pet_gallery_window:
-            self.pet_gallery_window = None
-            self.pet_gallery_view = None
-
     def _resync_popover_after_menu(self) -> None:
         if not hasattr(self, "popover") or not hasattr(self, "popover_controller"):
             return
@@ -1013,6 +978,53 @@ class AppDelegate(NSObject):
             return
         self.popover_controller.setState_(self.latest_state)
         self.popover.setContentSize_(_popover_size(self.latest_state, self.active_panel))
+
+    def animateCritters_(self, timer: Any) -> None:
+        if not self.critters_enabled:
+            self.critter_frame = 0
+            self._stop_critter_timer()
+            self._set_button_title(self.latest_state)
+            return
+        interval = self._current_critter_interval()
+        if interval <= 0:
+            self.critter_frame = 0
+            self._stop_critter_timer()
+            self._set_button_title(self.latest_state)
+            return
+        self.critter_frame = (int(self.critter_frame) + 1) % len(critter_frames.PHOENIX_FRAMES)
+        self._set_button_title(self.latest_state)
+
+    def _current_critter_interval(self) -> float:
+        try:
+            group = int(self.tracker.group())
+        except Exception:
+            group = 0
+        return critter_frames.group_to_interval(group)
+
+    def _sync_critter_timer(self) -> None:
+        if not self.critters_enabled:
+            self.critter_frame = 0
+            self._stop_critter_timer()
+            return
+        interval = self._current_critter_interval()
+        if interval <= 0:
+            self.critter_frame = 0
+            self._stop_critter_timer()
+            return
+        if self.critter_timer is not None and self.critter_interval == interval:
+            return
+        self._stop_critter_timer()
+        self.critter_interval = interval
+        scheduled_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_
+        self.critter_timer = scheduled_timer(interval, self, "animateCritters:", None, True)
+        NSRunLoop.currentRunLoop().addTimer_forMode_(self.critter_timer, NSRunLoopCommonModes)
+
+    def _stop_critter_timer(self) -> None:
+        timer = self.critter_timer
+        self.critter_timer = None
+        self.critter_interval = 0.0
+        if timer is not None:
+            timer.invalidate()
 
     def togglePopover_(self, sender: Any) -> None:
         if self.popover.isShown():
@@ -1464,6 +1476,7 @@ class AppDelegate(NSObject):
 
     def _menubar_attributed_title(self, state: PopoverState) -> Any:
         title = NSMutableAttributedString.alloc().init()
+        frame = int(self.critter_frame) % len(critter_frames.PHOENIX_FRAMES)
         if not state.hide_claude:
             claude_percent = (
                 "--"
@@ -1472,6 +1485,11 @@ class AppDelegate(NSObject):
             )
             title.appendAttributedString_(_menubar_icon_attachment_string(_claude_menubar_icon()))
             title.appendAttributedString_(self._menubar_text_string(f" {claude_percent}"))
+            if self.critters_enabled:
+                phoenix = _critter_frame_image(critter_frames.PHOENIX_FRAMES[frame])
+                if phoenix is not None:
+                    title.appendAttributedString_(self._menubar_text_string(" "))
+                    title.appendAttributedString_(_critter_icon_attachment_string(phoenix))
         if not state.hide_codex and (self.codex_5h_pct is not None or state.hide_claude):
             codex_percent = (
                 "--"
@@ -1482,6 +1500,11 @@ class AppDelegate(NSObject):
                 title.appendAttributedString_(self._menubar_text_string(" · "))
             title.appendAttributedString_(_menubar_icon_attachment_string(_codex_menubar_icon()))
             title.appendAttributedString_(self._menubar_text_string(f" {codex_percent}"))
+            if self.critters_enabled:
+                dragon = _critter_frame_image(critter_frames.DRAGON_FRAMES[frame])
+                if dragon is not None:
+                    title.appendAttributedString_(self._menubar_text_string(" "))
+                    title.appendAttributedString_(_critter_icon_attachment_string(dragon))
         if title.length() == 0:
             # Both providers hidden: keep a recognizable, clickable status item.
             title.appendAttributedString_(_menubar_icon_attachment_string(_claude_menubar_icon()))
@@ -1491,6 +1514,7 @@ class AppDelegate(NSObject):
         button = self.status_item.button()
         button.setTitle_(self._compose_title(state))
         button.setAttributedTitle_(self._menubar_attributed_title(state))
+        self._sync_critter_timer()
 
     def _compose_title(self, state: PopoverState) -> str:
         parts: list[str] = []
