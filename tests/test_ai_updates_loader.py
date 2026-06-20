@@ -214,7 +214,14 @@ def test_load_ai_updates_skips_invalid_items_and_empty_tools() -> None:
     ]
 
 
-def test_load_ai_updates_returns_none_for_bad_json_cache() -> None:
+def test_load_ai_updates_returns_none_for_bad_json_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ai_updates_loader.CACHE_PATH.write_text("{", encoding="utf-8")
+
+    def fail_urlopen(*_args: object, **_kwargs: object) -> None:
+        raise urllib.error.URLError("network disabled in test")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fail_urlopen)
 
     assert ai_updates_loader.load_ai_updates() is None
