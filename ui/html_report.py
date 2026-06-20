@@ -73,6 +73,19 @@ def _display_name(value: object, lang: str) -> str:
     return _t(lang, "unknown") if text == "unknown" else text
 
 
+def _localized_text(value: object, lang: str) -> str:
+    if not isinstance(value, dict):
+        return ""
+    for key in (lang, "en"):
+        localized = value.get(key)
+        if isinstance(localized, str) and localized:
+            return localized
+    for localized in value.values():
+        if isinstance(localized, str) and localized:
+            return localized
+    return ""
+
+
 def _section(title: str, body: str, class_name: str = "") -> str:
     classes = "section" if not class_name else f"section {class_name}"
     return f"""
@@ -553,6 +566,58 @@ def _render_session_section(data: dict[str, Any], lang: str) -> str:
     return _section(_t(lang, "session_section"), session_body, "session-section")
 
 
+def _render_ai_updates_section(data: dict[str, Any], lang: str) -> str:
+    raw_updates = data.get("ai_updates")
+    if not isinstance(raw_updates, list) or not raw_updates:
+        return ""
+
+    cards: list[str] = []
+    for tool in raw_updates:
+        if not isinstance(tool, dict):
+            continue
+        raw_items = tool.get("items")
+        if not isinstance(raw_items, list) or not raw_items:
+            continue
+
+        items: list[str] = []
+        for item in raw_items:
+            if not isinstance(item, dict):
+                continue
+            title = _localized_text(item.get("title"), lang)
+            body = _localized_text(item.get("body"), lang)
+            original = item.get("original")
+            if not title or not body or not isinstance(original, str):
+                continue
+            items.append(
+                '<div class="ai-update-item">'
+                f'<p class="ai-update-item-title">{_escape(title)}</p>'
+                f'<p class="ai-update-item-body">{_escape(body)}</p>'
+                '<details class="ai-update-original">'
+                f'<summary>{_escape(_t(lang, "ai_updates_original"))}</summary>'
+                f'<div>{_escape(original)}</div>'
+                "</details>"
+                "</div>"
+            )
+
+        if not items:
+            continue
+        cards.append(
+            '<article class="ai-update-card">'
+            f'<div class="ai-update-head"><h3>{_escape(tool.get("name", ""))}</h3>'
+            f'<span class="ai-update-version">{_escape(_t(lang, "ai_updates_updated_to"))} {_escape(tool.get("version", ""))}</span></div>'
+            f'<p class="ai-update-period">{_escape(tool.get("period", ""))}</p>'
+            f'<div class="ai-update-items">{"".join(items)}</div>'
+            "</article>"
+        )
+    if not cards:
+        return ""
+    return _section(
+        _t(lang, "ai_updates_section"),
+        f'<div class="ai-updates-grid">{"".join(cards)}</div>',
+        "ai-updates-section",
+    )
+
+
 def _share_config_json(lang: str) -> str:
     share_config = {
         "copied": _t(lang, "share_copied"),
@@ -694,6 +759,22 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
 .sub-since{{color:var(--muted);font-size:.84rem}}
 .tool-row .pct,.tool-row .tokens,.tool-row .cost{{white-space:nowrap;text-align:right}}
 .tool-row .pct{{color:var(--token)}}.tool-row .tokens{{color:#dce2ea}}.tool-row .cost{{color:var(--cost)}}
+.ai-updates-grid{{display:grid;gap:12px}}
+.ai-update-card{{padding:14px 16px;border:1px solid #30363d;border-radius:7px;background:#090b0e}}
+.ai-update-head{{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}}
+.ai-update-head h3{{margin:0;color:#f0f6fc;font-size:1rem;line-height:1.35}}
+.ai-update-version{{color:var(--token);font-size:.84rem;white-space:nowrap}}
+.ai-update-period{{margin:8px 0 0;color:var(--muted);font-size:.82rem}}
+.ai-update-items{{display:grid;gap:12px;margin-top:12px}}
+.ai-update-item{{padding-top:12px;border-top:1px solid #20252c}}
+.ai-update-item:first-child{{padding-top:0;border-top:0}}
+.ai-update-item-title{{margin:0;color:#f0f6fc;font-size:.92rem;font-weight:700;line-height:1.5}}
+.ai-update-item-body{{margin:6px 0 0;color:#dce2ea;font-size:.9rem;line-height:1.65}}
+.ai-update-original{{margin-top:8px;border:1px solid #262c34;border-radius:6px;background:#0d1014}}
+.ai-update-original summary{{cursor:pointer;list-style:none;padding:8px 10px;color:var(--token);font-size:.82rem;user-select:none}}
+.ai-update-original summary::-webkit-details-marker{{display:none}}
+.ai-update-original[open] summary{{border-bottom:1px solid #262c34}}
+.ai-update-original div{{padding:10px;color:var(--muted);font-size:.82rem;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}}
 @media (max-width:780px){{.wrap{{padding:28px 14px}}header{{display:block}}.meta{{text-align:left;margin-top:16px}}.header-actions{{align-items:flex-start;margin-top:16px}}.cards{{grid-template-columns:repeat(2,1fr)}}.rank-head{{display:none}}.rank-list{{display:grid;gap:10px}}.rank-line{{display:grid;grid-template-columns:1fr;gap:8px;padding:12px;border:1px solid #30363d;border-radius:6px;background:#090b0e}}.rank-line .arrow{{display:none}}.rank-line .name{{white-space:normal;font-weight:700;color:#f0f6fc}}.rank-line .pct,.rank-line .tokens,.rank-line .cost{{display:flex;justify-content:space-between;gap:14px;text-align:left}}.rank-line .pct::before,.rank-line .tokens::before,.rank-line .cost::before{{content:attr(data-label);color:var(--muted)}}.tools-head{{display:none}}.tool-row{{grid-template-columns:1fr;gap:8px}}.tool-row .pct,.tool-row .tokens,.tool-row .cost{{display:flex;justify-content:space-between;gap:14px;text-align:left}}.tool-row .pct:empty,.tool-row .tokens:empty,.tool-row .cost:empty{{display:none}}.tool-row .pct::before,.tool-row .tokens::before,.tool-row .cost::before{{content:attr(data-label);color:var(--muted)}}}}
 @media (max-width:480px){{.wrap{{padding:22px 12px 28px}}h1{{white-space:normal}}.cards{{grid-template-columns:repeat(2,1fr);gap:8px}}.card{{min-height:96px;padding:13px 11px}}.share-dialog{{width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;border:0;border-radius:0}}.share-modal{{min-height:100dvh;padding:16px 12px 18px}}.share-section{{padding:12px}}.share-action{{min-height:42px;font-size:.72rem;gap:4px;white-space:normal}}.share-file-actions{{grid-template-columns:1fr}}.section{{padding:16px 12px}}}}"""
 
@@ -859,6 +940,7 @@ def generate_html(data: dict[str, Any], language: str | None = None) -> str:
   {_render_trend_section(data, lang)}
   {_render_persona_section(data, lang)}
   {_render_session_section(data, lang)}
+  {_render_ai_updates_section(data, lang)}
   {_render_sponsor_section(lang)}
 </main>
 <script>

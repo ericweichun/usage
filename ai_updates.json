@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-06-20",
+  "tools": [
+    {
+      "id": "claude_code",
+      "name": "Claude Code",
+      "version": "2.1.183",
+      "period": "2026-06-13 ~ 06-19",
+      "items": [
+        {
+          "title": {
+            "zh-TW": "新指令 /config：直接改設定",
+            "en": "New /config command: change settings inline"
+          },
+          "body": {
+            "zh-TW": "以前改設定要翻選單，現在打一行字就能改任何一項。在 Claude Code 裡輸入 /config 設定名=值，例如關掉「思考模式」就打 /config thinking=false，立刻生效；不知道有哪些可改，打 /config --help 看清單。",
+            "en": "Settings used to mean digging through menus; now one line changes any setting. Type /config key=value in Claude Code — e.g. /config thinking=false turns off thinking mode instantly. Run /config --help to see every key."
+          },
+          "original": "Added /config key=value syntax to set any setting from the prompt. Added /config --help to list all available shorthand keys."
+        },
+        {
+          "title": {
+            "zh-TW": "更安全：自動執行時攔下危險指令",
+            "en": "Safer auto mode: blocks destructive commands"
+          },
+          "body": {
+            "zh-TW": "當你讓 AI 自己動手、不每步問你，它會先攔下那些「一執行就把成果刪光、又救不回」的指令，例如 git reset --hard（丟掉未存檔修改）、git clean -fd（刪光未納管的新檔）、terraform destroy（拆掉雲端設施）。除非你明講要這樣做，否則 AI 不會自己跑。",
+            "en": "When you let the AI act on its own, it now blocks commands that would wipe your work irrecoverably — git reset --hard (drops uncommitted changes), git clean -fd (deletes untracked files), terraform destroy (tears down cloud infra). It won't run them unless you explicitly ask."
+          },
+          "original": "Improved auto mode safety: destructive git commands (git reset --hard, git checkout -- ., git clean -fd, git stash drop) are now blocked when you didn't ask to discard local work; terraform destroy/pulumi destroy/cdk destroy are blocked unless you asked for the specific stack."
+        }
+      ]
+    }
+  ]
+}

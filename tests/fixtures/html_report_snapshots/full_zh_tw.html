@@ -96,6 +96,22 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
 .sub-since{color:var(--muted);font-size:.84rem}
 .tool-row .pct,.tool-row .tokens,.tool-row .cost{white-space:nowrap;text-align:right}
 .tool-row .pct{color:var(--token)}.tool-row .tokens{color:#dce2ea}.tool-row .cost{color:var(--cost)}
+.ai-updates-grid{display:grid;gap:12px}
+.ai-update-card{padding:14px 16px;border:1px solid #30363d;border-radius:7px;background:#090b0e}
+.ai-update-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.ai-update-head h3{margin:0;color:#f0f6fc;font-size:1rem;line-height:1.35}
+.ai-update-version{color:var(--token);font-size:.84rem;white-space:nowrap}
+.ai-update-period{margin:8px 0 0;color:var(--muted);font-size:.82rem}
+.ai-update-items{display:grid;gap:12px;margin-top:12px}
+.ai-update-item{padding-top:12px;border-top:1px solid #20252c}
+.ai-update-item:first-child{padding-top:0;border-top:0}
+.ai-update-item-title{margin:0;color:#f0f6fc;font-size:.92rem;font-weight:700;line-height:1.5}
+.ai-update-item-body{margin:6px 0 0;color:#dce2ea;font-size:.9rem;line-height:1.65}
+.ai-update-original{margin-top:8px;border:1px solid #262c34;border-radius:6px;background:#0d1014}
+.ai-update-original summary{cursor:pointer;list-style:none;padding:8px 10px;color:var(--token);font-size:.82rem;user-select:none}
+.ai-update-original summary::-webkit-details-marker{display:none}
+.ai-update-original[open] summary{border-bottom:1px solid #262c34}
+.ai-update-original div{padding:10px;color:var(--muted);font-size:.82rem;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
 @media (max-width:780px){.wrap{padding:28px 14px}header{display:block}.meta{text-align:left;margin-top:16px}.header-actions{align-items:flex-start;margin-top:16px}.cards{grid-template-columns:repeat(2,1fr)}.rank-head{display:none}.rank-list{display:grid;gap:10px}.rank-line{display:grid;grid-template-columns:1fr;gap:8px;padding:12px;border:1px solid #30363d;border-radius:6px;background:#090b0e}.rank-line .arrow{display:none}.rank-line .name{white-space:normal;font-weight:700;color:#f0f6fc}.rank-line .pct,.rank-line .tokens,.rank-line .cost{display:flex;justify-content:space-between;gap:14px;text-align:left}.rank-line .pct::before,.rank-line .tokens::before,.rank-line .cost::before{content:attr(data-label);color:var(--muted)}.tools-head{display:none}.tool-row{grid-template-columns:1fr;gap:8px}.tool-row .pct,.tool-row .tokens,.tool-row .cost{display:flex;justify-content:space-between;gap:14px;text-align:left}.tool-row .pct:empty,.tool-row .tokens:empty,.tool-row .cost:empty{display:none}.tool-row .pct::before,.tool-row .tokens::before,.tool-row .cost::before{content:attr(data-label);color:var(--muted)}}
 @media (max-width:480px){.wrap{padding:22px 12px 28px}h1{white-space:normal}.cards{grid-template-columns:repeat(2,1fr);gap:8px}.card{min-height:96px;padding:13px 11px}.share-dialog{width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;border:0;border-radius:0}.share-modal{min-height:100dvh;padding:16px 12px 18px}.share-section{padding:12px}.share-action{min-height:42px;font-size:.72rem;gap:4px;white-space:normal}.share-file-actions{grid-template-columns:1fr}.section{padding:16px 12px}}
 </style>
@@ -201,6 +217,13 @@ h1{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-we
           </table>
         </div>
         
+    </section>
+    
+  
+    <section class="section ai-updates-section">
+      <div class="prompt"><span>[usage]&gt;</span> AI 工具更新</div>
+      <div class="rule" aria-hidden="true">────────────────────────────────────────────────────────</div>
+      <div class="ai-updates-grid"><article class="ai-update-card"><div class="ai-update-head"><h3>Claude Code</h3><span class="ai-update-version">更新至 2.1.183</span></div><p class="ai-update-period">2026-06-17 ~ 2026-06-19</p><div class="ai-update-items"><div class="ai-update-item"><p class="ai-update-item-title">新指令 /config：直接改設定</p><p class="ai-update-item-body">打一行就能改設定。</p><details class="ai-update-original"><summary>原文</summary><div>Added /config key=value syntax.</div></details></div><div class="ai-update-item"><p class="ai-update-item-title">更安全：自動執行時攔下危險指令</p><p class="ai-update-item-body">自動模式會先擋掉危險指令。</p><details class="ai-update-original"><summary>原文</summary><div>Improved auto mode safety.</div></details></div></div></article><article class="ai-update-card"><div class="ai-update-head"><h3>Codex</h3><span class="ai-update-version">更新至 0.141.0</span></div><p class="ai-update-period">2026-06-18</p><div class="ai-update-items"><div class="ai-update-item"><p class="ai-update-item-title">Remote execution got better.</p><p class="ai-update-item-body">Plugins and remote execution were upgraded.</p><details class="ai-update-original"><summary>原文</summary><div>Remote execution and plugins were upgraded.</div></details></div></div></article></div>
     </section>
     
   <p class="sponsor">

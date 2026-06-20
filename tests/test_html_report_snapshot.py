@@ -119,6 +119,51 @@ def _full_report_data() -> dict[str, Any]:
                 "cost": 4.56,
             },
         ],
+        "ai_updates": [
+            {
+                "id": "claude_code",
+                "name": "Claude Code",
+                "version": "2.1.183",
+                "period": "2026-06-17 ~ 2026-06-19",
+                "items": [
+                    {
+                        "title": {
+                            "zh-TW": "新指令 /config：直接改設定",
+                            "en": "New /config command: change settings inline",
+                        },
+                        "body": {
+                            "zh-TW": "打一行就能改設定。",
+                            "en": "One line now changes settings.",
+                        },
+                        "original": "Added /config key=value syntax.",
+                    },
+                    {
+                        "title": {
+                            "zh-TW": "更安全：自動執行時攔下危險指令",
+                            "en": "Safer auto mode: blocks destructive commands",
+                        },
+                        "body": {
+                            "zh-TW": "自動模式會先擋掉危險指令。",
+                            "en": "Auto mode now blocks destructive commands first.",
+                        },
+                        "original": "Improved auto mode safety.",
+                    },
+                ],
+            },
+            {
+                "id": "codex",
+                "name": "Codex",
+                "version": "0.141.0",
+                "period": "2026-06-18",
+                "items": [
+                    {
+                        "title": {"en": "Remote execution got better."},
+                        "body": {"en": "Plugins and remote execution were upgraded."},
+                        "original": "Remote execution and plugins were upgraded.",
+                    }
+                ],
+            },
+        ],
     }
 
 
@@ -178,3 +223,37 @@ def test_build_csv_data_masks_project_names() -> None:
     assert "project,Project 2,20.1,471482,9.18\r\n" in csv_text
     assert "model,claude-sonnet-4,52.4,1229345,23.91\r\n" in csv_text
     assert "project,usage,70.2,1646859,32.07\r\n" not in csv_text
+
+
+def test_render_ai_updates_section_falls_back_to_english_and_escapes() -> None:
+    html = html_report._render_ai_updates_section(
+        {
+            "ai_updates": [
+                {
+                    "id": "codex",
+                    "name": "Codex<script>",
+                    "version": "0.141.0",
+                    "period": "2026-06-18",
+                    "items": [
+                        {
+                            "title": {"en": "Remote <upgrade>"},
+                            "body": {"en": "Remote <upgrade> shipped."},
+                            "original": "Use `codex --remote` <beta>.",
+                        }
+                    ],
+                }
+            ]
+        },
+        "ja",
+    )
+
+    assert "AIツールの更新" in html
+    assert "Updated to 0.141.0" not in html
+    assert "更新：" in html
+    assert "Original" not in html
+    assert "原文" in html
+    assert "Remote &lt;upgrade&gt;" in html
+    assert "Remote &lt;upgrade&gt; shipped." in html
+    assert "Use `codex --remote` &lt;beta&gt;." in html
+    assert "<details" in html
+    assert "Codex&lt;script&gt;" in html

@@ -16,6 +16,7 @@ from typing import Any
 import codex_loader
 import persona_loader
 import subscription
+import ai_updates_loader
 from adapters import claude, codex
 from adapters.types import AgentInfo, UsageEntry
 from pricing import calculate_cost
@@ -426,4 +427,5 @@ def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[st
         "comparison": comparison,
         "subscriptions": subscription.load_subscriptions(),
         "persona": _load_persona_for_period(period),
+        "ai_updates": ai_updates_loader.load_ai_updates(),
     }
