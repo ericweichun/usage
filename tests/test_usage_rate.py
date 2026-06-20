@@ -92,3 +92,9 @@ def test_group_caches_result(monkeypatch: pytest.MonkeyPatch) -> None:
     assert tracker.group() == 1
     assert tracker.group() == 1
     assert calls == 1
+
+
+def test_group_uses_custom_loader() -> None:
+    tracker = usage_rate.UsageRateTracker(load=lambda hours_back: [_entry(300)])
+
+    assert tracker.group() == 2

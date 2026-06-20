@@ -490,6 +490,7 @@ class AppDelegate(NSObject):
     mock = objc.ivar()
     interval = objc.ivar()
     tracker = objc.ivar()
+    codex_tracker = objc.ivar()
     latest_state = objc.ivar()
     active_panel = objc.ivar()
     codex_5h_pct = objc.ivar()
@@ -506,6 +507,9 @@ class AppDelegate(NSObject):
     critter_timer = objc.ivar()
     critter_frame = objc.ivar()
     critter_interval = objc.ivar()
+    dragon_timer = objc.ivar()
+    dragon_frame = objc.ivar()
+    dragon_interval = objc.ivar()
     language = objc.ivar()
 
     def initWithMock_interval_(self, mock: bool, interval: int) -> AppDelegate:
@@ -515,6 +519,7 @@ class AppDelegate(NSObject):
         self.mock = mock
         self.interval = max(30, interval)
         self.tracker = UsageRateTracker(mock=mock)
+        self.codex_tracker = UsageRateTracker(mock=mock, load=codex_loader.load_entries)
         self.language = _detect_language()
         self.codex_5h_pct = None
         self.codex_model = "unknown"
@@ -537,6 +542,9 @@ class AppDelegate(NSObject):
         self.critter_timer = None
         self.critter_frame = 0
         self.critter_interval = 0.0
+        self.dragon_timer = None
+        self.dragon_frame = 0
+        self.dragon_interval = 0.0
         return self
 
     def applicationDidFinishLaunching_(self, notification: Any) -> None:
@@ -629,6 +637,7 @@ class AppDelegate(NSObject):
         cleanup_fsevents(self._fs_stream)
         self._fs_stream = None
         self._stop_critter_timer()
+        self._stop_dragon_timer()
 
     def switchPanel_(self, sender: Any) -> None:
         menu = NSMenu.alloc().initWithTitle_(_t(self.language, "switch_panel"))
@@ -735,6 +744,7 @@ class AppDelegate(NSObject):
         self.critters_enabled = enabled
         _save_critters_enabled(enabled)
         self.critter_frame = 0
+        self.dragon_frame = 0
         if hasattr(sender, "setState_"):
             sender.setState_(1 if enabled else 0)
         if hasattr(sender, "setTitle_"):
@@ -994,9 +1004,31 @@ class AppDelegate(NSObject):
         self.critter_frame = (int(self.critter_frame) + 1) % len(critter_frames.PHOENIX_FRAMES)
         self._set_button_title(self.latest_state)
 
+    def animateDragon_(self, timer: Any) -> None:
+        if not self.critters_enabled:
+            self.dragon_frame = 0
+            self._stop_dragon_timer()
+            self._set_button_title(self.latest_state)
+            return
+        interval = self._current_dragon_interval()
+        if interval <= 0:
+            self.dragon_frame = 0
+            self._stop_dragon_timer()
+            self._set_button_title(self.latest_state)
+            return
+        self.dragon_frame = (int(self.dragon_frame) + 1) % len(critter_frames.DRAGON_FRAMES)
+        self._set_button_title(self.latest_state)
+
     def _current_critter_interval(self) -> float:
         try:
             group = int(self.tracker.group())
+        except Exception:
+            group = 0
+        return critter_frames.group_to_interval(group)
+
+    def _current_dragon_interval(self) -> float:
+        try:
+            group = int(self.codex_tracker.group())
         except Exception:
             group = 0
         return critter_frames.group_to_interval(group)
@@ -1023,6 +1055,31 @@ class AppDelegate(NSObject):
         timer = self.critter_timer
         self.critter_timer = None
         self.critter_interval = 0.0
+        if timer is not None:
+            timer.invalidate()
+
+    def _sync_dragon_timer(self) -> None:
+        if not self.critters_enabled:
+            self.dragon_frame = 0
+            self._stop_dragon_timer()
+            return
+        interval = self._current_dragon_interval()
+        if interval <= 0:
+            self.dragon_frame = 0
+            self._stop_dragon_timer()
+            return
+        if self.dragon_timer is not None and self.dragon_interval == interval:
+            return
+        self._stop_dragon_timer()
+        self.dragon_interval = interval
+        scheduled_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_
+        self.dragon_timer = scheduled_timer(interval, self, "animateDragon:", None, True)
+        NSRunLoop.currentRunLoop().addTimer_forMode_(self.dragon_timer, NSRunLoopCommonModes)
+
+    def _stop_dragon_timer(self) -> None:
+        timer = self.dragon_timer
+        self.dragon_timer = None
+        self.dragon_interval = 0.0
         if timer is not None:
             timer.invalidate()
 
@@ -1476,7 +1533,8 @@ class AppDelegate(NSObject):
 
     def _menubar_attributed_title(self, state: PopoverState) -> Any:
         title = NSMutableAttributedString.alloc().init()
-        frame = int(self.critter_frame) % len(critter_frames.PHOENIX_FRAMES)
+        phoenix_frame = int(self.critter_frame) % len(critter_frames.PHOENIX_FRAMES)
+        dragon_frame = int(self.dragon_frame) % len(critter_frames.DRAGON_FRAMES)
         if not state.hide_claude:
             claude_percent = (
                 "--"
@@ -1486,7 +1544,7 @@ class AppDelegate(NSObject):
             title.appendAttributedString_(_menubar_icon_attachment_string(_claude_menubar_icon()))
             title.appendAttributedString_(self._menubar_text_string(f" {claude_percent}"))
             if self.critters_enabled:
-                phoenix = _critter_frame_image(critter_frames.PHOENIX_FRAMES[frame])
+                phoenix = _critter_frame_image(critter_frames.PHOENIX_FRAMES[phoenix_frame])
                 if phoenix is not None:
                     title.appendAttributedString_(self._menubar_text_string(" "))
                     title.appendAttributedString_(_critter_icon_attachment_string(phoenix))
@@ -1501,7 +1559,7 @@ class AppDelegate(NSObject):
             title.appendAttributedString_(_menubar_icon_attachment_string(_codex_menubar_icon()))
             title.appendAttributedString_(self._menubar_text_string(f" {codex_percent}"))
             if self.critters_enabled:
-                dragon = _critter_frame_image(critter_frames.DRAGON_FRAMES[frame])
+                dragon = _critter_frame_image(critter_frames.DRAGON_FRAMES[dragon_frame])
                 if dragon is not None:
                     title.appendAttributedString_(self._menubar_text_string(" "))
                     title.appendAttributedString_(_critter_icon_attachment_string(dragon))
@@ -1515,6 +1573,7 @@ class AppDelegate(NSObject):
         button.setTitle_(self._compose_title(state))
         button.setAttributedTitle_(self._menubar_attributed_title(state))
         self._sync_critter_timer()
+        self._sync_dragon_timer()
 
     def _compose_title(self, state: PopoverState) -> str:
         parts: list[str] = []

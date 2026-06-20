@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Callable
 
-from history_loader import load_entries
+from history_loader import UsageEntry, load_entries
 
 BURN_RATE_THRESH_NORMAL = 50.0  # tokens/min
 BURN_RATE_THRESH_ACTIVE = 250.0
@@ -19,9 +20,15 @@ GROUP_NAMES = ["Idle", "Normal", "Active", "Heavy"]
 
 
 class UsageRateTracker:
-    def __init__(self, forced_group: int | None = None, mock: bool = False) -> None:
+    def __init__(
+        self,
+        forced_group: int | None = None,
+        mock: bool = False,
+        load: Callable[[int], list[UsageEntry]] | None = None,
+    ) -> None:
         self.forced_group = forced_group
         self.mock = mock
+        self._load = load
         self._cached_group: int | None = None
         self._cache_expires_at = 0.0
 
@@ -36,7 +43,11 @@ class UsageRateTracker:
         if self._cached_group is not None and now < self._cache_expires_at:
             return self._cached_group
 
-        entries = load_entries(hours_back=1)
+        entries = (
+            self._load(1)
+            if self._load is not None
+            else load_entries(hours_back=1)
+        )
         if not entries:
             result = 0
             self._cached_group = result
