@@ -9,14 +9,14 @@
       "items": [
         {
           "title": {
-            "zh-TW": "新指令 /config：直接改設定",
-            "en": "New /config command: change settings inline"
+            "zh-TW": "設定指令 /config 更順手",
+            "en": "The /config command got smoother"
           },
           "body": {
-            "zh-TW": "以前改設定要翻選單，現在打一行字就能改任何一項。在 Claude Code 裡輸入 /config 設定名=值，例如關掉「思考模式」就打 /config thinking=false，立刻生效；不知道有哪些可改，打 /config --help 看清單。",
-            "en": "Settings used to mean digging through menus; now one line changes any setting. Type /config key=value in Claude Code — e.g. /config thinking=false turns off thinking mode instantly. Run /config --help to see every key."
+            "zh-TW": "打 /config --help 就能一次列出所有可改的設定名稱，不用再硬記；設定畫面裡的操作鍵也調整了——Enter 或空白鍵都能切換選中的那一項，Esc 改成「存檔後關閉」（以前是放棄變更），比較不會手滑改了又沒存到。",
+            "en": "Run /config --help to list every setting name you can change, so you don't have to memorize them. The keys inside the settings screen also changed — Enter or Space both toggle the selected setting, and Esc now saves and closes (it used to discard your changes), so you're less likely to lose an edit by accident."
           },
-          "original": "Added /config key=value syntax to set any setting from the prompt. Added /config --help to list all available shorthand keys."
+          "original": "Added /config --help to list all available shorthand keys for /config key=value. Changed /config toggle behavior: Enter and Space both change the selected setting, and Esc now saves and closes instead of reverting."
         },
         {
           "title": {
@@ -27,7 +27,7 @@
             "zh-TW": "當你讓 AI 自己動手、不每步問你，它會先攔下那些「一執行就把成果刪光、又救不回」的指令，例如 git reset --hard（丟掉未存檔修改）、git clean -fd（刪光未納管的新檔）、terraform destroy（拆掉雲端設施）。除非你明講要這樣做，否則 AI 不會自己跑。",
             "en": "When you let the AI act on its own, it now blocks commands that would wipe your work irrecoverably — git reset --hard (drops uncommitted changes), git clean -fd (deletes untracked files), terraform destroy (tears down cloud infra). It won't run them unless you explicitly ask."
           },
-          "original": "Improved auto mode safety: destructive git commands (git reset --hard, git checkout -- ., git clean -fd, git stash drop) are now blocked when you didn't ask to discard local work; terraform destroy/pulumi destroy/cdk destroy are blocked unless you asked for the specific stack."
+          "original": "Improved auto mode safety: destructive git commands (git reset --hard, git checkout -- ., git clean -fd, git stash drop) are now blocked when you didn't ask to discard local work, git commit --amend is blocked when the commit wasn't made by the agent this session, and terraform destroy/pulumi destroy/cdk destroy are blocked unless you asked for the specific stack"
         }
       ]
     },
@@ -69,6 +69,47 @@
             "en": "In long, tool-heavy sessions Codex used to repeatedly copy requests and history — slow and memory-hungry. This release caches tool-search results (cache = keep computed results around to reuse) and cuts the redundant copying, so heavy long-running sessions feel noticeably smoother and use less memory."
           },
           "original": "Reduced latency and memory use in large, tool-heavy sessions by caching tool search and eliminating repeated request and history copies."
+        }
+      ]
+    },
+    {
+      "id": "agy",
+      "name": "agy",
+      "version": "1.0.10",
+      "period": "2026-06-13 ~ 06-19",
+      "items": [
+        {
+          "title": {
+            "zh-TW": "內建 antigravity_guide：在對話裡直接查官方指南",
+            "en": "Built-in antigravity_guide: official guides inside the chat"
+          },
+          "body": {
+            "zh-TW": "新增一個內建技能（skill，預先寫好、隨時可叫用的小工具）叫 antigravity_guide，讓你在對話當下直接拿到 Antigravity 2.0、CLI、IDE、SDK 的參考指南，不用切出去翻文件。卡住時問它一句，就把對應說明貼進來。",
+            "en": "A new built-in skill (skill = a ready-made tool you can call on demand) named antigravity_guide gives you instant, in-context reference guides for Antigravity 2.0, the CLI, IDE, and SDK — no switching out to hunt through docs. Ask when you're stuck and it pulls the relevant guide right in."
+          },
+          "original": "Added `antigravity_guide` builtin skill to provide instant, in-context reference guides for the Antigravity 2.0, CLI, IDE, and SDK."
+        },
+        {
+          "title": {
+            "zh-TW": "git 提交紀錄畫成 ASCII 線圖",
+            "en": "Git history drawn as an ASCII graph"
+          },
+          "body": {
+            "zh-TW": "看 git 提交紀錄時（git log，列出每一次存檔），現在會用文字符號畫出分支線圖（git log --graph），分支怎麼分岔、又在哪裡合併，一眼就看得出來，跟 hg、jj 這些其他版本控制工具的顯示看齊。",
+            "en": "When you view git history (git log = the list of every commit), it now draws an ASCII branch graph (git log --graph), so you can see at a glance how branches split and merge — matching what other version-control tools like hg and jj already show."
+          },
+          "original": "Improved Git integration by enabling ASCII node graphs (`git log --graph`) for visual parity with hg/jj."
+        },
+        {
+          "title": {
+            "zh-TW": "修掉權限規則含特殊符號時的無限詢問迴圈",
+            "en": "Fixed an infinite permission-prompt loop with special characters"
+          },
+          "body": {
+            "zh-TW": "以前如果你存的權限規則裡含有 $、. 這類在比對時帶特殊意義的符號（regex metacharacter，正規表達式特殊字元），比對會出錯，導致同一個請求一直跳出來問你、卡成無限迴圈。這版把這些符號跳脫處理（escape，告訴程式「這就是字面上的符號、別當特殊用法」）後就修好了。",
+            "en": "Previously, if a saved permission rule contained characters like $ or . that carry special meaning during matching (regex metacharacters), the match could break and the same request would keep prompting you — an infinite loop. This release escapes those characters (escape = tell the program to treat the symbol literally, not specially) and fixes it."
+          },
+          "original": "Fixed permission engine matching bugs by escaping regex metacharacters (like `$` or `.`) in saved rules, preventing infinite prompt loops."
         }
       ]
     }
