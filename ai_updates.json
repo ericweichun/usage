@@ -9,25 +9,91 @@
       "items": [
         {
           "title": {
-            "zh-TW": "設定指令 /config 更順手",
-            "en": "The /config command got smoother"
+            "zh-TW": "想改設定卻忘了名字？打 /config --help 全列給你",
+            "en": "Forgot a setting's name? /config --help lists them all"
           },
           "body": {
-            "zh-TW": "打 /config --help 就能一次列出所有可改的設定名稱，不用再硬記；設定畫面裡的操作鍵也調整了——Enter 或空白鍵都能切換選中的那一項，Esc 改成「存檔後關閉」（以前是放棄變更），比較不會手滑改了又沒存到。",
-            "en": "Run /config --help to list every setting name you can change, so you don't have to memorize them. The keys inside the settings screen also changed — Enter or Space both toggle the selected setting, and Esc now saves and closes (it used to discard your changes), so you're less likely to lose an edit by accident."
+            "zh-TW": "你想用一行指令改設定，卻記不得它叫什麼、能填什麼值嗎？打 `/config --help`，它會像一張菜單，把所有可改的項目和每項能填的值都列出來——例如外觀 `theme` 能填 dark、light。看到名字後，再打一行 `/config 名字=值` 就改好了。",
+            "en": "Want to change a setting in one line but can't recall what it's called or what it accepts? Type `/config --help` and it lists every setting like a menu, with the values each one takes — for example `theme` takes dark or light. Once you see the name, `/config name=value` sets it."
           },
-          "original": "Added /config --help to list all available shorthand keys for /config key=value. Changed /config toggle behavior: Enter and Space both change the selected setting, and Esc now saves and closes instead of reverting."
+          "original": "Added /config --help to list all available shorthand keys for /config key=value"
         },
         {
           "title": {
-            "zh-TW": "更安全：自動執行時攔下危險指令",
-            "en": "Safer auto mode: blocks destructive commands"
+            "zh-TW": "在設定畫面改完，按 Esc 不會再白改",
+            "en": "In the settings screen, Esc no longer throws your edits away"
           },
           "body": {
-            "zh-TW": "當你讓 AI 自己動手、不每步問你，它會先攔下那些「一執行就把成果刪光、又救不回」的指令，例如 git reset --hard（丟掉未存檔修改）、git clean -fd（刪光未納管的新檔）、terraform destroy（拆掉雲端設施）。除非你明講要這樣做，否則 AI 不會自己跑。",
-            "en": "When you let the AI act on its own, it now blocks commands that would wipe your work irrecoverably — git reset --hard (drops uncommitted changes), git clean -fd (deletes untracked files), terraform destroy (tears down cloud infra). It won't run them unless you explicitly ask."
+            "zh-TW": "以前在 `/config` 設定畫面改了半天，一按 `Esc` 想關掉，剛改的卻整批被退回，等於白忙。現在 `Esc` 改成「存好再關」；按 `Enter` 或空白鍵，則會改你選中那一項的值。",
+            "en": "You used to tweak things in the `/config` screen, press `Esc` to leave, and watch every change snap back — wasted effort. Now `Esc` saves and then closes, while `Enter` or `Space` changes the value of the item you've selected."
+          },
+          "original": "Changed /config toggle behavior: Enter and Space both change the selected setting, and Esc now saves and closes instead of reverting"
+        },
+        {
+          "title": {
+            "zh-TW": "AI 自己連續動手時，會擋下「刪了就救不回」的指令",
+            "en": "When acting on its own, Claude blocks commands that erase work for good"
+          },
+          "body": {
+            "zh-TW": "你讓 Claude 自己一步步做、不每次問你時，最怕它跑出一句把成果刪光又救不回的指令。現在這種它會先擋下來——像 `git reset --hard`（丟掉還沒存檔的修改）、`git clean -fd`（刪掉新加的檔案）、`terraform destroy`（拆掉整套雲端環境）。除非你明講要這麼做，它不會自作主張。",
+            "en": "When you let Claude run step after step without asking each time, the real fear is one command that wipes your work beyond recovery. It now blocks those up front — like `git reset --hard` (drops unsaved changes), `git clean -fd` (deletes new files), and `terraform destroy` (tears down a whole cloud setup) — unless you've clearly asked for it."
           },
           "original": "Improved auto mode safety: destructive git commands (git reset --hard, git checkout -- ., git clean -fd, git stash drop) are now blocked when you didn't ask to discard local work, git commit --amend is blocked when the commit wasn't made by the agent this session, and terraform destroy/pulumi destroy/cdk destroy are blocked unless you asked for the specific stack"
+        },
+        {
+          "title": {
+            "zh-TW": "你的模型被停用或偷偷換版時，會先講一聲",
+            "en": "You get a heads-up when your model is retired or swapped"
+          },
+          "body": {
+            "zh-TW": "你指定的模型如果已經停用、或被系統自動換成新版，你可能要等到回答怪怪的才察覺。現在遇到這種情況，Claude 會直接提醒你，讓你知道手上跑的已經不是原本那個模型。",
+            "en": "If the model you asked for has been retired, or the system quietly upgraded it to a newer one, you might only notice when the answers feel off. Claude now tells you outright, so you know the model running isn't the one you picked."
+          },
+          "original": "Added a warning when the requested model is deprecated or automatically updated to a newer model, shown on stderr in print mode (-p) and now also covering models set in agent frontmatter"
+        },
+        {
+          "title": {
+            "zh-TW": "用網頁版或遠端遙控時，提交可以不帶 claude.ai 連結",
+            "en": "On web or Remote Control, commits can drop the claude.ai link"
+          },
+          "body": {
+            "zh-TW": "如果你是在網頁版（claude.ai/code）或遠端遙控（Remote Control）裡讓 Claude 提交程式、開 PR，它預設會附一條連回這次對話的 claude.ai 網址。不想公開的話，現在用 `attribution.sessionUrl` 設定就能拿掉。（只有這兩種情境才會帶這條；你用本機 CLI 提交本來就不帶，不受影響。）",
+            "en": "When Claude commits code or opens a PR from the web app (claude.ai/code) or a Remote Control session, it attaches a link back to that conversation on claude.ai by default. The `attribution.sessionUrl` setting now lets you drop it. (Only those two cases add the link; local CLI commits never had it, so they're unaffected.)"
+          },
+          "original": "Added attribution.sessionUrl setting to omit the claude.ai session link from commits and PRs in web and Remote Control sessions"
+        },
+        {
+          "title": {
+            "zh-TW": "開場和畫面更乾淨，雜訊拿掉了",
+            "en": "A quieter startup and a cleaner screen"
+          },
+          "body": {
+            "zh-TW": "你開 Claude 時，logo 底下那行模糊的「設定有狀況」提醒拿掉了；真要查問題，跑 `/doctor` 就會帶你去看。另外 Focus 模式裡每段回答下面那串「跑了幾個 hook」的計時也不再出現，畫面只剩你要看的回答。",
+            "en": "When Claude starts, the vague \"setup issues\" line under the logo is gone — run `/doctor` if you actually want to check. In focus mode, the \"Ran N hooks\" timing lines under each reply are gone too, leaving just the answer you came for."
+          },
+          "original": "Removed the startup \"setup issues\" line under the logo — run /doctor to see configuration issues or use --debug\nFixed focus mode showing \"Ran N PostToolUse hooks\" timing lines under each response"
+        },
+        {
+          "title": {
+            "zh-TW": "分身比較不會無聲卡掉",
+            "en": "Subagents are less likely to stall in silence"
+          },
+          "body": {
+            "zh-TW": "你讓 Claude 開分身（subagent，分頭幫你做事的小助手）時，這版補掉幾種「看起來像當機」的狀況：分身一開就報錯、上網搜尋撈不到東西、或一輪做完卻什麼都沒回。現在它會自動修正、或自己再問一次，不會悶不吭聲就停住。",
+            "en": "When you spin up a subagent (a helper that works a task on the side), this release clears up a few \"looks broken\" moments: erroring the instant it starts, coming back empty from a web search, or finishing a turn with nothing to show. Now it repairs itself or asks once more instead of going quiet."
+          },
+          "original": "Fixed thinking.disabled.display 400 errors on subagent spawns and session-title generation for affected configurations\nFixed WebSearch returning empty results in subagents\nFixed turns silently completing with no visible output when the model returned only a thinking block; Claude now re-prompts once"
+        },
+        {
+          "title": {
+            "zh-TW": "終端畫面更穩（終端重度使用者、Windows 最有感）",
+            "en": "A steadier terminal (most noticeable for heavy terminal and Windows users)"
+          },
+          "body": {
+            "zh-TW": "你在終端用 vim 模式翻指令歷史時，游標不會再卡在輸入列上方亂跑。Windows Terminal 全螢幕、又同時跑很多層分身時，以前畫面會亂成一團（狀態列跑到半空、文字黏住），這版也修好了。",
+            "en": "When you scroll back through command history in vim mode, the cursor no longer gets stuck floating above the input line. And in Windows Terminal, fullscreen sessions running many nested subagents used to scramble the screen — stray status lines, merged text — which is fixed now."
+          },
+          "original": "Fixed the terminal cursor being stranded above the prompt after navigating history in vim mode with the native cursor enabled\nFixed fullscreen TUI corruption (statusline mid-screen, duplicated spinner rows, merged text) in Windows Terminal under heavy nested-subagent load"
         }
       ]
     },
@@ -35,81 +101,169 @@
       "id": "codex",
       "name": "Codex",
       "version": "0.141.0",
-      "period": "2026-06-13 ~ 06-19",
+      "period": "2026-06-18",
       "items": [
         {
           "title": {
-            "zh-TW": "終端機提問會倒數、時間到自動選預設",
-            "en": "Terminal prompts count down and auto-pick the default"
+            "zh-TW": "終端問你問題時會倒數，人離開也不卡死",
+            "en": "Terminal prompts count down, so stepping away won't freeze everything"
           },
           "body": {
-            "zh-TW": "Codex 在終端機介面（TUI，文字操作介面）問你「要不要繼續、選哪個」時，如果你離開沒回應，它會開始倒數，時間到就自動採用預設選項，不再卡著乾等你；你一動鍵盤，倒數就暫停，把選擇權交還給你。適合掛著跑、不想每個小提問都跑回電腦前按一下的情況。",
-            "en": "When Codex's terminal UI (TUI, the text-based interface) asks you to confirm or pick something, it now counts down and auto-applies the default if you've stepped away — no more sitting blocked waiting for you. Touch the keyboard and the countdown pauses, handing the choice back. Handy for long unattended runs where you don't want to babysit every small prompt."
+            "zh-TW": "Codex 在終端問你「要不要繼續」時，現在會像微波爐一樣倒數。你暫時離開，時間到它就採用預設答案接著跑；你一碰鍵盤，倒數立刻停下，決定權還你。掛著跑長流程時，不用每幾分鐘回來按一次。",
+            "en": "When Codex asks \"keep going?\" in the terminal, it now counts down like a microwave. Step away and it takes the default when time's up; touch the keyboard and the countdown stops, handing the choice back. Handy for long runs you leave unattended."
           },
           "original": "TUI input prompts can auto-resolve after inactivity, with a countdown that pauses on interaction."
         },
         {
           "title": {
-            "zh-TW": "外掛市集：找得到別人做的、也找得到自己做的",
-            "en": "Plugin marketplace: find others' plugins and your own"
+            "zh-TW": "外掛市集更好逛，找得到自己做的",
+            "en": "An easier plugin marketplace that surfaces your own"
           },
           "body": {
-            "zh-TW": "Codex 的外掛（plugin，額外加裝的小工具）現在有市集可逛：多了「我自己做的」分類，方便找回自己寫過的外掛；也按你的登入身分給整理好的精選清單，不用在一大堆裡亂翻。被選用的外掛還能依每個對話各自啟用它自帶的 MCP 伺服器（MCP，讓外掛接上外部資料或工具的通道）。",
-            "en": "Codex plugins (add-on tools) now have a browsable marketplace: a new \"created by me\" category to find plugins you built yourself, plus curated catalogs tailored to how you're signed in, so you're not digging through everything. Selected plugins can also spin up their own MCP servers (MCP = the channel a plugin uses to reach outside data or tools) per conversation."
+            "zh-TW": "你幫 Codex 找外掛（plugin，外加的小工具）時，市集多了「我自己做的」分類，也會照你的登入身分給整理好的精選清單，不用在一大堆裡亂翻。",
+            "en": "Looking for a Codex plugin (an add-on tool), you'll now find a \"created by me\" category in the marketplace, plus curated lists matched to how you're signed in — no more digging through everything."
           },
           "original": "Selected executor plugins can activate their stdio MCP servers per thread; plugin discovery also adds a created-by-me marketplace and auth-specific curated catalogs."
         },
         {
           "title": {
-            "zh-TW": "大型對話更快、更省記憶體",
-            "en": "Big sessions run faster and lighter"
+            "zh-TW": "又長又多工具的對話，更快也更省記憶體",
+            "en": "Long, tool-heavy sessions run faster and lighter"
           },
           "body": {
-            "zh-TW": "當一段對話用了很多工具、變得又長又重時，Codex 以前會反覆複製請求和歷史紀錄，又慢又吃記憶體。這版把工具搜尋的結果快取起來（cache，把算過的存著重複用）、並省掉那些重複複製，所以工具用很兇的長對話會明顯變順、占用也降下來。",
-            "en": "In long, tool-heavy sessions Codex used to repeatedly copy requests and history — slow and memory-hungry. This release caches tool-search results (cache = keep computed results around to reuse) and cuts the redundant copying, so heavy long-running sessions feel noticeably smoother and use less memory."
+            "zh-TW": "一段工作拖很長、用了一堆工具時，Codex 以前會反覆重算、重搬同樣的資料，又慢又吃記憶體。這版把常用的工具搜尋結果先存起來重複用（cache，存著免得再算一次），所以重度長對話明顯變順、占用也降下來。",
+            "en": "In a long session that leans on many tools, Codex used to recompute and recopy the same data over and over — slow and memory-hungry. It now keeps frequently reused tool-search results around (a cache, so it doesn't redo the work), so heavy sessions feel smoother and use less memory."
           },
           "original": "Reduced latency and memory use in large, tool-heavy sessions by caching tool search and eliminating repeated request and history copies."
+        },
+        {
+          "title": {
+            "zh-TW": "把終端視窗拉大拉小，文字不再被折亂",
+            "en": "Resizing the terminal no longer mangles the text"
+          },
+          "body": {
+            "zh-TW": "你改變終端視窗大小時，Codex 現在固定會重新排版，文字不會像被硬折過那樣亂掉。",
+            "en": "When you change the terminal window size, Codex now always reflows the text, so it doesn't end up looking creased and broken."
+          },
+          "original": "Terminal resize reflow is now always enabled, ignoring obsolete disabled settings."
+        },
+        {
+          "title": {
+            "zh-TW": "在公司網路裡，比較不會連線就被擋",
+            "en": "Behind a corporate network, you're less likely to be blocked at the door"
+          },
+          "body": {
+            "zh-TW": "在公司網路工作時，常常不是功能不能用，而是連線先被擋在門口。這版支援一種企業代理伺服器常用的憑證簽法（P-521），所以在這類環境裡更有機會直接連上。",
+            "en": "On a company network, the problem often isn't the feature — it's the connection getting stopped at the gate. This release supports a certificate type (P-521) that many corporate proxies use, so these environments are more likely to just connect."
+          },
+          "original": "TLS connections now support P-521 certificate signatures commonly used by enterprise proxies."
+        },
+        {
+          "title": {
+            "zh-TW": "換上修好損壞問題的資料庫版本",
+            "en": "Pinned to a database version that fixes corruption"
+          },
+          "body": {
+            "zh-TW": "Codex 把它內建的小型資料庫（SQLite，用來存對話紀錄）固定到一個已修掉「損壞」問題的版本，降低紀錄壞掉的風險。",
+            "en": "Codex now pins its built-in database (SQLite, where it stores session data) to a version that fixes a corruption bug, lowering the chance of damaged records."
+          },
+          "original": "Bundled SQLite is pinned to a version containing the WAL-reset corruption fix."
+        },
+        {
+          "title": {
+            "zh-TW": "卡住、假裝沒反應的等待，比較不會發生",
+            "en": "Fewer stalls and fake \"no response\" waits"
+          },
+          "body": {
+            "zh-TW": "這版修掉幾種「看起來沒壞、就是不動」的狀況：Windows 上過期的憑證會自動補上、PowerShell 指令有更多起跑時間；遠端閒置時連線不會自己斷，你要插話時也能立刻打斷它的等待。",
+            "en": "This release clears up a few \"nothing's broken but nothing moves\" cases: on Windows, stale credentials get repaired automatically and PowerShell commands get more time to start; idle remote connections stay alive, and your input can interrupt a wait immediately."
+          },
+          "original": "Windows sandbox execution repairs stale credentials automatically and gives PowerShell commands more time before backgrounding.\nIdle exec-server relays remain connected, and steered user input immediately interrupts wait_agent."
+        },
+        {
+          "title": {
+            "zh-TW": "遠端跑工作更像在自己機器上，連線也加密",
+            "en": "Remote work feels native, over an encrypted link"
+          },
+          "body": {
+            "zh-TW": "你把工作丟到遠端機器跑時，Codex 現在會保留那台機器原本的工作資料夾、shell 和權限，少了「同一個專案卻像換了個世界」的錯位；中間的連線也改成加密，比較不怕被偷看。",
+            "en": "When you run work on a remote machine, Codex now keeps that machine's own working folder, shell, and permissions, so the project doesn't feel like it moved to another world. The connection in between is encrypted too."
+          },
+          "original": "Remote executors now use authenticated, end-to-end encrypted Noise relay channels.\nCross-platform remote execution now preserves executor-native working directories and shells, including filesystem permission paths across app-server and exec-server boundaries."
         }
       ]
     },
     {
       "id": "agy",
-      "name": "agy",
+      "name": "Antigravity",
       "version": "1.0.10",
       "period": "2026-06-13 ~ 06-19",
       "items": [
         {
           "title": {
-            "zh-TW": "內建 antigravity_guide：在對話裡直接查官方指南",
-            "en": "Built-in antigravity_guide: official guides inside the chat"
+            "zh-TW": "卡住時叫一聲，內建指南直接送上",
+            "en": "Stuck? Ask, and the built-in guide shows up"
           },
           "body": {
-            "zh-TW": "新增一個內建技能（skill，預先寫好、隨時可叫用的小工具）叫 antigravity_guide，讓你在對話當下直接拿到 Antigravity 2.0、CLI、IDE、SDK 的參考指南，不用切出去翻文件。卡住時問它一句，就把對應說明貼進來。",
-            "en": "A new built-in skill (skill = a ready-made tool you can call on demand) named antigravity_guide gives you instant, in-context reference guides for Antigravity 2.0, the CLI, IDE, and SDK — no switching out to hunt through docs. Ask when you're stuck and it pulls the relevant guide right in."
+            "zh-TW": "你忘了某個指令、某個設定怎麼寫時，不用切出去翻文件。新的內建指南 `antigravity_guide` 會在當下對話裡，把 Antigravity 2.0、CLI、IDE、SDK 的說明直接調出來，像問旁邊懂的人。",
+            "en": "Forgot how a command or setting works? No need to leave for the docs. The new built-in `antigravity_guide` pulls reference help for Antigravity 2.0, the CLI, IDE, and SDK straight into your conversation, like asking the person next to you."
           },
-          "original": "Added `antigravity_guide` builtin skill to provide instant, in-context reference guides for the Antigravity 2.0, CLI, IDE, and SDK."
+          "original": "Added antigravity_guide builtin skill to provide instant, in-context reference guides for the Antigravity 2.0, CLI, IDE, and SDK."
         },
         {
           "title": {
-            "zh-TW": "git 提交紀錄畫成 ASCII 線圖",
-            "en": "Git history drawn as an ASCII graph"
+            "zh-TW": "Git 紀錄會畫出分支線圖，一眼看懂走向",
+            "en": "Git history draws the branch shape for you"
           },
           "body": {
-            "zh-TW": "看 git 提交紀錄時（git log，列出每一次存檔），現在會用文字符號畫出分支線圖（git log --graph），分支怎麼分岔、又在哪裡合併，一眼就看得出來，跟 hg、jj 這些其他版本控制工具的顯示看齊。",
-            "en": "When you view git history (git log = the list of every commit), it now draws an ASCII branch graph (git log --graph), so you can see at a glance how branches split and merge — matching what other version-control tools like hg and jj already show."
+            "zh-TW": "以前看 `git log`（一條條的提交紀錄），分支在哪岔開、又在哪合回來，要靠自己腦補。現在 Antigravity 會用文字符號把分支畫成線圖（`git log --graph`），岔路和匯流一眼就看出來。",
+            "en": "Reading `git log` (the list of commits), you used to picture in your head where branches split and merged. Antigravity now draws them as a text graph (`git log --graph`), so the forks and merges are visible at a glance."
           },
-          "original": "Improved Git integration by enabling ASCII node graphs (`git log --graph`) for visual parity with hg/jj."
+          "original": "Improved Git integration by enabling ASCII node graphs (git log --graph) for visual parity with hg/jj."
         },
         {
           "title": {
-            "zh-TW": "修掉權限規則含特殊符號時的無限詢問迴圈",
-            "en": "Fixed an infinite permission-prompt loop with special characters"
+            "zh-TW": "翻提交紀錄時，改了哪些檔案立刻出現",
+            "en": "Scroll commit history and the changed files appear right away"
           },
           "body": {
-            "zh-TW": "以前如果你存的權限規則裡含有 $、. 這類在比對時帶特殊意義的符號（regex metacharacter，正規表達式特殊字元），比對會出錯，導致同一個請求一直跳出來問你、卡成無限迴圈。這版把這些符號跳脫處理（escape，告訴程式「這就是字面上的符號、別當特殊用法」）後就修好了。",
-            "en": "Previously, if a saved permission rule contained characters like $ or . that carry special meaning during matching (regex metacharacters), the match could break and the same request would keep prompting you — an infinite loop. This release escapes those characters (escape = tell the program to treat the symbol literally, not specially) and fixes it."
+            "zh-TW": "你在提交紀錄裡往下捲時，每筆改了哪些檔案、差在哪，現在會馬上載入，不用一層層點開。就算你手上只有短短幾碼的 commit 編號，它也會自動幫你對回完整編號。",
+            "en": "As you scroll through commits, the files each one changed and their diffs now load immediately instead of one layer at a time. Even if you only have a short commit id, Antigravity matches it back to the full one for you."
           },
-          "original": "Fixed permission engine matching bugs by escaping regex metacharacters (like `$` or `.`) in saved rules, preventing infinite prompt loops."
+          "original": "Improved commit history navigation: scrolling now immediately loads and displays changed files and diffs.\nImproved commit hash matching to seamlessly resolve short (6-char) to long (64-char) hashes via prefix comparison."
+        },
+        {
+          "title": {
+            "zh-TW": "出錯時看得清，也知道去哪找紀錄檔",
+            "en": "Errors stand out, and you know where the log lives"
+          },
+          "body": {
+            "zh-TW": "真正要你處理的錯誤和警告，現在會用獨立的警示樣式跳出來，不會淹沒在一般輸出裡。要深入查問題的話，`/help` 也會直接告訴你記錄檔（log）放在哪。",
+            "en": "Errors and warnings you actually need to act on now appear in their own alert style instead of getting lost in normal output. And when you want to dig deeper, `/help` shows you where the log file is."
+          },
+          "original": "Added alert message type for system errors/warnings, separating them from standard command output.\nAdded the CLI log file path to the /help menu for easy troubleshooting."
+        },
+        {
+          "title": {
+            "zh-TW": "權限設定不會自己跑掉，也不會一直重複問",
+            "en": "Permission settings stay put instead of resetting or looping"
+          },
+          "body": {
+            "zh-TW": "你設好的權限，這版讓它乖乖待著。更新設定時，原本的「每次問我」權限不會再被弄丟。而如果你的規則裡有 `$`、`.` 這種有特殊意義的符號，系統現在會把它們當普通文字看待，避免同一個權限提示像壞掉的門鈴一樣響個不停。",
+            "en": "The permissions you set now stay set. Updating settings no longer loses your \"ask me each time\" rules. And if a rule contains symbols like `$` or `.` that carry special meaning, they're now treated as plain text, so a prompt stops ringing over and over like a broken doorbell."
+          },
+          "original": "Fixed a bug where \"ask\" permissions were dropped during settings updates, ensuring settings.json preservation.\nFixed permission engine matching bugs by escaping regex metacharacters (like $ or .) in saved rules, preventing infinite prompt loops."
+        },
+        {
+          "title": {
+            "zh-TW": "更多裝置跑得動，登入也少一步",
+            "en": "Runs on more devices, and signs in with one less step"
+          },
+          "body": {
+            "zh-TW": "如果你在 ARM64 的小裝置上跑 Antigravity（像 Raspberry Pi 4B），這版把相容性再往外擴，少一點「開得起來卻怪怪的」。在支援的 Windows 情境，它也會自動幫你開瀏覽器登入，不用自己找網址貼。",
+            "en": "If you run Antigravity on a small ARM64 device like a Raspberry Pi 4B, this release widens compatibility so fewer setups feel half-working. On supported Windows flows, it also opens the browser for sign-in automatically instead of making you paste a URL."
+          },
+          "original": "Improved compatibility with a broader set of ARM64 devices (e.g. raspberry pi 4b).\nImproved authentication to automatically launch browser sign-in via rundll32."
         }
       ]
     }

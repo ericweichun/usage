@@ -128,14 +128,14 @@ def _full_report_data() -> dict[str, Any]:
                 "items": [
                     {
                         "title": {
-                            "zh-TW": "新指令 /config：直接改設定",
-                            "en": "New /config command: change settings inline",
+                            "zh-TW": "改設定不再怕手滑",
+                            "en": "Settings are easier to keep",
                         },
                         "body": {
-                            "zh-TW": "打一行就能改設定。",
-                            "en": "One line now changes settings.",
+                            "zh-TW": "Esc 會存檔後關閉。",
+                            "en": "Esc now saves and closes.",
                         },
-                        "original": "Added /config key=value syntax.",
+                        "original": "Changed /config toggle behavior.",
                     },
                     {
                         "title": {
@@ -157,9 +157,31 @@ def _full_report_data() -> dict[str, Any]:
                 "period": "2026-06-18",
                 "items": [
                     {
-                        "title": {"en": "Remote execution got better."},
-                        "body": {"en": "Plugins and remote execution were upgraded."},
-                        "original": "Remote execution and plugins were upgraded.",
+                        "title": {"en": "Remote work keeps the remote machine's shell."},
+                        "body": {"en": "Native directories and shells are preserved."},
+                        "original": (
+                            "Cross-platform remote execution now preserves "
+                            "executor-native working directories and shells, "
+                            "including filesystem permission paths across "
+                            "app-server and exec-server boundaries."
+                        ),
+                    }
+                ],
+            },
+            {
+                "id": "agy",
+                "name": "Antigravity",
+                "version": "1.0.10",
+                "period": "2026-06-13 ~ 2026-06-19",
+                "items": [
+                    {
+                        "title": {"en": "Built-in guides are one ask away."},
+                        "body": {"en": "The antigravity_guide skill opens docs in context."},
+                        "original": (
+                            "Added antigravity_guide builtin skill to provide "
+                            "instant, in-context reference guides for the "
+                            "Antigravity 2.0, CLI, IDE, and SDK."
+                        ),
                     }
                 ],
             },
@@ -247,7 +269,7 @@ def test_render_ai_updates_section_falls_back_to_english_and_escapes() -> None:
         "ja",
     )
 
-    assert "AIツールの更新" in html
+    assert "AIツール更新速報" in html
     assert "Updated to 0.141.0" not in html
     assert "更新：" in html
     assert "Original" not in html
@@ -256,4 +278,6 @@ def test_render_ai_updates_section_falls_back_to_english_and_escapes() -> None:
     assert "Remote &lt;upgrade&gt; shipped." in html
     assert "Use `codex --remote` &lt;beta&gt;." in html
     assert "<details" in html
+    assert '<ol class="ai-update-items">' in html
+    assert '<li class="ai-update-item">' in html
     assert "Codex&lt;script&gt;" in html

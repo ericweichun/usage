@@ -589,14 +589,14 @@ def _render_ai_updates_section(data: dict[str, Any], lang: str) -> str:
             if not title or not body or not isinstance(original, str):
                 continue
             items.append(
-                '<div class="ai-update-item">'
+                '<li class="ai-update-item">'
                 f'<p class="ai-update-item-title">{_escape(title)}</p>'
                 f'<p class="ai-update-item-body">{_escape(body)}</p>'
                 '<details class="ai-update-original">'
                 f'<summary>{_escape(_t(lang, "ai_updates_original"))}</summary>'
                 f'<div>{_escape(original)}</div>'
                 "</details>"
-                "</div>"
+                "</li>"
             )
 
         if not items:
@@ -606,7 +606,7 @@ def _render_ai_updates_section(data: dict[str, Any], lang: str) -> str:
             f'<div class="ai-update-head"><h3>{_escape(tool.get("name", ""))}</h3>'
             f'<span class="ai-update-version">{_escape(_t(lang, "ai_updates_updated_to"))} {_escape(tool.get("version", ""))}</span></div>'
             f'<p class="ai-update-period">{_escape(tool.get("period", ""))}</p>'
-            f'<div class="ai-update-items">{"".join(items)}</div>'
+            f'<ol class="ai-update-items">{"".join(items)}</ol>'
             "</article>"
         )
     if not cards:
@@ -765,9 +765,10 @@ h1{{margin:0 0 10px;font-size:clamp(1.8rem, 4.2vw, 3rem);line-height:1.02;font-w
 .ai-update-head h3{{margin:0;color:#f0f6fc;font-size:1rem;line-height:1.35}}
 .ai-update-version{{color:var(--token);font-size:.84rem;white-space:nowrap}}
 .ai-update-period{{margin:8px 0 0;color:var(--muted);font-size:.82rem}}
-.ai-update-items{{display:grid;gap:12px;margin-top:12px}}
-.ai-update-item{{padding-top:12px;border-top:1px solid #20252c}}
-.ai-update-item:first-child{{padding-top:0;border-top:0}}
+.ai-update-items{{list-style:none;display:grid;gap:14px;margin:14px 0 0;padding:0;counter-reset:ai-updates}}
+.ai-update-item{{position:relative;counter-increment:ai-updates;padding:14px 14px 12px 46px;border:1px solid #20252c;border-radius:8px;background:linear-gradient(180deg,#10141a,#0c1015);box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}}
+.ai-update-item:nth-child(even){{background:linear-gradient(180deg,#111821,#0d1218);border-color:#27303a}}
+.ai-update-item::before{{content:counter(ai-updates, decimal-leading-zero);position:absolute;top:14px;left:14px;color:var(--token);font-size:.72rem;font-weight:700;letter-spacing:.08em;line-height:1}}
 .ai-update-item-title{{margin:0;color:#f0f6fc;font-size:.92rem;font-weight:700;line-height:1.5}}
 .ai-update-item-body{{margin:6px 0 0;color:#dce2ea;font-size:.9rem;line-height:1.65}}
 .ai-update-original{{margin-top:8px;border:1px solid #262c34;border-radius:6px;background:#0d1014}}
