@@ -5,6 +5,11 @@
 All notable changes to usage are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## Unreleased
+
+### Fixed
+- **Idle menu-bar refreshes no longer react to unrelated agent state writes**: FSEvents now watches Claude and Codex usage-history directories instead of their entire data roots, and unchanged status titles no longer trigger redundant AppKit layout work.
+
 ## [0.21.1] - 2026-06-20
 
 ### Added

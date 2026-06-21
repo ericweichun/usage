@@ -545,6 +545,7 @@ class AppDelegate(NSObject):
         self.dragon_timer = None
         self.dragon_frame = 0
         self.dragon_interval = 0.0
+        self._last_button_title_key: tuple[str, bool, int | None, int | None] | None = None
         return self
 
     def applicationDidFinishLaunching_(self, notification: Any) -> None:
@@ -1569,11 +1570,29 @@ class AppDelegate(NSObject):
         return title
 
     def _set_button_title(self, state: PopoverState) -> None:
-        button = self.status_item.button()
-        button.setTitle_(self._compose_title(state))
-        button.setAttributedTitle_(self._menubar_attributed_title(state))
         self._sync_critter_timer()
         self._sync_dragon_timer()
+        title = self._compose_title(state)
+        critters_enabled = bool(self.critters_enabled)
+        phoenix_frame = (
+            int(self.critter_frame)
+            if critters_enabled and not state.hide_claude
+            else None
+        )
+        dragon_visible = not state.hide_codex and (
+            self.codex_5h_pct is not None or state.hide_claude
+        )
+        dragon_frame = (
+            int(self.dragon_frame) if critters_enabled and dragon_visible else None
+        )
+        title_key = (title, critters_enabled, phoenix_frame, dragon_frame)
+        if self._last_button_title_key == title_key:
+            return
+
+        button = self.status_item.button()
+        button.setTitle_(title)
+        button.setAttributedTitle_(self._menubar_attributed_title(state))
+        self._last_button_title_key = title_key
 
     def _compose_title(self, state: PopoverState) -> str:
         parts: list[str] = []
