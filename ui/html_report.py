@@ -22,7 +22,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Any, Mapping
 
-from i18n import _t as _i18n_t
+from i18n import _t as _i18n_t, packaged_resource_path
 from usage_lang import detect_lang
 
 
@@ -134,12 +134,13 @@ def _estimate_books(tokens: int) -> int:
 
 @lru_cache(maxsize=4)
 def _sprite_data_uri(beast: str) -> str:
-    asset_path = (
+    asset_path = packaged_resource_path(
+        f"critters/{beast}/1.png",
         Path(__file__).resolve().parent.parent
         / "assets"
         / "critters"
         / beast
-        / "1.png"
+        / "1.png",
     )
     encoded = base64.b64encode(asset_path.read_bytes()).decode("ascii")
     return f"data:image/png;base64,{encoded}"

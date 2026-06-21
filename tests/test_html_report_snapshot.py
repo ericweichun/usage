@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import base64
 import os
 import time
 from collections.abc import Iterator
@@ -315,6 +316,29 @@ def test_generate_html_matches_golden_snapshot(
     expected = (SNAPSHOT_DIR / f"{name}.html").read_text(encoding="utf-8")
 
     assert html_report.generate_html(data, language=language) == expected
+
+
+def test_sprite_data_uri_reads_py2app_resourcepath_layout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    phoenix_png = b"bundle phoenix"
+    dragon_png = b"bundle dragon"
+    (tmp_path / "critters" / "phoenix").mkdir(parents=True)
+    (tmp_path / "critters" / "dragon").mkdir(parents=True)
+    (tmp_path / "critters" / "phoenix" / "1.png").write_bytes(phoenix_png)
+    (tmp_path / "critters" / "dragon" / "1.png").write_bytes(dragon_png)
+    monkeypatch.setenv("RESOURCEPATH", str(tmp_path))
+
+    html_report._sprite_data_uri.cache_clear()
+    try:
+        data_uri = html_report._sprite_data_uri("phoenix")
+    finally:
+        html_report._sprite_data_uri.cache_clear()
+
+    prefix = "data:image/png;base64,"
+    assert data_uri.startswith(prefix)
+    assert base64.b64decode(data_uri.removeprefix(prefix)) == phoenix_png
 
 
 def test_build_csv_data_contains_projects_and_models() -> None:
