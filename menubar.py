@@ -553,6 +553,8 @@ class AppDelegate(NSObject):
         self.status_item = NSStatusBar.systemStatusBar().statusItemWithLength_(
             NSVariableStatusItemLength,
         )
+        # Do not change this string; it is the stable identity for saved menu bar position.
+        self.status_item.setAutosaveName_("usage")
         button = self.status_item.button()
         button.setTitle_("🐾 ...")
         button.setTarget_(self)
