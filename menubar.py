@@ -46,6 +46,8 @@ from AppKit import (
     NSTextAttachment,
     NSVariableStatusItemLength,
     NSViewController,
+    NSWindowCollectionBehaviorCanJoinAllSpaces,
+    NSWindowCollectionBehaviorFullScreenAuxiliary,
 )
 from Foundation import NSObject, NSRunLoop, NSRunLoopCommonModes, NSTimer, NSUserDefaults
 
@@ -964,11 +966,22 @@ class AppDelegate(NSObject):
         self.popover.setContentSize_(_popover_size(self.latest_state, panel))
         if was_shown:
             button = self.status_item.button()
-            self.popover.showRelativeToRect_ofView_preferredEdge_(
-                button.bounds(),
-                button,
-                NSMinYEdge,
-            )
+            self._show_popover_from_button(button)
+
+    def _show_popover_from_button(self, button: Any) -> None:
+        self.popover.showRelativeToRect_ofView_preferredEdge_(
+            button.bounds(),
+            button,
+            NSMinYEdge,
+        )
+        window = self.popover_controller.view().window()
+        if window is None:
+            return
+        behavior = int(window.collectionBehavior())
+        behavior |= int(NSWindowCollectionBehaviorCanJoinAllSpaces)
+        behavior |= int(NSWindowCollectionBehaviorFullScreenAuxiliary)
+        window.setCollectionBehavior_(behavior)
+        window.orderFront_(None)
 
     def _mark_switch_menu_action(self) -> None:
         self._switch_menu_action_taken = True
@@ -1093,7 +1106,7 @@ class AppDelegate(NSObject):
         self.popover_controller.setState_(self.latest_state)
         self.popover.setContentSize_(_popover_size(self.latest_state, self.active_panel))
         button = self.status_item.button()
-        self.popover.showRelativeToRect_ofView_preferredEdge_(button.bounds(), button, NSMinYEdge)
+        self._show_popover_from_button(button)
 
     def _refresh(self, queue_if_busy: bool = False) -> None:
         if self._refresh_in_flight:
