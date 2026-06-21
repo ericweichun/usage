@@ -33,6 +33,7 @@ __version__ = "1.0"
 STATUS_FILE = os.path.expanduser("~/.claude/usage-status.json")
 LOCK_FILE = os.path.expanduser("~/.claude/usage-status.lock")
 PREFERENCES_FILE = os.path.expanduser("~/.claude/usage-preferences.json")
+CONTEXT_BURN_FILE = os.path.expanduser("~/.claude/usage-context-burn.json")
 UPDATE_HINT_STALE_SECONDS = 30 * 86400
 # Context fill at which a /clear or /compact nudge is worth the noise. Set below
 # the default auto-compact line (~80%) so the user can act before the lossy
@@ -42,6 +43,15 @@ UPDATE_HINT_STALE_SECONDS = 30 * 86400
 # arXiv:2307.03172), NVIDIA RULER (2024, arXiv:2404.06654), BABILong (2024,
 # arXiv:2406.10149).
 HEAVY_CONTEXT_PERCENT = 70.0
+CONTEXT_BURN_RESET_DROP_PERCENT = 5.0
+CONTEXT_BURN_STALE_SECONDS = 4 * 60 * 60
+CONTEXT_BURN_FAST_PERCENT_PER_MIN = 2.0
+CONTEXT_BURN_VERY_FAST_PERCENT_PER_MIN = 4.0
+CONTEXT_BURN_FAST_THRESHOLD_PERCENT = 60.0
+CONTEXT_BURN_VERY_FAST_THRESHOLD_PERCENT = 55.0
+CONTEXT_BURN_THRESHOLD_FLOOR_PERCENT = 55.0
+# 2%/min reaches the old warning line from 50% in about 10 minutes; 4%/min is
+# the "large paste or long replay" case that should warn at the floor.
 STATUSLINE_TRANSLATIONS = {
     "zh-TW": {
         "five_hour": "5小時",
@@ -232,7 +242,7 @@ def save(data: Dict[str, Any], now: datetime) -> None:
     target_dir = os.path.dirname(STATUS_FILE)
     os.makedirs(target_dir, exist_ok=True)
     os.makedirs(os.path.dirname(LOCK_FILE), exist_ok=True)
-    tmp_path: str | None = None
+    tmp_path: Optional[str] = None
     lock_fd = os.open(LOCK_FILE, os.O_CREAT | os.O_RDWR, 0o600)
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX)
@@ -392,11 +402,81 @@ def _as_float(value: Any) -> Optional[float]:
         return None
 
 
-def _heavy_warning(data: Dict[str, Any]) -> Optional[str]:
+def _read_context_burn_sample(now_ts: float) -> Optional[Tuple[float, float]]:
+    try:
+        with open(CONTEXT_BURN_FILE, encoding="utf-8") as f:
+            sample = json.load(f)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(sample, dict):
+        return None
+    percent = _as_float(sample.get("percent"))
+    ts = _as_float(sample.get("ts"))
+    if percent is None or ts is None:
+        return None
+    if now_ts - ts > CONTEXT_BURN_STALE_SECONDS:
+        return None
+    return percent, ts
+
+
+def _write_context_burn_sample(percent: float, now_ts: float) -> None:
+    target_dir = os.path.dirname(CONTEXT_BURN_FILE)
+    tmp_path: Optional[str] = None
+    try:
+        os.makedirs(target_dir, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(dir=target_dir, suffix=".tmp")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump({"percent": percent, "ts": now_ts}, f, ensure_ascii=False)
+        os.replace(tmp_path, CONTEXT_BURN_FILE)
+        tmp_path = None
+    except OSError:
+        return
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+
+def _context_burn_threshold(percent: float, now_ts: float) -> float:
+    previous = _read_context_burn_sample(now_ts)
+    _write_context_burn_sample(percent, now_ts)
+    if previous is None:
+        return HEAVY_CONTEXT_PERCENT
+
+    previous_percent, previous_ts = previous
+    if previous_percent - percent > CONTEXT_BURN_RESET_DROP_PERCENT:
+        return HEAVY_CONTEXT_PERCENT
+
+    elapsed_seconds = now_ts - previous_ts
+    if elapsed_seconds <= 0:
+        return HEAVY_CONTEXT_PERCENT
+
+    increase = percent - previous_percent
+    if increase <= 0:
+        return HEAVY_CONTEXT_PERCENT
+
+    percent_per_minute = increase / (elapsed_seconds / 60.0)
+    threshold = HEAVY_CONTEXT_PERCENT
+    if percent_per_minute >= CONTEXT_BURN_VERY_FAST_PERCENT_PER_MIN:
+        threshold = CONTEXT_BURN_VERY_FAST_THRESHOLD_PERCENT
+    elif percent_per_minute >= CONTEXT_BURN_FAST_PERCENT_PER_MIN:
+        threshold = CONTEXT_BURN_FAST_THRESHOLD_PERCENT
+    return max(CONTEXT_BURN_THRESHOLD_FLOOR_PERCENT, threshold)
+
+
+def _heavy_warning(data: Dict[str, Any], now_ts: Optional[float] = None) -> Optional[str]:
     """A /clear or /compact nudge once the context window gets heavy enough
     that quality starts to slip (see HEAVY_CONTEXT_PERCENT)."""
     pct = _as_float(_as_dict(data.get("context_window")).get("used_percentage"))
-    if pct is None or pct < HEAVY_CONTEXT_PERCENT:
+    if pct is None:
+        return None
+    threshold = _context_burn_threshold(
+        pct,
+        datetime.now(timezone.utc).timestamp() if now_ts is None else now_ts,
+    )
+    if pct < threshold:
         return None
     detail = f"{_t('context')} {pct:.0f}%"
     return f"\033[38;5;160m⚠ {detail} · {_t('warn_clear')}{C['reset']}"
@@ -510,7 +590,7 @@ def _render_core(data: Dict[str, Any], now: datetime) -> str:
         )
 
     output = [" | ".join(line) for line in (line1, line3) if line]
-    warning = _heavy_warning(data)
+    warning = _heavy_warning(data, now.timestamp())
     if warning:
         output.append(warning)
     return "\n".join(output) if output else "usage"

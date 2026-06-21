@@ -19,6 +19,18 @@ import pytest
 import usage_statusline
 
 
+@pytest.fixture(autouse=True)
+def _isolate_context_burn_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        usage_statusline,
+        "CONTEXT_BURN_FILE",
+        str(tmp_path / "usage-context-burn.json"),
+    )
+
+
 def test_save_writes_status_json_with_received_metadata(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -450,6 +462,121 @@ def test_render_omits_clear_nudge_below_threshold(
 
     output = usage_statusline.render(payload, datetime(2026, 1, 1, tzinfo=UTC))
 
+    assert "⚠" not in output
+    assert "/clear" not in output
+
+
+def test_render_clear_nudge_triggers_early_when_context_burn_is_fast(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("TT_LANG", "en")
+    monkeypatch.setattr(usage_statusline, "get_width", lambda: 116)
+    burn_file = tmp_path / "usage-context-burn.json"
+    monkeypatch.setattr(usage_statusline, "CONTEXT_BURN_FILE", str(burn_file))
+    now = datetime(2026, 1, 1, 12, 1, tzinfo=UTC)
+    burn_file.write_text(
+        json.dumps({"percent": 50.0, "ts": now.timestamp() - 60.0}),
+        encoding="utf-8",
+    )
+    payload = {
+        "rate_limits": {"seven_day": {"used_percentage": 33}},
+        "context_window": {"used_percentage": 58, "context_window_size": 200000},
+    }
+
+    output = usage_statusline.render(payload, now)
+
+    last_line = output.splitlines()[-1]
+    assert "⚠" in last_line
+    assert "/clear" in last_line
+    assert "58%" in last_line
+
+
+def test_render_clear_nudge_keeps_default_threshold_when_context_burn_is_slow(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("TT_LANG", "en")
+    monkeypatch.setattr(usage_statusline, "get_width", lambda: 116)
+    burn_file = tmp_path / "usage-context-burn.json"
+    monkeypatch.setattr(usage_statusline, "CONTEXT_BURN_FILE", str(burn_file))
+    now = datetime(2026, 1, 1, 12, 1, tzinfo=UTC)
+    burn_file.write_text(
+        json.dumps({"percent": 64.0, "ts": now.timestamp() - 60.0}),
+        encoding="utf-8",
+    )
+    payload = {
+        "rate_limits": {"seven_day": {"used_percentage": 33}},
+        "context_window": {"used_percentage": 65, "context_window_size": 200000},
+    }
+
+    output = usage_statusline.render(payload, now)
+
+    assert "⚠" not in output
+    assert "/clear" not in output
+
+
+def test_render_clear_nudge_keeps_default_threshold_without_context_history(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TT_LANG", "en")
+    monkeypatch.setattr(usage_statusline, "get_width", lambda: 116)
+    payload = {
+        "rate_limits": {"seven_day": {"used_percentage": 33}},
+        "context_window": {"used_percentage": 65, "context_window_size": 200000},
+    }
+
+    output = usage_statusline.render(payload, datetime(2026, 1, 1, tzinfo=UTC))
+
+    assert "⚠" not in output
+    assert "/clear" not in output
+
+
+def test_render_clear_nudge_resets_to_default_threshold_after_large_context_drop(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("TT_LANG", "en")
+    monkeypatch.setattr(usage_statusline, "get_width", lambda: 116)
+    burn_file = tmp_path / "usage-context-burn.json"
+    monkeypatch.setattr(usage_statusline, "CONTEXT_BURN_FILE", str(burn_file))
+    now = datetime(2026, 1, 1, 12, 1, tzinfo=UTC)
+    burn_file.write_text(
+        json.dumps({"percent": 80.0, "ts": now.timestamp() - 60.0}),
+        encoding="utf-8",
+    )
+    payload = {
+        "rate_limits": {"seven_day": {"used_percentage": 33}},
+        "context_window": {"used_percentage": 65, "context_window_size": 200000},
+    }
+
+    output = usage_statusline.render(payload, now)
+
+    assert "⚠" not in output
+    assert "/clear" not in output
+    assert json.loads(burn_file.read_text(encoding="utf-8"))["percent"] == 65
+
+
+def test_render_clear_nudge_ignores_malformed_context_burn_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("TT_LANG", "en")
+    monkeypatch.setattr(usage_statusline, "get_width", lambda: 116)
+    burn_file = tmp_path / "usage-context-burn.json"
+    monkeypatch.setattr(usage_statusline, "CONTEXT_BURN_FILE", str(burn_file))
+    burn_file.write_text("not json", encoding="utf-8")
+    payload = {
+        "rate_limits": {"seven_day": {"used_percentage": 33}},
+        "context_window": {"used_percentage": 65, "context_window_size": 200000},
+    }
+
+    output = usage_statusline.render(payload, datetime(2026, 1, 1, tzinfo=UTC))
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
     assert "⚠" not in output
     assert "/clear" not in output
 
