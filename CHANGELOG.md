@@ -5,6 +5,11 @@
 All notable changes to usage are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.22.4] - 2026-06-22
+
+### Fixed
+- **Analysis report no longer crashes with "bad local file header" inside the packaged .app**: the report modules (`analyzer`/`adapters`/`ui`) were compiled into the bundle's `python313.zip` and loaded lazily via `zipimport`, so a single corrupt zip entry surfaced as a `ZipImportError` the moment a report was generated. They are now unzipped into the bundle as real directories (py2app `packages`), bypassing `zipimport` entirely. The bundle's `python313.zip` also no longer ships CPython's test suite, pytest, or setuptools, shrinking it from 1665 to 819 entries and cutting the surface for a corrupt entry. This deepens the packaged-report fix from 0.22.2.
+
 ## [0.22.3] - 2026-06-22
 
 ### Added

@@ -85,9 +85,6 @@ if __name__ == "__main__":
             "update_checker",
             "i18n",
             "usage_cli",
-            "adapters",
-            "analyzer",
-            "ui",
             "rich",
             "rich.align",
             "rich.console",
@@ -100,6 +97,30 @@ if __name__ == "__main__":
         "packages": [
             "WebKit",
             "UserNotifications",
+            # Unzipped to Resources/lib/python3.13/ instead of python313.zip so the
+            # report pipeline never loads through zipimport — that is where a
+            # corrupted local file header surfaces as "bad local file header".
+            "adapters",
+            "analyzer",
+            "ui",
+        ],
+        "excludes": [
+            # Test suites and build tooling that py2app's module graph drags in
+            # but the shipped app never runs. Keeping them out shrinks
+            # python313.zip (was ~1665 entries: 426 CPython test, 69 _pytest)
+            # and cuts the surface for a corrupt zip entry.
+            "test",
+            "tests",
+            "pytest",
+            "_pytest",
+            "py2app",
+            "modulegraph",
+            "altgraph",
+            "macholib",
+            "pip",
+            "wheel",
+            "mypy",
+            "ruff",
         ],
         "plist": {
             "CFBundleIdentifier": "com.lollapalooza.usage",

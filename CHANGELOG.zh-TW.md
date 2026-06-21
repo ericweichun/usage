@@ -4,6 +4,11 @@
 
 本檔記錄 usage 所有重要變更。格式參考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [0.22.4] - 2026-06-22
+
+### 修正
+- **打包後的 .app 產生分析報告不再以「bad local file header」崩潰**：報告相關模組（`analyzer`/`adapters`/`ui`）原本被壓進 app 內的 `python313.zip`、在按下分析報告時才透過 `zipimport` 延遲載入，於是壓縮包裡只要有一個損壞的項目，就會在產生報告當下拋出 `ZipImportError`。現在改讓它們解壓成 app 裡的實體資料夾（py2app `packages`），完全不走 `zipimport`。同時 `python313.zip` 不再夾帶 CPython 測試套件、pytest、setuptools，項目數從 1665 降到 819，也縮小了損壞項目的風險面。此版是 0.22.2 打包報告修復的延伸根治。
+
 ## [0.22.3] - 2026-06-22
 
 ### 新增
