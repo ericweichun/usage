@@ -77,17 +77,23 @@ except (OSError, AttributeError):
     pass
 
 
+def usage_watch_paths() -> list[Path]:
+    """Return existing agent directories that contain usage history records."""
+    home = Path.home()
+    return [
+        path
+        for path in (home / ".claude" / "projects", home / ".codex" / "sessions")
+        if path.exists()
+    ]
+
+
 def setup_fsevents(delegate: Any) -> Any:
-    """Start FSEventStream watching agent data directories; returns stream handle or None."""
+    """Start FSEventStream watching agent usage directories; returns a handle or None."""
     global _fs_callback_ref
     if not _FSEVENTS_AVAILABLE:
         return None
     try:
-        watch_paths = [
-            path
-            for path in (Path.home() / ".claude", Path.home() / ".codex")
-            if path.exists()
-        ]
+        watch_paths = usage_watch_paths()
         if not watch_paths:
             return None
         cf_path_values = [

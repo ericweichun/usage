@@ -4,6 +4,11 @@
 
 本檔記錄 usage 所有重要變更。格式參考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## 尚未發布
+
+### 修正
+- **選單列閒置刷新不再被無關的 agent 狀態寫入觸發**：FSEvents 現在只監看 Claude 與 Codex 的用量歷史目錄，不再監看完整資料根目錄；相同的狀態列標題也不會重複觸發 AppKit 排版。
+
 ## [0.22.0] - 2026-06-21
 
 ### 新增

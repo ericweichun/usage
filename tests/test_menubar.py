@@ -1351,6 +1351,84 @@ def test_apply_refresh_result_pushes_state_only_when_popover_is_shown() -> None:
     assert delegate._refresh_in_flight is False
 
 
+def test_set_button_title_skips_unchanged_visible_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeButton:
+        def __init__(self) -> None:
+            self.titles: list[str] = []
+            self.attributed_titles: list[object] = []
+
+        def setTitle_(self, title: str) -> None:
+            self.titles.append(title)
+
+        def setAttributedTitle_(self, value: object) -> None:
+            self.attributed_titles.append(value)
+
+    class FakeStatusItem:
+        def __init__(self, button: FakeButton) -> None:
+            self._button = button
+
+        def button(self) -> FakeButton:
+            return self._button
+
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(True, 60)
+    state = menubar._empty_state(language="en")
+    button = FakeButton()
+    delegate.status_item = FakeStatusItem(button)
+    delegate.codex_5h_pct = 12
+    monkeypatch.setattr(delegate, "_menubar_attributed_title", lambda current: object())
+
+    delegate._set_button_title(state)
+    delegate._set_button_title(state)
+
+    assert len(button.titles) == 1
+    assert len(button.attributed_titles) == 1
+
+    delegate.codex_5h_pct = 13
+    delegate._set_button_title(state)
+
+    assert len(button.titles) == 2
+    assert len(button.attributed_titles) == 2
+
+
+def test_set_button_title_updates_for_animation_frame(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeButton:
+        def __init__(self) -> None:
+            self.attributed_titles: list[object] = []
+
+        def setTitle_(self, title: str) -> None:
+            pass
+
+        def setAttributedTitle_(self, value: object) -> None:
+            self.attributed_titles.append(value)
+
+    class FakeStatusItem:
+        def __init__(self, button: FakeButton) -> None:
+            self._button = button
+
+        def button(self) -> FakeButton:
+            return self._button
+
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(True, 60)
+    state = menubar._empty_state(language="en")
+    button = FakeButton()
+    delegate.status_item = FakeStatusItem(button)
+    delegate.critters_enabled = True
+    delegate.codex_5h_pct = 12
+    monkeypatch.setattr(delegate, "_menubar_attributed_title", lambda current: object())
+    monkeypatch.setattr(delegate, "_sync_critter_timer", lambda: None)
+    monkeypatch.setattr(delegate, "_sync_dragon_timer", lambda: None)
+
+    delegate._set_button_title(state)
+    delegate.dragon_frame += 1
+    delegate._set_button_title(state)
+
+    assert len(button.attributed_titles) == 2
+
+
 def test_apply_codex_refresh_result_updates_quota_before_full_refresh() -> None:
     class FakeController:
         def __init__(self) -> None:
@@ -1745,9 +1823,12 @@ def test_state_from_outcome_keeps_reset_when_burn_rate_is_not_positive(
     assert state.claude_session.reset_text == "重置 51分鐘"
 
 
-def test_state_from_outcome_translates_awaiting_rate_limits_message() -> None:
+def test_state_from_outcome_translates_awaiting_rate_limits_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
     delegate.language = "zh-TW"
+    monkeypatch.setattr(menubar, "_hide_claude_enabled", lambda: False)
 
     state = _build_popover_state(
         delegate,
@@ -1797,6 +1878,7 @@ def test_state_from_outcome_shows_setup_button_for_codex_only(
 ) -> None:
     delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
     monkeypatch.setattr(delegate, "_statusline_setup_available", lambda: True)
+    monkeypatch.setattr(menubar, "_hide_claude_enabled", lambda: False)
 
     state = _build_popover_state(
         delegate,
