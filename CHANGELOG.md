@@ -5,6 +5,11 @@
 All notable changes to usage are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.22.2] - 2026-06-21
+
+### Fixed
+- **HTML report no longer fails inside the packaged .app**: the year-in-review spirit images (phoenix/dragon) were resolved with a source-tree path that doesn't exist in the py2app bundle, so generating any report raised `FileNotFoundError`. They are now resolved through the bundle's resource path, with the source-tree path kept as a fallback for source/CLI runs.
+
 ## [0.22.1] - 2026-06-21
 
 ### Fixed
