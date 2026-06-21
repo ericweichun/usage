@@ -10,6 +10,7 @@ import asyncio
 import builtins
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -339,6 +340,7 @@ def test_fetch_once_recomputes_stale_state_when_status_mtime_is_unchanged(
     monkeypatch.setattr(usage_client, "STATUS_FILE", str(status_path))
     monkeypatch.setattr(usage_client, "LEGACY_STATUS_FILE", str(tmp_path / f"{LEGACY_NAME}.json"))
     monkeypatch.setattr(usage_client, "TT_STATUS_FILE", str(tmp_path / "tt-status.json"))
+    monkeypatch.setattr(usage_client, "CLAUDE_PROJECTS_DIR", tmp_path / "projects")
     received_at = 1_700_000_000.0
     reset_at = received_at + 60
     status_path.write_text(
@@ -368,3 +370,106 @@ def test_fetch_once_recomputes_stale_state_when_status_mtime_is_unchanged(
     assert second.snapshot.is_stale is True
     assert second.snapshot.current_percent == 0
     assert second.message == "⚠ usage stale 361m"
+
+
+def _write_complete_status(path: Path, received_at: float) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "_received_at_ts": received_at,
+                "rate_limits": {
+                    "five_hour": {
+                        "used_percentage": 12,
+                        "resets_at": received_at + 7200,
+                    },
+                    "seven_day": {
+                        "used_percentage": 34,
+                        "resets_at": received_at + 86400,
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def _patch_status_paths(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    projects_dir: Path,
+) -> Path:
+    status_path = tmp_path / "usage-status.json"
+    monkeypatch.setattr(usage_client, "STATUS_FILE", str(status_path))
+    monkeypatch.setattr(usage_client, "LEGACY_STATUS_FILE", str(tmp_path / f"{LEGACY_NAME}.json"))
+    monkeypatch.setattr(usage_client, "TT_STATUS_FILE", str(tmp_path / "tt-status.json"))
+    monkeypatch.setattr(usage_client, "CLAUDE_PROJECTS_DIR", projects_dir)
+    return status_path
+
+
+def _touch_project_log(path: Path, mtime: float) -> None:
+    path.parent.mkdir(parents=True)
+    path.write_text("{}\n", encoding="utf-8")
+    os.utime(path, (mtime, mtime))
+
+
+def test_fetch_once_warns_reinstall_when_recent_activity_and_hook_not_installed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    now = 1_700_000_000.0
+    projects_dir = tmp_path / "projects"
+    status_path = _patch_status_paths(monkeypatch, tmp_path, projects_dir)
+    _write_complete_status(status_path, now - usage_client.RECENT_ACTIVITY_SECONDS - 1)
+    _touch_project_log(projects_dir / "demo" / "session.jsonl", now - 60)
+    monkeypatch.setattr("usage_client.time.time", lambda: now)
+    monkeypatch.setattr(usage_client, "current_hook_state", lambda: "none")
+
+    outcome = asyncio.run(usage_client.ClaudeUsageClient(mock=False).fetch_once())
+
+    assert outcome.state is usage_client.PollState.SUCCESS
+    assert outcome.snapshot is not None
+    assert outcome.snapshot.current_percent == 12
+    assert outcome.snapshot.weekly_percent == 34
+    assert outcome.message == usage_client.HOOK_BROKEN_NOT_INSTALLED
+
+
+def test_fetch_once_warns_restart_when_recent_activity_and_usage_hook_installed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    now = 1_700_000_000.0
+    projects_dir = tmp_path / "projects"
+    status_path = _patch_status_paths(monkeypatch, tmp_path, projects_dir)
+    _write_complete_status(status_path, now - usage_client.RECENT_ACTIVITY_SECONDS - 1)
+    _touch_project_log(projects_dir / "demo" / "session.jsonl", now - 60)
+    monkeypatch.setattr("usage_client.time.time", lambda: now)
+    monkeypatch.setattr(usage_client, "current_hook_state", lambda: "us-forwarder")
+
+    outcome = asyncio.run(usage_client.ClaudeUsageClient(mock=False).fetch_once())
+
+    assert outcome.state is usage_client.PollState.SUCCESS
+    assert outcome.snapshot is not None
+    assert outcome.snapshot.current_percent == 12
+    assert outcome.snapshot.weekly_percent == 34
+    assert outcome.message == usage_client.HOOK_BROKEN_RESTART
+
+
+def test_fetch_once_does_not_warn_without_recent_project_activity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    now = 1_700_000_000.0
+    projects_dir = tmp_path / "projects"
+    status_path = _patch_status_paths(monkeypatch, tmp_path, projects_dir)
+    _write_complete_status(status_path, now - usage_client.RECENT_ACTIVITY_SECONDS - 1)
+    _touch_project_log(
+        projects_dir / "demo" / "session.jsonl",
+        now - usage_client.RECENT_ACTIVITY_SECONDS - 1,
+    )
+    monkeypatch.setattr("usage_client.time.time", lambda: now)
+    monkeypatch.setattr(usage_client, "current_hook_state", lambda: "none")
+
+    outcome = asyncio.run(usage_client.ClaudeUsageClient(mock=False).fetch_once())
+
+    assert outcome.state is usage_client.PollState.SUCCESS
+    assert outcome.snapshot is not None
+    assert outcome.snapshot.current_percent == 12
+    assert outcome.snapshot.weekly_percent == 34
+    assert outcome.message is None

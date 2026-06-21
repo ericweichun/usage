@@ -141,6 +141,8 @@ def _group_name(group: int, language: str) -> str:
 def _status_message_value(outcome: PollOutcome, fallback_key: str, language: str) -> str:
     if outcome.message == "awaiting_rate_limits":
         return _t(language, "awaiting_rate_limits")
+    if outcome.message in {"hook_broken_not_installed", "hook_broken_restart"}:
+        return _t(language, outcome.message)
     return outcome.message or _t(language, fallback_key)
 
 
@@ -325,9 +327,9 @@ def build_popover_state(
             ),
             warning_max_seconds=24 * 3600,
         )
-        status_value = outcome.message or _t(language, "status_synced")
+        status_value = _status_message_value(outcome, "status_synced", language)
         if snapshot.is_stale or snapshot.data_source != "hook":
-            status_value = _t(language, "data_stale_hint")
+            status_value = _status_message_value(outcome, "data_stale_hint", language)
         status_text = _t(
             language,
             "status_text",

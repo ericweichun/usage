@@ -226,7 +226,7 @@ def _is_legacy_tt_hook(sl: object) -> bool:
 
 
 def _detect_current_state(settings: dict[str, Any] | None = None) -> str:
-    """Return 'none' | 'us-direct' | 'us-forwarder' | 'external'."""
+    """Return 'none' | 'us-direct' | 'us-forwarder' | 'legacy-tt' | 'external'."""
     data = _load_settings() if settings is None else settings
     sl = data.get("statusLine")
     if not isinstance(sl, dict):
@@ -241,6 +241,11 @@ def _detect_current_state(settings: dict[str, Any] | None = None) -> str:
     if "tt-statusline" in cmd:
         return "legacy-tt"
     return "external"
+
+
+def current_hook_state() -> str:
+    """Return the installed Claude statusLine hook state."""
+    return _detect_current_state()
 
 
 def _migrate_from_legacy_usage() -> None:

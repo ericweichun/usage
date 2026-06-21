@@ -1677,12 +1677,29 @@ def test_switching_visible_panel_reopens_popover(monkeypatch: pytest.MonkeyPatch
         def __init__(self) -> None:
             self.rebuilt: list[str] = []
             self.states: list[menubar.PopoverState] = []
+            self._view = SimpleNamespace(window=lambda: FakeWindow())
 
         def rebuildWithPanel_(self, panel: Any) -> None:
             self.rebuilt.append(panel.id)
 
         def setState_(self, state: menubar.PopoverState) -> None:
             self.states.append(state)
+
+        def view(self) -> object:
+            return self._view
+
+    class FakeWindow:
+        def __init__(self) -> None:
+            self.behavior = 0
+
+        def collectionBehavior(self) -> int:
+            return self.behavior
+
+        def setCollectionBehavior_(self, behavior: int) -> None:
+            self.behavior = behavior
+
+        def orderFront_(self, sender: object) -> None:
+            pass
 
     class FakeButton:
         def bounds(self) -> str:
@@ -1837,6 +1854,36 @@ def test_state_from_outcome_translates_awaiting_rate_limits_message(
     )
 
     assert state.status_text == "狀態：請對 Claude Code 發送一句訊息以同步配額"
+
+
+def test_state_from_outcome_translates_hook_broken_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    delegate.language = "en"
+    monkeypatch.setattr(menubar, "_hide_claude_enabled", lambda: False)
+
+    state = _build_popover_state(
+        delegate,
+        PollOutcome(
+            state=PollState.SUCCESS,
+            message="hook_broken_restart",
+            snapshot=UsageSnapshot(
+                current_percent=70,
+                current_reset_at=1_600.0 + (51 * 60),
+                weekly_percent=20,
+                weekly_reset_at=1_600.0 + (2 * 86400),
+                current_status="ok",
+                polled_at=1_600.0,
+            ),
+        ),
+        _codex_rows(delegate)[0],
+    )
+
+    assert (
+        state.status_text
+        == "Status: ⚠ Status line hook is not running. Restart Claude Code once."
+    )
 
 
 def test_state_from_outcome_hides_setup_button_when_no_statusline_target_exists(

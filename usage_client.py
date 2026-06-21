@@ -13,9 +13,11 @@ import os
 import time
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
 
 from i18n import _t
+from setup_hook import current_hook_state
 from usage_lang import detect_lang
 
 logger = logging.getLogger(__name__)
@@ -23,9 +25,13 @@ logger = logging.getLogger(__name__)
 STATUS_FILE = os.path.expanduser("~/.claude/usage-status.json")
 LEGACY_STATUS_FILE = os.path.expanduser("~/.claude/usag-status.json")
 TT_STATUS_FILE = os.path.expanduser("~/.claude/tt-status.json")
+CLAUDE_PROJECTS_DIR = Path(os.path.expanduser("~/.claude/projects"))
 
 # Stale files only affect hints; quota values still render.
 STALE_SECONDS = 6 * 3600
+RECENT_ACTIVITY_SECONDS = 30 * 60
+HOOK_BROKEN_NOT_INSTALLED = "hook_broken_not_installed"
+HOOK_BROKEN_RESTART = "hook_broken_restart"
 
 
 class PollState(StrEnum):
@@ -120,6 +126,30 @@ def _source_from_path(source_path: str) -> str:
     if source_path == TT_STATUS_FILE:
         return "tt-fallback"
     return "hook"
+
+
+def _has_recent_claude_project_activity(now: float) -> bool:
+    try:
+        for path in CLAUDE_PROJECTS_DIR.rglob("*.jsonl"):
+            try:
+                if now - path.stat().st_mtime <= RECENT_ACTIVITY_SECONDS:
+                    return True
+            except OSError:
+                continue
+    except OSError:
+        return False
+    return False
+
+
+def _hook_broken_message(now: float, polled_at: float) -> str | None:
+    if now - polled_at <= RECENT_ACTIVITY_SECONDS:
+        return None
+    if not _has_recent_claude_project_activity(now):
+        return None
+    hook_state = current_hook_state()
+    if hook_state in {"us-direct", "us-forwarder"}:
+        return HOOK_BROKEN_RESTART
+    return HOOK_BROKEN_NOT_INSTALLED
 
 
 def _has_complete_rate_limits(data: dict[str, Any]) -> bool:
@@ -246,11 +276,11 @@ class ClaudeUsageClient:
             return outcome
 
         now = time.time()
-        message = None
+        message = _hook_broken_message(now, snapshot.polled_at)
         if snapshot.is_stale:
             source_tag = "tt-status" if snapshot.data_source == "tt-fallback" else "usage"
             mins = int((now - snapshot.polled_at) / 60)
-            message = f"⚠ {source_tag} stale {mins}m"
+            message = message or f"⚠ {source_tag} stale {mins}m"
 
         outcome = PollOutcome(
             state=PollState.SUCCESS,
