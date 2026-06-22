@@ -37,6 +37,7 @@ def _stub_persona_loader(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
 
     monkeypatch.setattr("analyzer.reporter.persona_loader.load_profile", fake_load_profile)
     monkeypatch.setattr(reporter, "YEAR_CACHE_PATH", tmp_path / "year_cache.json")
+    monkeypatch.setattr(reporter, "YEAR_LEDGER_PATH", tmp_path / "year_ledger.json")
 
 
 def _empty_year_payload() -> dict[str, Any]:
@@ -776,6 +777,77 @@ def test_build_year_data_computes_streaks_across_month_boundary(monkeypatch: Any
     assert data["contribution"]["longest_streak"] == 4
     assert data["contribution"]["busiest_day"] == {"date": "2026-06-03", "tokens": 90}
     assert data["wrapped"]["longest_streak"] == 4
+
+
+def test_build_year_data_keeps_ledger_days_missing_from_current_entries(
+    monkeypatch: Any,
+    tmp_path: Path,
+) -> None:
+    class FixedDateTime:
+        @staticmethod
+        def now() -> datetime:
+            return datetime(2026, 6, 21, 12, tzinfo=UTC)
+
+    agent = AgentInfo("codex", "Codex", "~/.codex", True)
+    first_day = UsageEntry(
+        timestamp=datetime(2026, 6, 17, 10, tzinfo=UTC),
+        session_id="a",
+        message_id="a",
+        request_id="",
+        model="gpt-5-codex",
+        input_tokens=100,
+        output_tokens=0,
+        cache_creation_tokens=0,
+        cache_read_tokens=0,
+        cost_usd=1.0,
+        project="usage",
+        agent_id="codex",
+    )
+    second_day = UsageEntry(
+        timestamp=datetime(2026, 6, 18, 10, tzinfo=UTC),
+        session_id="b",
+        message_id="b",
+        request_id="",
+        model="gpt-5-codex",
+        input_tokens=200,
+        output_tokens=0,
+        cache_creation_tokens=0,
+        cache_read_tokens=0,
+        cost_usd=2.0,
+        project="usage",
+        agent_id="codex",
+    )
+    entry_batches = [[first_day, second_day], [second_day]]
+
+    def fake_load_agent_entries(
+        received_agent: AgentInfo,
+        hours_back: int = 0,
+    ) -> list[UsageEntry]:
+        assert received_agent == agent
+        assert hours_back > 0
+        return entry_batches.pop(0)
+
+    ledger_path = tmp_path / ".usage" / "year_ledger.json"
+    monkeypatch.setattr(reporter, "YEAR_LEDGER_PATH", ledger_path)
+    monkeypatch.setattr(reporter, "datetime", FixedDateTime)
+    monkeypatch.setattr(reporter, "_load_agent_entries", fake_load_agent_entries)
+    monkeypatch.setattr(reporter, "calculate_cost", lambda entry: float(entry.cost_usd or 0.0))
+
+    reporter.build_year_data([agent])
+    data = reporter.build_year_data([agent])
+
+    cells = {
+        cell["date"]: cell
+        for week in data["contribution"]["weeks"]
+        for cell in week
+    }
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+
+    assert cells["2026-06-17"]["tokens"] == 100
+    assert cells["2026-06-18"]["tokens"] == 200
+    assert data["wrapped"]["total_tokens"] == 300
+    assert data["wrapped"]["active_days"] == 2
+    assert ledger["days"]["2026-06-17"]["total_tokens"] == 100
 
 
 def test_contribution_level_uses_quantile_thresholds_for_edges() -> None:

@@ -17,7 +17,7 @@ import os
 from pathlib import Path
 import tempfile
 import time
-from typing import Any
+from typing import Any, TypedDict
 
 import codex_loader
 import persona_loader
@@ -36,8 +36,25 @@ AGENT_LOADERS = {"claude-code": claude, "codex": codex}
 AGENT_NAMES = {"claude-code": "Claude Code", "codex": "Codex"}
 _YEAR_WEEKS = 53
 YEAR_CACHE_PATH = Path(os.path.expanduser("~/.usage/year_cache.json"))
+YEAR_LEDGER_PATH = YEAR_CACHE_PATH.with_name("year_ledger.json")
 YEAR_CACHE_TTL_SECONDS = 6 * 3600
 _YEAR_CACHE_SCHEMA = 1
+_YEAR_LEDGER_SCHEMA = 1
+_YEAR_LEDGER_TRIM_BUFFER_DAYS = 60
+
+
+class _YearDay(TypedDict):
+    total_tokens: int
+    cost: float
+    model_tokens: dict[str, int]
+    project_tokens: dict[str, int]
+    agent_tokens: dict[str, int]
+    sessions: int
+
+
+class _YearLedger(TypedDict):
+    schema_version: int
+    days: dict[str, _YearDay]
 
 
 @dataclass(frozen=True)
@@ -293,40 +310,194 @@ def _contribution_level(tokens: int, thresholds: list[int]) -> int:
     return 4
 
 
-def build_year_data(agents: list[AgentInfo]) -> dict[str, Any]:
-    today = datetime.now().astimezone().date()
-    grid_end = today + timedelta(days=(5 - today.weekday()) % 7)
-    grid_start = grid_end - timedelta(days=_YEAR_WEEKS * 7 - 1)
-    hours_back = ((today - grid_start).days + 2) * 24
+def _empty_year_ledger() -> _YearLedger:
+    return {
+        "schema_version": _YEAR_LEDGER_SCHEMA,
+        "days": {},
+    }
 
-    raw_entries: list[UsageEntry] = []
-    for agent in agents:
-        raw_entries.extend(_load_agent_entries(agent, hours_back))
 
-    entries = [
-        entry
-        for entry in raw_entries
-        if grid_start <= _entry_date(entry) <= today
-    ]
+def _token_map(value: object) -> dict[str, int]:
+    if not isinstance(value, dict):
+        return {}
+    tokens: dict[str, int] = {}
+    for key, raw_tokens in value.items():
+        if (
+            isinstance(key, str)
+            and isinstance(raw_tokens, int)
+            and not isinstance(raw_tokens, bool)
+        ):
+            tokens[key] = raw_tokens
+    return tokens
 
-    daily_tokens: dict[date, int] = defaultdict(int)
+
+def _year_day_from_json(value: object) -> _YearDay | None:
+    if not isinstance(value, dict):
+        return None
+    total_tokens = value.get("total_tokens")
+    cost = value.get("cost")
+    sessions = value.get("sessions")
+    if (
+        not isinstance(total_tokens, int)
+        or isinstance(total_tokens, bool)
+        or not isinstance(cost, int | float)
+        or isinstance(cost, bool)
+        or not isinstance(sessions, int)
+        or isinstance(sessions, bool)
+    ):
+        return None
+    return {
+        "total_tokens": total_tokens,
+        "cost": float(cost),
+        "model_tokens": _token_map(value.get("model_tokens")),
+        "project_tokens": _token_map(value.get("project_tokens")),
+        "agent_tokens": _token_map(value.get("agent_tokens")),
+        "sessions": sessions,
+    }
+
+
+def _read_year_ledger() -> _YearLedger:
+    try:
+        with YEAR_LEDGER_PATH.open(encoding="utf-8") as file:
+            ledger = json.load(file)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        if os.environ.get("USAGE_DEBUG") == "1":
+            logger.warning(
+                "failed to read year ledger %s",
+                YEAR_LEDGER_PATH,
+                exc_info=True,
+            )
+        return _empty_year_ledger()
+
+    if not isinstance(ledger, dict):
+        return _empty_year_ledger()
+    if ledger.get("schema_version") != _YEAR_LEDGER_SCHEMA:
+        return _empty_year_ledger()
+    raw_days = ledger.get("days")
+    if not isinstance(raw_days, dict):
+        return _empty_year_ledger()
+
+    days: dict[str, _YearDay] = {}
+    for day_key, raw_day in raw_days.items():
+        if not isinstance(day_key, str):
+            continue
+        try:
+            date.fromisoformat(day_key)
+        except ValueError:
+            continue
+        day = _year_day_from_json(raw_day)
+        if day is not None:
+            days[day_key] = day
+    return {
+        "schema_version": _YEAR_LEDGER_SCHEMA,
+        "days": days,
+    }
+
+
+def _write_year_ledger(ledger: _YearLedger) -> None:
+    tmp_path: str | None = None
+    try:
+        YEAR_LEDGER_PATH.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(dir=YEAR_LEDGER_PATH.parent, suffix=".tmp")
+        with os.fdopen(fd, "w", encoding="utf-8") as file:
+            json.dump(ledger, file, ensure_ascii=False, indent=2, sort_keys=True)
+        os.replace(tmp_path, YEAR_LEDGER_PATH)
+        tmp_path = None
+    except Exception as exc:
+        if os.environ.get("USAGE_DEBUG") == "1":
+            logger.warning("failed to write year ledger %s: %s", YEAR_LEDGER_PATH, exc)
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            with contextlib.suppress(OSError):
+                os.unlink(tmp_path)
+
+
+def _new_year_day() -> _YearDay:
+    return {
+        "total_tokens": 0,
+        "cost": 0.0,
+        "model_tokens": {},
+        "project_tokens": {},
+        "agent_tokens": {},
+        "sessions": 0,
+    }
+
+
+def _aggregate_year_days(entries: list[UsageEntry]) -> dict[str, _YearDay]:
+    days: dict[str, _YearDay] = {}
+    session_ids: dict[str, set[str]] = defaultdict(set)
+    for entry in entries:
+        day_key = _entry_date(entry).isoformat()
+        day = days.setdefault(day_key, _new_year_day())
+        entry_tokens = entry.total_tokens
+        day["total_tokens"] += entry_tokens
+        day["cost"] += calculate_cost(entry)
+        day["model_tokens"][entry.model or "unknown"] = (
+            day["model_tokens"].get(entry.model or "unknown", 0) + entry_tokens
+        )
+        day["project_tokens"][entry.project or "unknown"] = (
+            day["project_tokens"].get(entry.project or "unknown", 0) + entry_tokens
+        )
+        day["agent_tokens"][entry.agent_id or "unknown"] = (
+            day["agent_tokens"].get(entry.agent_id or "unknown", 0) + entry_tokens
+        )
+        session_ids[day_key].add(entry.session_id)
+
+    for day_key, ids in session_ids.items():
+        days[day_key]["sessions"] = len(ids)
+    return days
+
+
+def _merge_year_ledger(
+    current_days: dict[str, _YearDay],
+    *,
+    trim_before: date,
+) -> _YearLedger:
+    ledger = _read_year_ledger()
+    days = ledger["days"]
+    for day_key, current_day in current_days.items():
+        ledger_day = days.get(day_key)
+        if ledger_day is None or current_day["total_tokens"] >= ledger_day["total_tokens"]:
+            days[day_key] = current_day
+
+    ledger["days"] = {
+        day_key: day
+        for day_key, day in days.items()
+        if date.fromisoformat(day_key) >= trim_before
+    }
+    _write_year_ledger(ledger)
+    return ledger
+
+
+def _build_year_output_from_ledger(
+    ledger: _YearLedger,
+    *,
+    grid_start: date,
+    grid_end: date,
+    today: date,
+) -> dict[str, Any]:
+    daily_tokens: dict[date, int] = {}
     model_tokens: dict[str, int] = defaultdict(int)
     project_tokens: dict[str, int] = defaultdict(int)
     agent_tokens: dict[str, int] = defaultdict(int)
     total_tokens = 0
     total_cost = 0.0
-    session_ids: set[str] = set()
+    total_sessions = 0
 
-    for entry in entries:
-        entry_tokens = entry.total_tokens
-        day = _entry_date(entry)
-        daily_tokens[day] += entry_tokens
-        model_tokens[entry.model or "unknown"] += entry_tokens
-        project_tokens[entry.project or "unknown"] += entry_tokens
-        agent_tokens[entry.agent_id or "unknown"] += entry_tokens
-        total_tokens += entry_tokens
-        total_cost += calculate_cost(entry)
-        session_ids.add(entry.session_id)
+    for day_key, day in ledger["days"].items():
+        day_date = date.fromisoformat(day_key)
+        if not grid_start <= day_date <= today:
+            continue
+        daily_tokens[day_date] = day["total_tokens"]
+        total_tokens += day["total_tokens"]
+        total_cost += day["cost"]
+        total_sessions += day["sessions"]
+        for model, tokens in day["model_tokens"].items():
+            model_tokens[model] += tokens
+        for project, tokens in day["project_tokens"].items():
+            project_tokens[project] += tokens
+        for agent_id, tokens in day["agent_tokens"].items():
+            agent_tokens[agent_id] += tokens
 
     active_days = sum(1 for tokens in daily_tokens.values() if tokens > 0)
     contribution_thresholds = _contribution_thresholds(list(daily_tokens.values()))
@@ -381,7 +552,7 @@ def build_year_data(agents: list[AgentInfo]) -> dict[str, Any]:
         "total_tokens": total_tokens,
         "total_cost": _round_cost(total_cost),
         "active_days": active_days,
-        "total_sessions": len(session_ids),
+        "total_sessions": total_sessions,
         "top_model": _top_name(model_tokens),
         "top_project": _top_name(project_tokens),
         "busiest_day": busiest_day,
@@ -394,6 +565,35 @@ def build_year_data(agents: list[AgentInfo]) -> dict[str, Any]:
         "contribution": contribution,
         "wrapped": wrapped,
     }
+
+
+def build_year_data(agents: list[AgentInfo]) -> dict[str, Any]:
+    today = datetime.now().astimezone().date()
+    grid_end = today + timedelta(days=(5 - today.weekday()) % 7)
+    grid_start = grid_end - timedelta(days=_YEAR_WEEKS * 7 - 1)
+    hours_back = ((today - grid_start).days + 2) * 24
+
+    raw_entries: list[UsageEntry] = []
+    for agent in agents:
+        raw_entries.extend(_load_agent_entries(agent, hours_back))
+
+    entries = [
+        entry
+        for entry in raw_entries
+        if grid_start <= _entry_date(entry) <= today
+    ]
+
+    current_days = _aggregate_year_days(entries)
+    ledger = _merge_year_ledger(
+        current_days,
+        trim_before=grid_start - timedelta(days=_YEAR_LEDGER_TRIM_BUFFER_DAYS),
+    )
+    return _build_year_output_from_ledger(
+        ledger,
+        grid_start=grid_start,
+        grid_end=grid_end,
+        today=today,
+    )
 
 
 def _load_year_data_cached(agents: list[AgentInfo]) -> dict[str, Any]:
