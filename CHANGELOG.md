@@ -5,6 +5,11 @@
 All notable changes to usage are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.22.8] - 2026-06-23
+
+### Fixed
+- **A panel that fails to load is no longer pinned to its error screen until restart**: the panel caching added in 0.22.7 stored whatever `build_view` returned — including the `ErrorPanelView` fallback shown when a panel's HTML can't be read — so once a load failed, switching back kept showing the error even after the file was available again. usage now caches only successfully-built web views; a failed build is shown but left uncached and rebuilt on the next switch, so a transient read failure recovers on its own.
+
 ## [0.22.7] - 2026-06-23
 
 ### Fixed

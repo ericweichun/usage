@@ -485,13 +485,16 @@ class PopoverViewController(NSViewController):
         self.transition_overlays = {}
         self.latest_state = None
         self.content_view = panel.build_view(delegate)
-        self.panel_views[panel.id] = self.content_view
-        self.panel_lru.append(panel.id)
         container = NSView.alloc().initWithFrame_(self.content_view.frame())
         container.setWantsLayer_(True)
         self.setView_(container)
         self.preparePanelView_(self.content_view)
         container.addSubview_(self.content_view)
+        # Only cache a real web view; a failed build (ErrorPanelView, no JS
+        # bridge) is shown but left uncached so a later switch rebuilds it.
+        if hasattr(self.content_view, "evaluateJavaScript_completionHandler_"):
+            self.panel_views[panel.id] = self.content_view
+            self.panel_lru.append(panel.id)
         return self
 
     def setState_(self, state: PopoverState) -> None:
@@ -501,6 +504,7 @@ class PopoverViewController(NSViewController):
         self.panel.apply_state(self.content_view, state)
 
     def switchToPanel_(self, panel: UsagePanel) -> None:
+        previous = self.content_view
         self.panel = panel
         content_view = self.panel_views.get(panel.id)
         if content_view is None:
@@ -508,12 +512,28 @@ class PopoverViewController(NSViewController):
             content_view.setHidden_(True)
             self.preparePanelView_(content_view)
             self.view().addSubview_(content_view)
-            self.panel_views[panel.id] = content_view
-            self.beginPanelTransitionForPanelId_view_(panel.id, content_view)
+            # Only cache a real web view. A failed build returns ErrorPanelView
+            # (no JS bridge); caching it would pin the error even after the file
+            # recovers, so leave it uncached and rebuild on the next switch.
+            if hasattr(content_view, "evaluateJavaScript_completionHandler_"):
+                self.panel_views[panel.id] = content_view
+                self.beginPanelTransitionForPanelId_view_(panel.id, content_view)
+        # Drop the previously shown view if it was an uncached error fallback,
+        # so it doesn't linger stacked in the container behind the new panel.
+        if (
+            previous is not None
+            and previous is not content_view
+            and previous not in self.panel_views.values()
+        ):
+            if hasattr(previous, "teardown"):
+                previous.teardown()
+            previous.removeFromSuperview()
         self.content_view = content_view
-        self.markPanelUsed_(panel.id)
+        if panel.id in self.panel_views:
+            self.markPanelUsed_(panel.id)
         for panel_id, view in list(self.panel_views.items()):
             view.setHidden_(panel_id != panel.id)
+        content_view.setHidden_(False)
         if self.latest_state is not None:
             self.setState_(self.latest_state)
         self.evictPanelViewsIfNeeded()
