@@ -1291,6 +1291,9 @@ def test_apply_refresh_result_pushes_state_only_when_popover_is_shown() -> None:
         def setState_(self, state: menubar.PopoverState) -> None:
             self.calls.append(state)
 
+        def currentContentView(self) -> object:
+            return self.content_view
+
     class FakePopover:
         def __init__(self, shown: bool) -> None:
             self.shown = shown
@@ -1672,15 +1675,15 @@ def test_apply_refresh_result_clears_busy_flag_when_ui_update_fails() -> None:
     assert delegate._refresh_queued is False
 
 
-def test_switching_visible_panel_reopens_popover(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_switching_visible_panel_reuses_popover(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeController:
         def __init__(self) -> None:
-            self.rebuilt: list[str] = []
+            self.switched: list[str] = []
             self.states: list[menubar.PopoverState] = []
             self._view = SimpleNamespace(window=lambda: FakeWindow())
 
-        def rebuildWithPanel_(self, panel: Any) -> None:
-            self.rebuilt.append(panel.id)
+        def switchToPanel_(self, panel: Any) -> None:
+            self.switched.append(panel.id)
 
         def setState_(self, state: menubar.PopoverState) -> None:
             self.states.append(state)
@@ -1748,12 +1751,11 @@ def test_switching_visible_panel_reopens_popover(monkeypatch: pytest.MonkeyPatch
 
     assert saved == ["matrix"]
     assert delegate.active_panel.id == "matrix"
-    assert delegate.popover_controller.rebuilt == ["matrix"]
-    assert delegate.popover_controller.states == [delegate.latest_state]
-    assert delegate.popover.closed == 1
+    assert delegate.popover_controller.switched == ["matrix"]
+    assert delegate.popover_controller.states == []
+    assert delegate.popover.closed == 0
     assert len(delegate.popover.sizes) == 1
-    assert len(delegate.popover.shown) == 1
-    assert delegate.popover.shown[0][0] == "button-bounds"
+    assert delegate.popover.shown == []
 
 
 def test_state_from_outcome_replaces_claude_reset_with_warning(

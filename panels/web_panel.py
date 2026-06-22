@@ -182,6 +182,7 @@ class WebPanelView(WKWebView):
     _injection_retry_payload = objc.ivar()
     _injection_reload_count = objc.ivar()
     _html = objc.ivar()
+    _first_paint_done = objc.ivar()
 
     def initWithFrame_configuration_delegate_(
         self,
@@ -201,6 +202,7 @@ class WebPanelView(WKWebView):
         self._injection_retry_payload = None
         self._injection_reload_count = 0
         self._html = None
+        self._first_paint_done = False
         self.setNavigationDelegate_(self)
         self.setValue_forKey_(False, "drawsBackground")
         self.setWantsLayer_(True)
@@ -258,6 +260,11 @@ class WebPanelView(WKWebView):
 
         def _completed(_value: Any, error: Any) -> None:
             _handle_injection_error(self, payload, error)
+            if error is None and not self._first_paint_done:
+                self._first_paint_done = True
+                delegate = self.delegate_ref
+                if delegate is not None and hasattr(delegate, "panelDidFirstPaint_"):
+                    delegate.panelDidFirstPaint_(self)
 
         self.evaluateJavaScript_completionHandler_(
             f"window.usageApplyState({encoded})",
