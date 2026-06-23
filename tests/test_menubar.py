@@ -1376,6 +1376,8 @@ def test_set_button_title_skips_unchanged_visible_state(
             return self._button
 
     delegate = menubar.AppDelegate.alloc().initWithMock_interval_(True, 60)
+    monkeypatch.setattr(menubar, "_hide_codex_enabled", lambda: False)
+    monkeypatch.setattr(menubar, "_hide_claude_enabled", lambda: False)
     state = menubar._empty_state(language="en")
     button = FakeButton()
     delegate.status_item = FakeStatusItem(button)
@@ -1416,6 +1418,8 @@ def test_set_button_title_updates_for_animation_frame(
             return self._button
 
     delegate = menubar.AppDelegate.alloc().initWithMock_interval_(True, 60)
+    monkeypatch.setattr(menubar, "_hide_codex_enabled", lambda: False)
+    monkeypatch.setattr(menubar, "_hide_claude_enabled", lambda: False)
     state = menubar._empty_state(language="en")
     button = FakeButton()
     delegate.status_item = FakeStatusItem(button)
@@ -1432,7 +1436,9 @@ def test_set_button_title_updates_for_animation_frame(
     assert len(button.attributed_titles) == 2
 
 
-def test_apply_codex_refresh_result_updates_quota_before_full_refresh() -> None:
+def test_apply_codex_refresh_result_updates_quota_before_full_refresh(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class FakeController:
         def __init__(self) -> None:
             self.calls: list[menubar.PopoverState] = []
@@ -1468,6 +1474,8 @@ def test_apply_codex_refresh_result_updates_quota_before_full_refresh() -> None:
         def button(self) -> FakeButton:
             return self._button
 
+    monkeypatch.setattr(menubar, "_hide_codex_enabled", lambda: False)
+    monkeypatch.setattr(menubar, "_hide_claude_enabled", lambda: False)
     delegate = menubar.AppDelegate.alloc().initWithMock_interval_(True, 60)
     controller = FakeController()
     button = FakeButton()
