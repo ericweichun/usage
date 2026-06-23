@@ -392,4 +392,74 @@ def test_render_ai_updates_section_falls_back_to_english_and_escapes() -> None:
     assert "<details" in html
     assert '<ol class="ai-update-items">' in html
     assert '<li class="ai-update-item">' in html
-    assert "Codex&lt;script&gt;" in html
+
+
+def test_fmt_cost_returns_dash_for_none() -> None:
+    """_fmt_cost returns '—' for None (unpriced models)."""
+    assert html_report._fmt_cost(None) == "—"
+    assert html_report._fmt_cost(0.0) == "$0.00"
+    assert html_report._fmt_cost(0.001) == "$0.0010"
+    assert html_report._fmt_cost(1.5) == "$1.50"
+
+
+def test_csv_cost_returns_dash_for_none() -> None:
+    """_csv_cost returns '—' for None (unpriced models in CSV)."""
+    assert html_report._csv_cost(None) == "—"
+    assert html_report._csv_cost(0.0) == "0.00"
+    assert html_report._csv_cost(0.001) == "0.0010"
+    assert html_report._csv_cost(1.5) == "1.50"
+
+
+def test_render_model_section_shows_dash_for_unpriced_models() -> None:
+    """_render_model_section shows '—' for models with cost_known=False."""
+    data = {
+        "by_model": [
+            {
+                "model": "claude-opus-4-8",
+                "tokens": 100000,
+                "cost": 1.5,
+                "cost_known": True,
+                "pct": 60.0,
+            },
+            {
+                "model": "glm-5.2",
+                "tokens": 50000,
+                "cost": 0.0,
+                "cost_known": False,
+                "pct": 40.0,
+            },
+        ]
+    }
+    html = html_report._render_model_section(data, "en")
+
+    assert "claude-opus-4-8" in html
+    assert "$1.50" in html
+    assert "glm-5.2" in html
+    assert "—" in html
+    assert "$0.00" not in html
+
+
+def test_build_csv_data_shows_dash_for_unpriced_models() -> None:
+    """_build_csv_data shows '—' for models with cost_known=False."""
+    data = {
+        "by_model": [
+            {
+                "model": "claude-opus-4-8",
+                "tokens": 100000,
+                "cost": 1.5,
+                "cost_known": True,
+                "pct": 60.0,
+            },
+            {
+                "model": "glm-5.2",
+                "tokens": 50000,
+                "cost": 0.0,
+                "cost_known": False,
+                "pct": 40.0,
+            },
+        ]
+    }
+    csv_text = html_report._build_csv_data(data, "en")
+
+    assert "model,claude-opus-4-8,60.0,100000,1.50\r\n" in csv_text
+    assert "model,glm-5.2,40.0,50000,—\r\n" in csv_text

@@ -1043,3 +1043,76 @@ def test_report_last30_uses_expected_codex_hours_back(monkeypatch: Any) -> None:
     reporter.build_report_data([agent], "last30")
 
     assert calls == {"full_hours_back": 744}
+
+
+def test_build_report_data_by_model_includes_cost_known(monkeypatch: Any) -> None:
+    """by_model entries include cost_known field for pricing availability."""
+    from datetime import UTC, datetime
+
+    from adapters.types import UsageEntry
+
+    # Mix of priced and unpriced models
+    fixed_date = datetime(2026, 5, 1, 12, 0, tzinfo=UTC)
+    entries = [
+        UsageEntry(
+            timestamp=fixed_date,
+            session_id="s1",
+            message_id="m1",
+            request_id="r1",
+            model="claude-opus-4-8",
+            input_tokens=1000,
+            output_tokens=500,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            cost_usd=None,
+            project="test",
+            agent_id="claude-code",
+            message_count=1,
+        ),
+        UsageEntry(
+            timestamp=fixed_date.replace(hour=13),
+            session_id="s2",
+            message_id="m2",
+            request_id="r2",
+            model="glm-5.2",  # Unpriced model
+            input_tokens=2000,
+            output_tokens=1000,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            cost_usd=None,
+            project="test",
+            agent_id="claude-code",
+            message_count=1,
+        ),
+    ]
+
+    # Mock _load_agent_entries directly to avoid loading real data
+    monkeypatch.setattr("analyzer.reporter._load_agent_entries", lambda agent, hours_back: entries)
+    monkeypatch.setattr("analyzer.reporter.subscription.load_subscriptions", lambda: [])
+    # Mock _load_persona_for_period to return None directly
+    monkeypatch.setattr("analyzer.reporter._load_persona_for_period", lambda period: None)
+    # Pin datetime.now() to fixed_date
+    from datetime import tzinfo
+
+    class _FixedDateTime:
+        @staticmethod
+        def now(tz: tzinfo | None = None) -> datetime:
+            return fixed_date.astimezone(tz) if tz else fixed_date.replace(tzinfo=None)
+
+    monkeypatch.setattr("analyzer.reporter.datetime", _FixedDateTime)
+
+    agent = AgentInfo("claude-code", "Claude Code", "~/.claude", True)
+    data = reporter.build_report_data([agent], "today")
+
+    by_model = data.get("by_model", [])
+    assert len(by_model) == 2
+
+    # Find the priced model (claude-opus-4-8)
+    priced_model = next((m for m in by_model if m["model"] == "claude-opus-4-8"), None)
+    assert priced_model is not None
+    assert priced_model.get("cost_known") is True
+
+    # Find the unpriced model (glm-5.2)
+    unpriced_model = next((m for m in by_model if m["model"] == "glm-5.2"), None)
+    assert unpriced_model is not None
+    assert unpriced_model.get("cost_known") is False

@@ -684,3 +684,30 @@ def test_write_cache_writes_json_atomically(
         "model": {"input_cost_per_token": 1.0}
     }
     assert list(tmp_path.glob("*.tmp")) == []
+
+
+def test_is_model_priced_returns_true_for_known_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """is_model_priced returns True for models in pricing table."""
+    pricing_table = {
+        "claude-opus-4-8": {"input_cost_per_token": 15e-6},
+        "gpt-4": {"input_cost_per_token": 30e-6},
+    }
+    pricing._set_pricing_cache_for_test((pricing_table, "cache", 0.0))
+
+    assert pricing.is_model_priced("claude-opus-4-8") is True
+    assert pricing.is_model_priced("gpt-4") is True
+
+
+def test_is_model_priced_returns_false_for_unknown_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """is_model_priced returns False for models not in pricing table."""
+    pricing_table = {
+        "claude-opus-4-8": {"input_cost_per_token": 15e-6},
+    }
+    pricing._set_pricing_cache_for_test((pricing_table, "cache", 0.0))
+
+    assert pricing.is_model_priced("glm-5.2") is False
+    assert pricing.is_model_priced("unknown-model") is False

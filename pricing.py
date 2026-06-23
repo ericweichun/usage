@@ -86,6 +86,12 @@ def calculate_cost(entry: _CostEntry) -> float:
     return cost
 
 
+def is_model_priced(model: str) -> bool:
+    """Check if a model has pricing information available."""
+    pricing = get_pricing()
+    return _resolve_model_key(model, pricing) is not None
+
+
 def get_pricing() -> PricingTable:
     global _pricing_cache
     now = time.monotonic()

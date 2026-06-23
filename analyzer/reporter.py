@@ -25,7 +25,7 @@ import subscription
 import ai_updates_loader
 from adapters import claude, codex
 from adapters.types import AgentInfo, UsageEntry
-from pricing import calculate_cost
+from pricing import calculate_cost, is_model_priced
 
 from .aggregator import aggregate_sessions
 from . import diagnoser
@@ -801,6 +801,7 @@ def build_report_data(agents: list[AgentInfo], period: str = "month") -> dict[st
             "model": model,
             "tokens": data["tokens"],
             "cost": _round_cost(data["cost"]),
+            "cost_known": is_model_priced(model),
             "pct": _pct(data["tokens"], total_tokens),
             "top_project": _top_project(by_model_project.get(model, {})),
         }

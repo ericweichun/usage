@@ -44,7 +44,9 @@ def _fmt_tokens(value: int) -> str:
     return str(value)
 
 
-def _fmt_cost(value: float) -> str:
+def _fmt_cost(value: float | None) -> str:
+    if value is None:
+        return "—"
     return f"${value:,.4f}" if 0 < value < 1 else f"${value:,.2f}"
 
 
@@ -107,7 +109,7 @@ def _empty_line(label: str) -> str:
     return f'<div class="empty">→ {html.escape(label)}</div>'
 
 
-def _rank_line(name: str, pct: float, tokens: int, cost: float, lang: str) -> str:
+def _rank_line(name: str, pct: float, tokens: int, cost: float | None, lang: str) -> str:
     return (
         '<div class="rank-line">'
         f'<span class="arrow">→</span><span class="name">{html.escape(name)}</span>'
@@ -480,7 +482,7 @@ def _render_model_section(data: dict[str, Any], lang: str) -> str:
             _display_name(model["model"], lang),
             float(model["pct"]),
             int(model["tokens"]),
-            float(model["cost"]),
+            None if not model.get("cost_known", True) else float(model["cost"]),
             lang,
         )
         for model in data.get("by_model", [])
@@ -791,7 +793,9 @@ def _share_config_json(lang: str) -> str:
     return json.dumps(share_config, ensure_ascii=False).replace("</", "<\\/")
 
 
-def _csv_cost(value: float) -> str:
+def _csv_cost(value: float | None) -> str:
+    if value is None:
+        return "—"
     return f"{value:.4f}" if 0 < value < 1 else f"{value:.2f}"
 
 
@@ -810,13 +814,14 @@ def _build_csv_data(data: dict[str, Any], lang: str, *, mask_projects: bool = Fa
             ]
         )
     for item in data.get("by_model", []):
+        cost_val = None if not item.get("cost_known", True) else float(item.get("cost", 0.0))
         writer.writerow(
             [
                 "model",
                 _display_name(item.get("model"), lang),
                 f"{float(item.get('pct', 0.0)):.1f}",
                 str(int(item.get("tokens", 0))),
-                _csv_cost(float(item.get("cost", 0.0))),
+                _csv_cost(cost_val),
             ]
         )
     return out.getvalue()
