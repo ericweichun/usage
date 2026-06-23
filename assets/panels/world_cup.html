@@ -256,8 +256,7 @@
     }
 
     .duel-track {
-      display: flex;
-      align-items: stretch;
+      position: relative;
       min-width: 0;
       height: 20px;
       overflow: hidden;
@@ -268,7 +267,8 @@
     }
 
     .duel-fill {
-      flex: none;
+      position: absolute;
+      top: 0;
       width: 0%;
       min-width: 0;
       max-width: 50%;
@@ -277,19 +277,22 @@
     }
 
     .duel-fill.left {
-      margin-left: auto;
+      right: calc(50% + 1px);
       border-radius: 999px 0 0 999px;
       background: var(--claude);
     }
 
     .duel-center {
+      position: absolute;
+      top: 0;
+      left: calc(50% - 1px);
       width: 2px;
-      flex: none;
+      height: 100%;
       background: rgba(201, 162, 39, 0.85);
     }
 
     .duel-fill.right {
-      margin-right: auto;
+      left: calc(50% + 1px);
       border-radius: 0 999px 999px 0;
       background: var(--codex);
     }
@@ -927,8 +930,8 @@
       const codexWeekly = state.codex?.weekly ?? {};
       const claudeSessionActive = claudeSession.available === true && typeof claudeSession.percent === "number";
       const codexSessionActive = codexSession.available === true && typeof codexSession.percent === "number";
-      const claudeSessionPercent = claudeSessionActive ? claudeSession.percent : 0;
-      const codexSessionPercent = codexSessionActive ? codexSession.percent : 0;
+      claudeSessionPercent = claudeSessionActive ? claudeSession.percent : 0;
+      codexSessionPercent = codexSessionActive ? codexSession.percent : 0;
 
       sessionPercentDiff = claudeSessionPercent - codexSessionPercent;
 
@@ -1015,6 +1018,10 @@
     let lastBallX = 0;
     let lastBallY = 0;
     let sessionPercentDiff = 0;
+    let claudeSessionPercent = 0;
+    let codexSessionPercent = 0;
+    let lastClaudeCount = -1;
+    let lastCodexCount = -1;
 
     function playerBounds(team) {
       return {
@@ -1029,41 +1036,79 @@
       return Math.max(min, Math.min(max, value));
     }
 
+    // 陣型槽位：沿用原本 specs 的 hx/hy 比例，依「後場→前場」排序；取前 N 個即得該人數的散布
+    const CLAUDE_SLOTS = [
+      { hx: 0.05, hy: 0.50 }, { hx: 0.18, hy: 0.28 }, { hx: 0.18, hy: 0.72 }, { hx: 0.32, hy: 0.40 },
+      { hx: 0.32, hy: 0.60 }, { hx: 0.45, hy: 0.30 }, { hx: 0.45, hy: 0.70 }, { hx: 0.50, hy: 0.50 },
+    ];
+    const CODEX_SLOTS = [
+      { hx: 0.95, hy: 0.50 }, { hx: 0.82, hy: 0.28 }, { hx: 0.82, hy: 0.72 }, { hx: 0.68, hy: 0.40 },
+      { hx: 0.68, hy: 0.60 }, { hx: 0.55, hy: 0.30 }, { hx: 0.55, hy: 0.70 }, { hx: 0.50, hy: 0.50 },
+    ];
+    // 壓中線強度上限：max 內移 0.27w，仍停在自己半場邊界內、不擠成一團
+    const PUSH_STRENGTH = 0.6;
+
+    function targetCount(percent) {
+      return clamp(Math.round(5 + (percent / 100) * 3), 5, 8);
+    }
+
+    function pushedHomeX(team, baseHxRatio) {
+      const pct = team === "claude" ? claudeSessionPercent : codexSessionPercent;
+      const pushFactor = clamp(pct / 100, 0, 1) * PUSH_STRENGTH;
+      const centerX = width * 0.5;
+      const baseX = baseHxRatio * width;
+      return baseX + (centerX - baseX) * pushFactor;
+    }
+
+    function applyFormationPush() {
+      for (const p of players) {
+        const bounds = playerBounds(p.team);
+        p.hx = clamp(pushedHomeX(p.team, p.bxr), bounds.minX + 6, bounds.maxX - 6);
+      }
+    }
+
+    function syncPlayers() {
+      const cTarget = targetCount(claudeSessionPercent);
+      const xTarget = targetCount(codexSessionPercent);
+      if (cTarget !== lastClaudeCount || xTarget !== lastCodexCount) initPlayers();
+    }
+
     function initPlayers() {
+      const claudeCount = targetCount(claudeSessionPercent);
+      const codexCount = targetCount(codexSessionPercent);
+      lastClaudeCount = claudeCount;
+      lastCodexCount = codexCount;
       players.length = 0;
       const zt = height * PLAYER_TOP_RATIO;
       const zb = height - 72;
       const zh = Math.max(10, zb - zt);
-      const specs = [
-        { team: "claude", hx: 0.05, hy: 0.50 },
-        { team: "claude", hx: 0.20, hy: 0.25 },
-        { team: "claude", hx: 0.20, hy: 0.75 },
-        { team: "claude", hx: 0.35, hy: 0.35 },
-        { team: "claude", hx: 0.35, hy: 0.65 },
-        { team: "claude", hx: 0.50, hy: 0.50 },
-        { team: "codex", hx: 0.95, hy: 0.50 },
-        { team: "codex", hx: 0.80, hy: 0.25 },
-        { team: "codex", hx: 0.80, hy: 0.75 },
-        { team: "codex", hx: 0.65, hy: 0.35 },
-        { team: "codex", hx: 0.65, hy: 0.65 },
-        { team: "codex",  hx: 0.50, hy: 0.50 },
-      ];
-      specs.forEach((s) => {
-        const hx = s.hx * width;
-        const hy = zt + s.hy * zh;
-        const bounds = playerBounds(s.team);
-        players.push({
-          team: s.team,
-          x: clamp(hx + (Math.random() - 0.5) * 16, bounds.minX + 6, bounds.maxX - 6),
-          y: clamp(hy + (Math.random() - 0.5) * 16, bounds.minY + 6, bounds.maxY - 6),
-          hx: clamp(hx, bounds.minX + 6, bounds.maxX - 6),
-          hy: clamp(hy, bounds.minY + 6, bounds.maxY - 6),
-          tx: clamp(hx, bounds.minX + 6, bounds.maxX - 6),
-          ty: clamp(hy, bounds.minY + 6, bounds.maxY - 6),
-          speed: 0.2 + Math.random() * 0.2,
-          timer: Math.random() * 90,
-        });
-      });
+      const slotsByTeam = { claude: CLAUDE_SLOTS, codex: CODEX_SLOTS };
+      const counts = { claude: claudeCount, codex: codexCount };
+      for (const team of ["claude", "codex"]) {
+        const slots = slotsByTeam[team];
+        const count = counts[team];
+        for (let i = 0; i < count; i += 1) {
+          const s = slots[i];
+          const bxr = s.hx;
+          const byr = s.hy;
+          const hx = pushedHomeX(team, bxr);
+          const hy = zt + byr * zh;
+          const bounds = playerBounds(team);
+          players.push({
+            team,
+            bxr,
+            byr,
+            x: clamp(hx + (Math.random() - 0.5) * 16, bounds.minX + 6, bounds.maxX - 6),
+            y: clamp(hy + (Math.random() - 0.5) * 16, bounds.minY + 6, bounds.maxY - 6),
+            hx: clamp(hx, bounds.minX + 6, bounds.maxX - 6),
+            hy: clamp(hy, bounds.minY + 6, bounds.maxY - 6),
+            tx: clamp(hx, bounds.minX + 6, bounds.maxX - 6),
+            ty: clamp(hy, bounds.minY + 6, bounds.maxY - 6),
+            speed: 0.2 + Math.random() * 0.2,
+            timer: Math.random() * 90,
+          });
+        }
+      }
     }
 
     function closestPlayer(team) {
@@ -1137,7 +1182,8 @@
     }
 
     function updateAndDrawPlayers() {
-      if (players.length !== 12) initPlayers();
+      syncPlayers();
+      applyFormationPush();
       const claudeChaser = closestPlayer("claude");
       const codexChaser = closestPlayer("codex");
       if (kickCooldown > 0) kickCooldown -= 1;
@@ -1306,7 +1352,7 @@
       sizeCanvas(pitchCanvas, pitchCtx);
       sizeCanvas(ballCanvas, ballCtx);
       drawPitch();
-      if (players.length !== 12) initPlayers();
+      if (players.length === 0) initPlayers();
       if (ball.x === 0 && ball.y === 0) {
         resetBall();
       } else {
