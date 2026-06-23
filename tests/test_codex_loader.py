@@ -962,6 +962,8 @@ def test_load_rate_limits_prefers_sqlite_websocket_rate_limits(
         five_hour_resets_at=9999999999.0,
         seven_day_pct=6.0,
         seven_day_resets_at=9999999998.0,
+        five_hour_window_minutes=300.0,
+        seven_day_window_minutes=10080.0,
         model="gpt-5.5",
         updated_at=now.isoformat(),
     )

@@ -178,6 +178,35 @@ def codex_stale_state(updated_at: str, now: float, language: str) -> CodexStaleS
     return {"ageText": _t(language, "codex_stale_hours", hours=hours)}
 
 
+# Codex reports each quota slot's window length in minutes. Map it to a label so
+# the row name follows the plan instead of being hard-coded: ~300m → Session,
+# ~10080m → Weekly, ~43200m → Monthly (free plan). Thresholds are generous so
+# minor drift in Codex's reported minutes still lands on the right label.
+_CODEX_SESSION_MAX_MINUTES = 600.0  # ≤10h counts as the 5-hour session window
+_CODEX_WEEKLY_MAX_MINUTES = 20160.0  # ≤14d counts as the weekly window
+
+
+def _codex_window_label_key(window_minutes: float | None) -> str | None:
+    if window_minutes is None:
+        return None
+    if window_minutes <= _CODEX_SESSION_MAX_MINUTES:
+        return "session_label"
+    if window_minutes <= _CODEX_WEEKLY_MAX_MINUTES:
+        return "weekly_label"
+    return "monthly_label"
+
+
+def _codex_window_title(
+    window_minutes: float | None,
+    slot_default_key: str,
+    language: str,
+) -> str:
+    # Fall back to the slot's historical label when Codex omits window_minutes,
+    # so older logs / header-only sources keep their previous behaviour.
+    key = _codex_window_label_key(window_minutes) or slot_default_key
+    return _t(language, key)
+
+
 def codex_rows(
     *,
     mock: bool,
@@ -190,7 +219,7 @@ def codex_rows(
         burn_rate_trackers["codex_weekly"].record(now, 28.0)
         rows = (
             _quota_row(
-                "Session",
+                _t(language, "session_label"),
                 12.0,
                 now + (4 * 3600) + (15 * 60),
                 now,
@@ -199,7 +228,7 @@ def codex_rows(
                 forecast_seconds=burn_rate_trackers["codex_session"].forecast_seconds(),
             ),
             _quota_row(
-                "Weekly",
+                _t(language, "weekly_label"),
                 28.0,
                 now + (4 * 86400),
                 now,
@@ -220,8 +249,8 @@ def codex_rows(
 
     if rate_limits is None:
         rows = (
-            _missing_row("Session", CODEX_COLOR, language),
-            _missing_row("Weekly", CODEX_COLOR, language),
+            _missing_row(_t(language, "session_label"), CODEX_COLOR, language),
+            _missing_row(_t(language, "weekly_label"), CODEX_COLOR, language),
         )
         return rows, None, "unknown", None
     model = rate_limits.model or "unknown"
@@ -240,9 +269,24 @@ def codex_rows(
         burn_rate_trackers["codex_session"].record(now, rate_limits.five_hour_pct)
     if rate_limits.seven_day_pct is not None:
         burn_rate_trackers["codex_weekly"].record(now, rate_limits.seven_day_pct)
+    session_title = _codex_window_title(
+        rate_limits.five_hour_window_minutes, "session_label", language
+    )
+    # A slot with neither usage nor a window is absent (the free plan has no
+    # weekly window) — leave its label blank rather than mislabel it "Weekly".
+    weekly_absent = (
+        rate_limits.seven_day_pct is None and rate_limits.seven_day_window_minutes is None
+    )
+    weekly_title = (
+        ""
+        if weekly_absent
+        else _codex_window_title(
+            rate_limits.seven_day_window_minutes, "weekly_label", language
+        )
+    )
     rows = (
         _quota_row(
-            "Session",
+            session_title,
             rate_limits.five_hour_pct,
             rate_limits.five_hour_resets_at,
             now,
@@ -251,7 +295,7 @@ def codex_rows(
             forecast_seconds=burn_rate_trackers["codex_session"].forecast_seconds(),
         ),
         _quota_row(
-            "Weekly",
+            weekly_title,
             rate_limits.seven_day_pct,
             rate_limits.seven_day_resets_at,
             now,
@@ -306,7 +350,7 @@ def build_popover_state(
                 float(snapshot.weekly_percent),
             )
         claude_session = _quota_row(
-            "Session",
+            _t(language, "session_label"),
             float(snapshot.current_percent) if snapshot.current_percent is not None else None,
             snapshot.current_reset_at,
             now,
@@ -315,7 +359,7 @@ def build_popover_state(
             forecast_seconds=burn_rate_trackers["claude_session"].forecast_seconds(),
         )
         claude_weekly = _quota_row(
-            "Weekly",
+            _t(language, "weekly_label"),
             float(snapshot.weekly_percent) if snapshot.weekly_percent is not None else None,
             snapshot.weekly_reset_at,
             now,
@@ -336,8 +380,8 @@ def build_popover_state(
             value=status_value,
         )
     else:
-        claude_session = _missing_row("Session", CLAUDE_COLOR, language)
-        claude_weekly = _missing_row("Weekly", CLAUDE_COLOR, language)
+        claude_session = _missing_row(_t(language, "session_label"), CLAUDE_COLOR, language)
+        claude_weekly = _missing_row(_t(language, "weekly_label"), CLAUDE_COLOR, language)
         if hide_claude:
             status_value = _t(language, "status_synced")
         else:

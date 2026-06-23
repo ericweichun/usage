@@ -434,6 +434,9 @@ def _row_payload(row: QuotaRowState) -> dict[str, object]:
         "resetText": row.reset_text,
         "warning": row.warning,
         "available": row.available,
+        # Backend-resolved label (follows Codex's window length); panels prefer
+        # this over their hard-coded session/weekly text. "" means "hide label".
+        "title": row.title,
     }
 
 

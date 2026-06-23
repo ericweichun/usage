@@ -1400,8 +1400,8 @@ class AppDelegate(NSObject):
             if os.environ.get("USAGE_DEBUG") == "1":
                 logger.warning("Codex quota refresh failed", exc_info=True)
             codex_rows = (
-                _missing_row("Session", CODEX_COLOR, self.language),
-                _missing_row("Weekly", CODEX_COLOR, self.language),
+                _missing_row(_t(self.language, "session_label"), CODEX_COLOR, self.language),
+                _missing_row(_t(self.language, "weekly_label"), CODEX_COLOR, self.language),
             )
             codex_5h_pct = None
             codex_model = "unknown"
@@ -1473,7 +1473,9 @@ class AppDelegate(NSObject):
                     self.language,
                     body_key,
                     tool=_notification_tool(event.channel),
-                    scope=_notification_scope(self.language, event.channel),
+                    # row.title carries the window-aware label (e.g. Codex free
+                    # plan shows "Monthly"); fall back to the slot's scope text.
+                    scope=row.title or _notification_scope(self.language, event.channel),
                     pct=_format_percent(row.percent or event.threshold or 0.0),
                     reset=row.reset_text,
                 )
@@ -1825,10 +1827,10 @@ def _popover_size(state: PopoverState, panel: UsagePanel | None = None) -> Any:
 def _empty_state(language: str = "en") -> PopoverState:
     return PopoverState(
         language=language,
-        claude_session=_missing_row("Session", CLAUDE_COLOR, language),
-        claude_weekly=_missing_row("Weekly", CLAUDE_COLOR, language),
-        codex_session=_missing_row("Session", CODEX_COLOR, language),
-        codex_weekly=_missing_row("Weekly", CODEX_COLOR, language),
+        claude_session=_missing_row(_t(language, "session_label"), CLAUDE_COLOR, language),
+        claude_weekly=_missing_row(_t(language, "weekly_label"), CLAUDE_COLOR, language),
+        codex_session=_missing_row(_t(language, "session_label"), CODEX_COLOR, language),
+        codex_weekly=_missing_row(_t(language, "weekly_label"), CODEX_COLOR, language),
         projects=[],
         projects_7d=[],
         projects_30d=[],

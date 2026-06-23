@@ -789,7 +789,7 @@
       const reset = el.querySelector(".reset");
       const fill = el.querySelector(".fill");
       if (!title || !percent || !reset || !fill) return;
-      title.textContent = labels()[key];
+      title.textContent = data.title != null ? data.title : labels()[key];
       percent.textContent = data.percentText || "--";
       reset.textContent = data.resetText || t("reset_placeholder");
       reset.dataset.warning = data.warning === true ? "true" : "false";

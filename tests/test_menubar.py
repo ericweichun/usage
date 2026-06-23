@@ -1812,6 +1812,44 @@ def test_codex_rows_ignores_invalid_stale_timestamp(monkeypatch: pytest.MonkeyPa
     assert stale is None
 
 
+def test_codex_window_label_key_maps_window_to_label() -> None:
+    assert menubar_state._codex_window_label_key(300.0) == "session_label"
+    assert menubar_state._codex_window_label_key(10080.0) == "weekly_label"
+    assert menubar_state._codex_window_label_key(43200.0) == "monthly_label"
+    assert menubar_state._codex_window_label_key(None) is None
+
+
+def test_codex_rows_free_plan_labels_window_as_monthly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delegate = menubar.AppDelegate.alloc().initWithMock_interval_(False, 60)
+    delegate.language = "en"
+    monkeypatch.setattr("time.time", lambda: 1_700_000_000.0)
+    monkeypatch.setattr(
+        codex_loader,
+        "load_rate_limits",
+        lambda: codex_loader.CodexRateLimits(
+            five_hour_pct=100.0,
+            five_hour_resets_at=1_702_000_000.0,
+            seven_day_pct=None,
+            seven_day_resets_at=None,
+            five_hour_window_minutes=43200.0,
+            seven_day_window_minutes=None,
+            model="gpt-5",
+            updated_at="2026-06-23T15:16:48+00:00",
+        ),
+    )
+
+    rows, _codex_5h_pct, _model, _stale = _codex_rows(delegate)
+
+    # 30-day window must read as "Monthly", not the hard-coded "Session".
+    assert rows[0].title == "Monthly"
+    assert rows[0].available is True
+    # Free plan has no weekly window — second row stays blank, not "Weekly".
+    assert rows[1].title == ""
+    assert rows[1].available is False
+
+
 def test_state_from_outcome_keeps_reset_when_burn_rate_is_not_positive(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

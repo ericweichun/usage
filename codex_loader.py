@@ -48,6 +48,11 @@ class CodexRateLimits:
     five_hour_resets_at: float | None
     seven_day_pct: float | None
     seven_day_resets_at: float | None
+    # window length (minutes) Codex reports for each slot; drives the row label
+    # (≈300→Session, ≈10080→Weekly, ≈43200→Monthly). None when the source has no
+    # window_minutes (header/error fallbacks) or the slot is absent (free plan).
+    five_hour_window_minutes: float | None = None
+    seven_day_window_minutes: float | None = None
     model: str | None = "unknown"
     updated_at: str = ""
 
@@ -198,20 +203,24 @@ def _merge_rate_limits(
 ) -> CodexRateLimits | None:
     sqlite_ts = _rate_limits_timestamp(sqlite_limits)
     jsonl_ts = _rate_limits_timestamp(jsonl_limits)
-    five_pct, five_reset = _pick_rate_limit_window(
+    five_pct, five_reset, five_window = _pick_rate_limit_window(
         sqlite_limits.five_hour_pct,
         sqlite_limits.five_hour_resets_at,
+        sqlite_limits.five_hour_window_minutes,
         sqlite_ts,
         jsonl_limits.five_hour_pct,
         jsonl_limits.five_hour_resets_at,
+        jsonl_limits.five_hour_window_minutes,
         jsonl_ts,
     )
-    seven_pct, seven_reset = _pick_rate_limit_window(
+    seven_pct, seven_reset, seven_window = _pick_rate_limit_window(
         sqlite_limits.seven_day_pct,
         sqlite_limits.seven_day_resets_at,
+        sqlite_limits.seven_day_window_minutes,
         sqlite_ts,
         jsonl_limits.seven_day_pct,
         jsonl_limits.seven_day_resets_at,
+        jsonl_limits.seven_day_window_minutes,
         jsonl_ts,
     )
     if five_pct is None and seven_pct is None:
@@ -222,6 +231,8 @@ def _merge_rate_limits(
         five_hour_resets_at=five_reset,
         seven_day_pct=seven_pct,
         seven_day_resets_at=seven_reset,
+        five_hour_window_minutes=five_window,
+        seven_day_window_minutes=seven_window,
         model=newer.model,
         updated_at=newer.updated_at,
     )
@@ -230,20 +241,22 @@ def _merge_rate_limits(
 def _pick_rate_limit_window(
     sqlite_pct: float | None,
     sqlite_reset: float | None,
+    sqlite_window: float | None,
     sqlite_ts: datetime,
     jsonl_pct: float | None,
     jsonl_reset: float | None,
+    jsonl_window: float | None,
     jsonl_ts: datetime,
-) -> tuple[float | None, float | None]:
+) -> tuple[float | None, float | None, float | None]:
     if sqlite_pct is None:
-        return jsonl_pct, jsonl_reset
+        return jsonl_pct, jsonl_reset, jsonl_window
     if jsonl_pct is None:
-        return sqlite_pct, sqlite_reset
+        return sqlite_pct, sqlite_reset, sqlite_window
     if _active_window_limit_reached(sqlite_pct, sqlite_reset, jsonl_reset):
-        return sqlite_pct, sqlite_reset
+        return sqlite_pct, sqlite_reset, sqlite_window
     if jsonl_ts > sqlite_ts:
-        return jsonl_pct, jsonl_reset
-    return sqlite_pct, sqlite_reset
+        return jsonl_pct, jsonl_reset, jsonl_window
+    return sqlite_pct, sqlite_reset, sqlite_window
 
 
 def _active_window_limit_reached(
@@ -325,6 +338,8 @@ def _rate_limits_from_websocket_event(
         primary_reset=_as_optional_float(primary.get("reset_at")),
         secondary_pct=_as_optional_float(secondary.get("used_percent")),
         secondary_reset=_as_optional_float(secondary.get("reset_at")),
+        primary_window_minutes=_as_optional_float(primary.get("window_minutes")),
+        secondary_window_minutes=_as_optional_float(secondary.get("window_minutes")),
         model=_event_value(body, "model") or "unknown",
         updated_at=_timestamp_from_log_ts(ts),
     )
@@ -367,6 +382,8 @@ def _build_rate_limits(
     secondary_reset: float | None,
     model: str,
     updated_at: datetime | None,
+    primary_window_minutes: float | None = None,
+    secondary_window_minutes: float | None = None,
 ) -> CodexRateLimits | None:
     now_ts = datetime.now(UTC).timestamp()
     if primary_reset is not None and primary_reset < now_ts:
@@ -382,6 +399,8 @@ def _build_rate_limits(
         five_hour_resets_at=primary_reset,
         seven_day_pct=secondary_pct,
         seven_day_resets_at=secondary_reset,
+        five_hour_window_minutes=primary_window_minutes,
+        seven_day_window_minutes=secondary_window_minutes,
         model=model,
         updated_at=updated_at.isoformat() if updated_at is not None else "",
     )
@@ -587,8 +606,10 @@ def _extract_rate_limits(path: Path, models: dict[str, str]) -> CodexRateLimits 
     secondary = _as_dict(rate_limits.get("secondary"))
     five_pct = _as_optional_float(primary.get("used_percent"))
     five_reset = _as_optional_float(primary.get("resets_at"))
+    five_window = _as_optional_float(primary.get("window_minutes"))
     seven_pct = _as_optional_float(secondary.get("used_percent"))
     seven_reset = _as_optional_float(secondary.get("resets_at"))
+    seven_window = _as_optional_float(secondary.get("window_minutes"))
     now_ts = datetime.now(UTC).timestamp()
     if five_reset is not None and five_reset < now_ts:
         five_pct = 0.0
@@ -603,6 +624,8 @@ def _extract_rate_limits(path: Path, models: dict[str, str]) -> CodexRateLimits 
         five_hour_resets_at=five_reset,
         seven_day_pct=seven_pct,
         seven_day_resets_at=seven_reset,
+        five_hour_window_minutes=five_window,
+        seven_day_window_minutes=seven_window,
         model=models.get(session_id, session_model),
         updated_at=updated_at,
     )
